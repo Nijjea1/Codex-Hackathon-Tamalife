@@ -2,9 +2,40 @@
 
 **Keep your expenses alive.**
 
-Tamalife turns subscriptions, recurring bills, warranties, memberships, and free trials into animated digital creatures. Every tracked expense has a creature whose visual health reflects how urgently you need to review it — and when you resolve, renew, or cancel the item, the creature visibly revives.
+# Codex-Hackathon-Tamalife
+A Tamagotchi for your subscriptions, bills, warranties and recurring expenses.
 
-This is a frontend-only prototype: all data is local mock data and every asynchronous action (sign-in, receipt parsing) is mocked.
+Tamalife transforms the way people manage recurring finances by turning every subscription, bill, or warranty into a living digital companion. Instead of relying on easy-to-ignore reminders, each item is represented by a unique creature whose health reflects how well it's being managed. As renewal dates, warranty expirations, or price increases approach, neglected creatures become sick or wilt. Taking action—renewing, cancelling, disputing, or updating information—brings them back to life.
+
+Using OpenAI models, Tamalife can intelligently extract structured information from receipts, invoices, and confirmation emails, automatically identifying renewal dates, billing cycles, prices, and warranty expirations with minimal user input.
+
+✨ Features
+🪴 Interactive creature-based subscription tracking
+🤖 AI-powered receipt and email parsing
+📅 Automatic renewal and warranty detection
+❤️ Dynamic creature health based on real-world dates
+📊 Personalized dashboard for subscriptions and recurring expenses
+🔔 Smart reminders and proactive financial insights
+📈 Price increase detection and spending analysis
+
+🛠️ Tech Stack
+Frontend: React Native (Expo) + TypeScript
+Backend: Supabase
+Database: PostgreSQL (Supabase)
+AI: OpenAI API
+Animations: React Native Reanimated + Lottie
+
+🚀 Built for the OpenAI Codex Hackathon
+
+Tamalife is being developed as part of the OpenAI Codex Hackathon, showcasing how AI can solve a real-world consumer problem through intelligent automation, natural language understanding, and an engaging user experience.
+
+Rather than simply generating text, Codex is being used throughout development to help build parsing pipelines, state management logic, backend integrations, and application architecture.
+
+👥 Team
+Avneet Nijjer
+Pranoy
+Paramveer
+Kartik
 
 ## Run it
 
