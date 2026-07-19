@@ -62,7 +62,21 @@ Alembic before starting the API.
 7. Never put the database password or service key in the Expo application.
 
 Alembic is the application-schema source of truth. Supabase provides hosted PostgreSQL and
-Storage; dashboard table edits should be avoided because they create migration drift.
+Storage; dashboard table edits should be avoided because they create migration drift. The
+application schema contains:
+
+- `users`
+- `subscriptions`
+- `subscription_events`
+- `parsed_receipts`
+- `notification_preferences`
+- `idempotency_keys`
+- `widget_tokens`
+- `clerk_webhook_events`
+
+`clerk_webhook_events` is reserved for future webhook deduplication and does not enable Clerk
+authentication. No Supabase SQL migration duplicates these application tables; the only SQL
+bootstrap file creates the private Storage bucket.
 
 ## OpenAI extraction
 
@@ -105,3 +119,5 @@ ISO dates, and billing intervals without network access. Image extraction requir
 - Redis is optional locally and used for widget caching and distributed parse rate limits when
   enabled.
 - Reminder scanning is idempotent through unique event keys.
+- Date, health, mood, price-increase, resolution, cost, and reminder calculations are pure
+  domain functions with an injected current date/time for deterministic behavior.

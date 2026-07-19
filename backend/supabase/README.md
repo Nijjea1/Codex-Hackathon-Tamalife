@@ -6,7 +6,8 @@ application authentication.
 For each staging/production project:
 
 1. Run `001_storage.sql` in the SQL editor.
-2. Copy the direct database URL for Alembic migrations.
+2. Copy the direct database URL for Alembic migrations when the deployment network supports
+   its IPv6 host; otherwise use the Supavisor session-mode URL for migrations too.
 3. Copy a persistent runtime URL: direct when the host supports IPv6, otherwise
    Supavisor session mode.
 4. Replace the URL scheme with `postgresql+asyncpg://` for SQLAlchemy.
@@ -17,4 +18,3 @@ For each staging/production project:
 
 The service key bypasses Storage RLS and must never be exposed to Expo, logs, or
 API responses.
-

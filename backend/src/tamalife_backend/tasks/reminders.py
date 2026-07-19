@@ -15,7 +15,7 @@ from tamalife_backend.db.models import (
     SubscriptionStatus,
 )
 from tamalife_backend.db.session import create_engine, create_session_factory
-from tamalife_backend.domain.health import calculate_health
+from tamalife_backend.domain.health import matching_reminder_threshold
 from tamalife_backend.tasks.celery_app import celery_app
 
 
@@ -42,10 +42,13 @@ async def _scan() -> int:
                 )
             )
             days = preference.reminder_days_before if preference else [14, 7, 1]
-            health = calculate_health(subscription, list(subscription.events), today=today)
-            if health.days_remaining not in days:
+            target_date = subscription.renewal_or_expiry_date
+            if target_date is None:
                 continue
-            key = f"reminder:{today.isoformat()}:{health.days_remaining}"
+            threshold = matching_reminder_threshold(target_date, days, now=today)
+            if threshold is None:
+                continue
+            key = f"reminder:{today.isoformat()}:{threshold}"
             exists = await session.scalar(
                 select(SubscriptionEvent).where(
                     SubscriptionEvent.subscription_id == subscription.id,
@@ -59,7 +62,7 @@ async def _scan() -> int:
                     subscription_id=subscription.id,
                     event_type=EventType.reminder_sent,
                     idempotency_key=key,
-                    data={"days_before": health.days_remaining, "delivery": "pending"},
+                    data={"days_before": threshold, "delivery": "pending"},
                 )
             )
             created += 1

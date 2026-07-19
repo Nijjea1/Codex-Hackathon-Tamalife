@@ -25,6 +25,7 @@ from tamalife_backend.db.models import (
     Subscription,
     SubscriptionEvent,
 )
+from tamalife_backend.domain.health import detect_price_increase
 from tamalife_backend.errors import ApiError
 from tamalife_backend.schemas import ConfirmParseRequest, ExtractedReceipt, ParseResponse
 from tamalife_backend.services.subscriptions import to_response
@@ -154,7 +155,8 @@ async def confirm_parse(
     )
     session.add(subscription)
     await session.flush()
-    if extracted.previous_amount is not None and extracted.amount > extracted.previous_amount:
+    price_increase = detect_price_increase(extracted.previous_amount, extracted.amount)
+    if price_increase.detected:
         session.add(
             SubscriptionEvent(
                 subscription_id=subscription.id,
@@ -162,6 +164,12 @@ async def confirm_parse(
                 data={
                     "previous_amount": str(extracted.previous_amount),
                     "new_amount": str(extracted.amount),
+                    "difference": str(price_increase.difference),
+                    "percentage": (
+                        str(price_increase.percentage)
+                        if price_increase.percentage is not None
+                        else None
+                    ),
                     "currency": extracted.currency.upper(),
                     "source_parse_id": str(receipt.id),
                 },
