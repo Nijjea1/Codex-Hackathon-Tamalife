@@ -13,9 +13,9 @@ import { Card } from "../../components/ui/Card";
 import { Chip } from "../../components/ui/Chip";
 import { Screen } from "../../components/ui/Screen";
 import { SectionHeader } from "../../components/ui/SectionHeader";
-import { useSubscriptionStore } from "../../store/useSubscriptionStore";
 import { formatMoney, moodMeta } from "../../utils/creatureMood";
 import { CreatureMood, SubscriptionCategory } from "../../types/subscription";
+import { useSubscriptionData } from "../../lib/useSubscriptionData";
 
 const categoryColors: Record<SubscriptionCategory, string> = {
   Entertainment: colors.primary,
@@ -45,7 +45,7 @@ const trend = [92.5, 96.9, 89.4, 94.2, 96.96, 84.96];
 const trendLabels = ["Feb", "Mar", "Apr", "May", "Jun", "Jul"];
 
 export default function InsightsScreen() {
-  const subscriptions = useSubscriptionStore((s) => s.subscriptions);
+  const { subscriptions, loading, error } = useSubscriptionData();
   const [period, setPeriod] = useState<"Month" | "Year">("Month");
 
   const active = subscriptions.filter((s) => s.status !== "cancelled");
@@ -81,6 +81,8 @@ export default function InsightsScreen() {
 
   return (
     <Screen>
+      {loading && <Text style={type.bodySmall}>Loading insightsâ€¦</Text>}
+      {error && <Text style={[type.bodySmall, { color: colors.warning }]}>{error}</Text>}
       <View style={styles.header}>
         <Text style={type.title}>Insights</Text>
         <View style={{ flexDirection: "row", gap: spacing.sm }}>

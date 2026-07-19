@@ -8,9 +8,9 @@ import { EmptyState } from "../../components/ui/EmptyState";
 import { IconButton } from "../../components/ui/IconButton";
 import { Chip } from "../../components/ui/Chip";
 import { Screen } from "../../components/ui/Screen";
-import { useSubscriptionStore } from "../../store/useSubscriptionStore";
 import { useUIStore } from "../../store/useUIStore";
 import { CreatureMood } from "../../types/subscription";
+import { useSubscriptionData } from "../../lib/useSubscriptionData";
 
 type Filter = "All" | "Happy" | "Needs attention" | "Critical" | "Resolved";
 const filters: Filter[] = ["All", "Happy", "Needs attention", "Critical", "Resolved"];
@@ -24,8 +24,7 @@ const filterMoods: Record<Exclude<Filter, "All">, CreatureMood[]> = {
 
 export default function GardenScreen() {
   const router = useRouter();
-  const subscriptions = useSubscriptionStore((s) => s.subscriptions);
-  const resolveSubscription = useSubscriptionStore((s) => s.resolveSubscription);
+  const { subscriptions, loading, error, resolve: resolveSubscription } = useSubscriptionData();
   const showToast = useUIStore((s) => s.showToast);
   const [filter, setFilter] = useState<Filter>("All");
 
@@ -58,6 +57,8 @@ export default function GardenScreen() {
           />
         </View>
       </View>
+      {loading && <Text style={type.bodySmall}>Loading subscriptionsâ€¦</Text>}
+      {error && <Text style={[type.bodySmall, { color: colors.warning }]}>{error}</Text>}
 
       <ScrollView
         horizontal
@@ -87,10 +88,14 @@ export default function GardenScreen() {
                 onPress={() => router.push(`/creature/${s.id}`)}
                 onQuickAction={(a) => {
                   if (a === "snooze") {
-                    resolveSubscription(s.id, "snooze");
+                    void resolveSubscription(s.id, "snooze").catch((e) =>
+                      showToast({ message: (e as Error).message, tone: "warning" })
+                    );
                     showToast({ message: `${s.creatureName} snoozed for 3 days`, tone: "info" });
                   } else if (a === "resolve") {
-                    resolveSubscription(s.id, "renew");
+                    void resolveSubscription(s.id, "renew").catch((e) =>
+                      showToast({ message: (e as Error).message, tone: "warning" })
+                    );
                     showToast({ message: `${s.creatureName} is resolved`, tone: "success" });
                   } else {
                     router.push(`/creature/${s.id}`);
@@ -107,10 +112,14 @@ export default function GardenScreen() {
                 onPress={() => router.push(`/creature/${s.id}`)}
                 onQuickAction={(a) => {
                   if (a === "snooze") {
-                    resolveSubscription(s.id, "snooze");
+                    void resolveSubscription(s.id, "snooze").catch((e) =>
+                      showToast({ message: (e as Error).message, tone: "warning" })
+                    );
                     showToast({ message: `${s.creatureName} snoozed for 3 days`, tone: "info" });
                   } else if (a === "resolve") {
-                    resolveSubscription(s.id, "renew");
+                    void resolveSubscription(s.id, "renew").catch((e) =>
+                      showToast({ message: (e as Error).message, tone: "warning" })
+                    );
                     showToast({ message: `${s.creatureName} is resolved`, tone: "success" });
                   } else {
                     router.push(`/creature/${s.id}`);

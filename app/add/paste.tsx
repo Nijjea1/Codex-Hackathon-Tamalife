@@ -17,6 +17,10 @@ import { Button } from "../../components/ui/Button";
 import { IconButton } from "../../components/ui/IconButton";
 import { Screen } from "../../components/ui/Screen";
 import { demoReceipt } from "../../data/mockSubscriptions";
+import { useDemoModeStore } from "../../store/useDemoModeStore";
+import { useReceiptDraftStore } from "../../store/useReceiptDraftStore";
+import { useApiClient } from "../../lib/api";
+import { useUIStore } from "../../store/useUIStore";
 
 const scanSteps = [
   "Reading the receipt…",
@@ -30,6 +34,10 @@ export default function PasteScreen() {
   const [text, setText] = useState("");
   const [scanning, setScanning] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
+  const demoMode = useDemoModeStore((s) => s.active);
+  const setDraft = useReceiptDraftStore((s) => s.setDraft);
+  const api = useApiClient();
+  const showToast = useUIStore((s) => s.showToast);
   const timers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const wobble = useSharedValue(0);
@@ -38,7 +46,7 @@ export default function PasteScreen() {
     return () => timers.current.forEach(clearTimeout);
   }, []);
 
-  const startScan = () => {
+  const startScan = async () => {
     setScanning(true);
     setStepIndex(0);
     wobble.value = withRepeat(
@@ -49,6 +57,20 @@ export default function PasteScreen() {
       -1,
       true
     );
+    if (!demoMode) {
+      try {
+        const parsed = await api.parseText(text.trim());
+        if (!parsed.extracted) throw new Error("We couldn't extract enough details. Please review the receipt text.");
+        setDraft(parsed.id, parsed.extracted);
+        router.push("/add/review");
+      } catch (e) {
+        showToast({ message: (e as Error).message, tone: "warning" });
+      } finally {
+        setScanning(false);
+        wobble.value = 0;
+      }
+      return;
+    }
     scanSteps.forEach((_, i) => {
       timers.current.push(setTimeout(() => setStepIndex(i), i * 550));
     });

@@ -20,6 +20,8 @@ import { Button } from "../../components/ui/Button";
 import { useSubscriptionStore } from "../../store/useSubscriptionStore";
 import { useUIStore } from "../../store/useUIStore";
 import { Subscription } from "../../types/subscription";
+import { useReceiptDraftStore } from "../../store/useReceiptDraftStore";
+import { useDemoModeStore } from "../../store/useDemoModeStore";
 
 const newSubscription: Subscription = {
   id: "streamflix-new",
@@ -49,6 +51,9 @@ export default function SuccessScreen() {
   const reducedMotion = useUIStore((s) => s.reducedMotion);
   const addSubscription = useSubscriptionStore((s) => s.addSubscription);
   const subscriptions = useSubscriptionStore((s) => s.subscriptions);
+  const parsedSubscription = useReceiptDraftStore((s) => s.subscription);
+  const demoMode = useDemoModeStore((s) => s.active);
+  const activeSubscription = !demoMode && parsedSubscription ? parsedSubscription : newSubscription;
   const added = useRef(false);
   const [phase, setPhase] = useState<Phase>(reducedMotion ? "hatched" : "orb");
 
@@ -57,8 +62,8 @@ export default function SuccessScreen() {
   const flash = useSharedValue(0);
 
   const commit = () => {
-    if (!added.current && !subscriptions.some((s) => s.id === newSubscription.id)) {
-      addSubscription(newSubscription);
+    if (demoMode && !added.current && !subscriptions.some((s) => s.id === activeSubscription.id)) {
+      addSubscription(activeSubscription);
     }
     added.current = true;
   };
@@ -124,7 +129,7 @@ export default function SuccessScreen() {
         )}
         {phase === "hatched" && (
           <Animated.View entering={ZoomIn.springify().damping(9)}>
-            <Creature species="gem" mood="happy" size="large" interactive />
+            <Creature species={activeSubscription.species} mood="happy" size="large" interactive />
           </Animated.View>
         )}
         <Animated.View pointerEvents="none" style={[styles.flash, flashStyle]} />
@@ -132,13 +137,13 @@ export default function SuccessScreen() {
 
       {phase === "hatched" ? (
         <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.bottom}>
-          <Text style={[type.display, { textAlign: "center" }]}>Meet Nova!</Text>
+          <Text style={[type.display, { textAlign: "center" }]}>Meet {activeSubscription.creatureName}!</Text>
           <Text style={[type.body, { textAlign: "center", marginTop: spacing.sm }]}>
-            Nova is looking after your StreamFlix subscription.
+            {activeSubscription.creatureName} is looking after your {activeSubscription.displayName}.
           </Text>
           <Button
             label="Visit Nova"
-            onPress={() => router.dismissTo(`/creature/${newSubscription.id}`)}
+            onPress={() => router.dismissTo(`/creature/${activeSubscription.id}`)}
             style={{ marginTop: spacing.lg, alignSelf: "stretch" }}
           />
           <Button

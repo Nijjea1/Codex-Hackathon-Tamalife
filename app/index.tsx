@@ -16,12 +16,14 @@ import Animated, {
 import Svg, { Defs, Ellipse, Path, RadialGradient, Stop } from "react-native-svg";
 import { colors, fonts, spacing } from "../constants/theme";
 import { useUIStore } from "../store/useUIStore";
+import { useDemoModeStore } from "../store/useDemoModeStore";
 
 // Launch screen: the Tamalife seed-egg drops in, squashes, rebounds, floats,
 // and glows — then auto-advances to the welcome screen.
 export default function LaunchScreen() {
   const router = useRouter();
   const { isLoaded, isSignedIn } = useAuth();
+  const demoMode = useDemoModeStore((s) => s.active);
   const reducedMotion = useUIStore((s) => s.reducedMotion);
 
   const drop = useSharedValue(-260);
@@ -34,7 +36,7 @@ export default function LaunchScreen() {
 
   useEffect(() => {
     if (!isLoaded) return;
-    if (isSignedIn) {
+    if (isSignedIn || demoMode) {
       router.replace("/(tabs)/home");
       return;
     }
@@ -93,6 +95,7 @@ export default function LaunchScreen() {
   }, [
     isLoaded,
     isSignedIn,
+    demoMode,
     reducedMotion,
     router,
     drop,

@@ -19,6 +19,7 @@ import { colors } from "../constants/theme";
 import { ClerkSync } from "../components/ClerkSync";
 import { ToastHost } from "../components/ui/Toast";
 import { useUIStore } from "../store/useUIStore";
+import { useDemoModeStore } from "../store/useDemoModeStore";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
 
@@ -59,6 +60,7 @@ export default function RootLayout() {
 
 function AuthenticatedNavigation() {
   const { isLoaded, isSignedIn } = useAuth();
+  const demoMode = useDemoModeStore((s) => s.active);
 
   if (!isLoaded) {
     return <View style={{ flex: 1, backgroundColor: colors.background }} />;
@@ -78,11 +80,12 @@ function AuthenticatedNavigation() {
           >
             <Stack.Screen name="index" />
             <Stack.Screen name="(auth)" />
-            <Stack.Protected guard={!!isSignedIn}>
+            <Stack.Protected guard={!!isSignedIn || demoMode}>
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="add" options={{ presentation: "modal" }} />
               <Stack.Screen name="creature/[id]" />
               <Stack.Screen name="subscription/[id]" />
+              <Stack.Screen name="notification-preferences" />
             </Stack.Protected>
           </Stack>
           <ToastHost />
