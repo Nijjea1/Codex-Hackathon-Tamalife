@@ -1,6 +1,6 @@
 import { useAuth } from "@clerk/expo";
 import * as Crypto from "expo-crypto";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { apiBaseUrl } from "./config";
 import {
   ConfirmParseResponseDto,
@@ -126,8 +126,12 @@ export function createIdempotencyKey(scope: string): string {
 
 export function useApiClient() {
   const { getToken } = useAuth();
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
+
   return useMemo(() => {
-    const raw = <T,>(path: string, options?: ApiRequestOptions) => request<T>(path, getToken, options);
+    const raw = <T,>(path: string, options?: ApiRequestOptions) =>
+      request<T>(path, () => getTokenRef.current(), options);
     return {
       request: raw,
       me: () => raw<MeDto>("/v1/me"),
@@ -167,7 +171,7 @@ export function useApiClient() {
           body: JSON.stringify({ extracted, creature_name: creatureName, creature_species: creatureSpecies }),
         }),
     };
-  }, [getToken]);
+  }, []);
 }
 
 export { apiBaseUrl };
