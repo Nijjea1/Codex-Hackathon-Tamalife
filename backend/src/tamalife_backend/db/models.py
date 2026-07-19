@@ -9,6 +9,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     Enum,
@@ -75,6 +76,20 @@ class ParseStatus(str, enum.Enum):
     needs_review = "needs_review"
     failed = "failed"
     confirmed = "confirmed"
+
+
+class NotificationChannel(str, enum.Enum):
+    push = "push"
+    email = "email"
+
+
+class ReminderDeliveryStatus(str, enum.Enum):
+    pending = "pending"
+    processing = "processing"
+    retrying = "retrying"
+    delivered = "delivered"
+    canceled = "canceled"
+    dead_letter = "dead_letter"
 
 
 class User(TimestampMixin, Base):
@@ -183,6 +198,51 @@ class NotificationPreference(TimestampMixin, Base):
     reminder_days_before: Mapped[list[int]] = mapped_column(JSON, default=lambda: [14, 7, 1])
     push_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     email_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+
+class ReminderDelivery(TimestampMixin, Base):
+    __tablename__ = "reminder_deliveries"
+    __table_args__ = (
+        UniqueConstraint(
+            "subscription_id",
+            "channel",
+            "scheduled_for",
+            "threshold_days",
+            name="uq_reminder_delivery_schedule",
+        ),
+        CheckConstraint("threshold_days >= 0", name="reminder_threshold_nonnegative"),
+        CheckConstraint("attempt_count >= 0", name="reminder_attempt_count_nonnegative"),
+        CheckConstraint("max_attempts > 0", name="reminder_max_attempts_positive"),
+        Index("ix_reminder_deliveries_due", "status", "next_attempt_at"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    subscription_id: Mapped[UUID] = mapped_column(
+        ForeignKey("subscriptions.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    channel: Mapped[NotificationChannel] = mapped_column(
+        Enum(NotificationChannel, name="notification_channel"), nullable=False
+    )
+    scheduled_for: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    threshold_days: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[ReminderDeliveryStatus] = mapped_column(
+        Enum(ReminderDeliveryStatus, name="reminder_delivery_status"),
+        nullable=False,
+        default=ReminderDeliveryStatus.pending,
+    )
+    attempt_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    max_attempts: Mapped[int] = mapped_column(Integer, nullable=False, default=5)
+    next_attempt_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+    last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_error: Mapped[str | None] = mapped_column(Text)
+    provider_message_id: Mapped[str | None] = mapped_column(String(300))
+    request_id: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
 
 
 class WidgetToken(Base):

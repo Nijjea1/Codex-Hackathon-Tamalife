@@ -83,6 +83,19 @@ class Settings(BaseSettings):
     parse_rate_limit_per_minute: int = 10
     celery_broker_url: str | None = None
     celery_result_backend: str | None = None
+    celery_task_soft_time_limit_seconds: int = Field(default=60, ge=5)
+    celery_task_time_limit_seconds: int = Field(default=90, ge=10)
+    celery_result_expires_seconds: int = Field(default=3600, ge=60)
+
+    reminder_delivery_enabled: bool = False
+    reminder_delivery_provider: Literal["log", "webhook"] = "log"
+    reminder_delivery_webhook_url: str | None = None
+    reminder_delivery_webhook_token: str | None = None
+    reminder_max_attempts: int = Field(default=5, ge=1, le=20)
+    reminder_retry_base_seconds: int = Field(default=30, ge=1)
+    reminder_retry_max_seconds: int = Field(default=3600, ge=1)
+    reminder_processing_timeout_seconds: int = Field(default=300, ge=30)
+    reminder_scan_interval_seconds: int = Field(default=3600, ge=60)
 
     widget_token_ttl_days: int = 365
     sentry_dsn: str | None = None
@@ -138,6 +151,16 @@ class Settings(BaseSettings):
             raise ValueError("Production must configure TAMALIFE_CLERK_AUTHORIZED_PARTIES")
         if self.environment == "production" and not self.clerk_webhook_signing_secret:
             raise ValueError("Production must configure TAMALIFE_CLERK_WEBHOOK_SIGNING_SECRET")
+        if (
+            self.environment == "production"
+            and self.reminder_delivery_enabled
+            and self.reminder_delivery_provider != "webhook"
+        ):
+            raise ValueError("Production reminder delivery must use the webhook provider")
+        if self.reminder_delivery_provider == "webhook" and not self.reminder_delivery_webhook_url:
+            raise ValueError("The webhook reminder provider requires a delivery URL")
+        if self.celery_task_soft_time_limit_seconds >= self.celery_task_time_limit_seconds:
+            raise ValueError("Celery soft time limit must be lower than its hard time limit")
 
 
 @lru_cache
