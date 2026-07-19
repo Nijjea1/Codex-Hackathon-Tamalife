@@ -37,14 +37,32 @@ Pranoy
 Paramveer
 Kartik
 
-## Run it
+## Repo layout
+
+```
+frontend/   Expo (React Native) app
+backend/    FastAPI service (Clerk auth, Supabase, OpenAI parsing)
+```
+
+Each folder is self-contained with its own dependencies and `.gitignore`.
+
+## Run the frontend
 
 ```bash
+cd frontend
 npm install
 npx expo start
 ```
 
 Then press `a` for Android, `i` for iOS simulator, or scan the QR code with Expo Go.
+
+## Run the backend
+
+```bash
+cd backend
+uv sync
+uv run uvicorn app.main:app --reload   # see backend/README.md for details
+```
 
 ## Demo walkthrough
 
