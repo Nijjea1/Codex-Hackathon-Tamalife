@@ -8,11 +8,16 @@ on:
 jobs:
   secrets:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
       - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   verify:
     runs-on: ubuntu-latest
@@ -31,7 +36,13 @@ jobs:
       - run: uv run ruff format --check .
       - run: uv run mypy src
       - run: uv run pytest --cov --cov-report=term-missing --cov-fail-under=70
-      - run: uvx pip-audit --locked .
+      - run: >-
+          uv export --quiet --locked --no-dev --no-emit-project
+          --format requirements-txt
+          --output-file "${RUNNER_TEMP}/tamalife-requirements.txt"
+      - run: >-
+          uvx pip-audit --require-hashes
+          -r "${RUNNER_TEMP}/tamalife-requirements.txt"
       - run: uv run alembic upgrade head
       - run: uv run alembic check
       - run: docker build .
