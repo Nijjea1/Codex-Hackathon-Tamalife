@@ -115,6 +115,33 @@ async def test_parse_and_confirm(client: httpx.AsyncClient) -> None:
     assert confirmed.json()["subscription"]["vendor_name"] == "StreamFlix"
 
 
+async def test_receipt_file_validation_access_and_cleanup(client: httpx.AsyncClient) -> None:
+    invalid = await client.post(
+        "/v1/parse",
+        files={"image": ("receipt.png", b"not-png", "image/png")},
+    )
+    assert invalid.status_code == 415
+    assert invalid.json()["error"]["code"] == "invalid_file_contents"
+
+    image = b"\x89PNG\r\n\x1a\nmock-image-content"
+    parsed = await client.post(
+        "/v1/parse",
+        files={"image": ("receipt.png", image, "image/png")},
+    )
+    assert parsed.status_code == 200
+    parse_id = parsed.json()["id"]
+    access = await client.get(f"/v1/parse/{parse_id}/file")
+    assert access.status_code == 200
+    assert access.json()["url"] == f"/v1/parse/{parse_id}/content"
+    content = await client.get(access.json()["url"])
+    assert content.status_code == 200
+    assert content.content == image
+
+    deleted = await client.delete(f"/v1/parse/{parse_id}")
+    assert deleted.status_code == 204
+    assert (await client.get(f"/v1/parse/{parse_id}")).status_code == 404
+
+
 async def test_widget_token_and_summary(
     client: httpx.AsyncClient, subscription_payload: dict[str, object]
 ) -> None:

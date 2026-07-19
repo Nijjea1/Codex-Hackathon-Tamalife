@@ -1,12 +1,11 @@
 from __future__ import annotations
 
-import mimetypes
-from datetime import UTC, datetime
-from pathlib import PurePosixPath
+import secrets
+from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, File, Form, UploadFile
+from fastapi import APIRouter, File, Form, Response, UploadFile, status
 from pydantic import ValidationError
 
 from tamalife_backend.api.dependencies import (
@@ -27,10 +26,17 @@ from tamalife_backend.db.models import (
 )
 from tamalife_backend.domain.health import detect_price_increase
 from tamalife_backend.errors import ApiError
-from tamalife_backend.schemas import ConfirmParseRequest, ExtractedReceipt, ParseResponse
+from tamalife_backend.schemas import (
+    ConfirmParseRequest,
+    ExtractedReceipt,
+    ParseResponse,
+    ReceiptFileAccess,
+)
+from tamalife_backend.services.storage import validate_receipt_upload
 from tamalife_backend.services.subscriptions import to_response
 
 router = APIRouter(prefix="/parse", tags=["extraction"])
+RECEIPT_SIGNED_URL_TTL_SECONDS = 300
 
 
 def parse_response(receipt: ParsedReceipt) -> ParseResponse:
@@ -86,10 +92,11 @@ async def parse_document(
         image_data = await image.read(settings.max_upload_bytes + 1)
         if len(image_data) > settings.max_upload_bytes:
             raise ApiError("file_too_large", "Receipt file exceeds the upload limit", 413)
-        extension = (
-            mimetypes.guess_extension(content_type) or PurePosixPath(image.filename or "").suffix
-        )
-        path = f"{user.id}/{receipt.id}/original{extension}"
+        try:
+            validated = validate_receipt_upload(image_data, content_type)
+        except ValueError as exc:
+            raise ApiError("invalid_file_contents", str(exc), 415) from exc
+        path = f"{user.id}/{receipt.id}/original-{secrets.token_hex(8)}{validated.extension}"
         receipt.storage_path = await storage.upload(path, image_data, content_type)
 
     errors: list[dict[str, object]] = []
@@ -121,6 +128,64 @@ async def get_parse(receipt_id: UUID, session: SessionDep, user: UserDep) -> Par
     if receipt is None or receipt.user_id != user.id:
         raise ApiError("parse_not_found", "Parsed receipt was not found", 404)
     return parse_response(receipt)
+
+
+async def owned_receipt(receipt_id: UUID, session: SessionDep, user: UserDep) -> ParsedReceipt:
+    receipt = await session.get(ParsedReceipt, receipt_id)
+    if receipt is None or receipt.user_id != user.id:
+        raise ApiError("parse_not_found", "Parsed receipt was not found", 404)
+    return receipt
+
+
+@router.get("/{receipt_id}/file", response_model=ReceiptFileAccess)
+async def receipt_file_access(
+    receipt_id: UUID,
+    session: SessionDep,
+    user: UserDep,
+    settings: SettingsDep,
+    storage: StorageDep,
+) -> ReceiptFileAccess:
+    receipt = await owned_receipt(receipt_id, session, user)
+    if not receipt.storage_path:
+        raise ApiError("receipt_file_not_found", "This parse has no receipt file", 404)
+    url = await storage.create_signed_url(receipt.storage_path, RECEIPT_SIGNED_URL_TTL_SECONDS)
+    if url:
+        return ReceiptFileAccess(
+            url=url,
+            expires_at=datetime.now(UTC) + timedelta(seconds=RECEIPT_SIGNED_URL_TTL_SECONDS),
+        )
+    return ReceiptFileAccess(url=f"/v1/parse/{receipt.id}/content", expires_at=None)
+
+
+@router.get("/{receipt_id}/content", response_class=Response)
+async def receipt_file_content(
+    receipt_id: UUID, session: SessionDep, user: UserDep, storage: StorageDep
+) -> Response:
+    receipt = await owned_receipt(receipt_id, session, user)
+    if not receipt.storage_path:
+        raise ApiError("receipt_file_not_found", "This parse has no receipt file", 404)
+    content = await storage.download(receipt.storage_path)
+    media_type = "application/octet-stream"
+    suffix = receipt.storage_path.rsplit(".", 1)[-1]
+    media_type = {
+        "jpg": "image/jpeg",
+        "png": "image/png",
+        "webp": "image/webp",
+        "pdf": "application/pdf",
+    }.get(suffix, media_type)
+    return Response(content=content, media_type=media_type)
+
+
+@router.delete("/{receipt_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_parse(
+    receipt_id: UUID, session: SessionDep, user: UserDep, storage: StorageDep
+) -> None:
+    receipt = await owned_receipt(receipt_id, session, user)
+    if receipt.status == ParseStatus.confirmed:
+        raise ApiError("confirmed_parse", "Confirmed receipt parses cannot be deleted", 409)
+    if receipt.storage_path:
+        await storage.delete(receipt.storage_path)
+    await session.delete(receipt)
 
 
 @router.post("/{receipt_id}/confirm", response_model=dict, status_code=201)

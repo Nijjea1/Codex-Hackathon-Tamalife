@@ -144,6 +144,11 @@ class ParseResponse(StrictModel):
     created_at: datetime
 
 
+class ReceiptFileAccess(StrictModel):
+    url: str
+    expires_at: datetime | None
+
+
 class ConfirmParseRequest(StrictModel):
     extracted: ExtractedReceipt
     creature_name: str = Field(default="Nova", min_length=1, max_length=80)
