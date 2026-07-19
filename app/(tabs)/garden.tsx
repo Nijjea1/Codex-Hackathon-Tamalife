@@ -3,7 +3,7 @@ import { Search, SlidersHorizontal } from "lucide-react-native";
 import React, { useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { colors, spacing, type } from "../../constants/theme";
-import { SubscriptionCard } from "../../components/subscription/SubscriptionCard";
+import { GardenScene } from "../../components/garden/GardenScene";
 import { EmptyState } from "../../components/ui/EmptyState";
 import { IconButton } from "../../components/ui/IconButton";
 import { Chip } from "../../components/ui/Chip";
@@ -25,7 +25,6 @@ const filterMoods: Record<Exclude<Filter, "All">, CreatureMood[]> = {
 export default function GardenScreen() {
   const router = useRouter();
   const subscriptions = useSubscriptionStore((s) => s.subscriptions);
-  const resolveSubscription = useSubscriptionStore((s) => s.resolveSubscription);
   const showToast = useUIStore((s) => s.showToast);
   const [filter, setFilter] = useState<Filter>("All");
 
@@ -34,12 +33,8 @@ export default function GardenScreen() {
       ? subscriptions
       : subscriptions.filter((s) => filterMoods[filter].includes(s.mood));
 
-  // Two-column layout
-  const left = filtered.filter((_, i) => i % 2 === 0);
-  const right = filtered.filter((_, i) => i % 2 === 1);
-
   return (
-    <Screen>
+    <Screen scroll={false} contentStyle={styles.screenContent}>
       <View style={styles.header}>
         <View>
           <Text style={type.title}>My Garden</Text>
@@ -78,54 +73,19 @@ export default function GardenScreen() {
           onAction={() => setFilter("All")}
         />
       ) : (
-        <View style={styles.columns}>
-          <View style={styles.column}>
-            {left.map((s) => (
-              <SubscriptionCard
-                key={s.id}
-                subscription={s}
-                onPress={() => router.push(`/creature/${s.id}`)}
-                onQuickAction={(a) => {
-                  if (a === "snooze") {
-                    resolveSubscription(s.id, "snooze");
-                    showToast({ message: `${s.creatureName} snoozed for 3 days`, tone: "info" });
-                  } else if (a === "resolve") {
-                    resolveSubscription(s.id, "renew");
-                    showToast({ message: `${s.creatureName} is resolved`, tone: "success" });
-                  } else {
-                    router.push(`/creature/${s.id}`);
-                  }
-                }}
-              />
-            ))}
-          </View>
-          <View style={styles.column}>
-            {right.map((s) => (
-              <SubscriptionCard
-                key={s.id}
-                subscription={s}
-                onPress={() => router.push(`/creature/${s.id}`)}
-                onQuickAction={(a) => {
-                  if (a === "snooze") {
-                    resolveSubscription(s.id, "snooze");
-                    showToast({ message: `${s.creatureName} snoozed for 3 days`, tone: "info" });
-                  } else if (a === "resolve") {
-                    resolveSubscription(s.id, "renew");
-                    showToast({ message: `${s.creatureName} is resolved`, tone: "success" });
-                  } else {
-                    router.push(`/creature/${s.id}`);
-                  }
-                }}
-              />
-            ))}
-          </View>
-        </View>
+        <GardenScene
+          subscriptions={filtered}
+          onCreatureOpen={(id) => router.push(`/creature/${id}`)}
+        />
       )}
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  screenContent: {
+    paddingHorizontal: spacing.md,
+  },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -133,6 +93,4 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   chips: { gap: spacing.sm, paddingRight: spacing.md },
-  columns: { flexDirection: "row", gap: spacing.sm + 2 },
-  column: { flex: 1, gap: spacing.sm + 2 },
 });

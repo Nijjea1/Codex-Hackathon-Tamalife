@@ -1,0 +1,186 @@
+import React, { useEffect, useMemo, useState } from "react";
+import { Image, LayoutChangeEvent, StyleSheet, View } from "react-native";
+import { colors, radius } from "../../constants/theme";
+import { Subscription } from "../../types/subscription";
+import { GARDEN_BACKGROUNDS } from "./gardenBackgrounds";
+import {
+  findOpenGardenPoint,
+  GardenPoint,
+  getGardenImageDepth,
+  getGardenMovementBounds,
+} from "./gardenMovement";
+import { RandomMovingCreature } from "./RandomMovingCreature";
+
+type Props = {
+  subscriptions: Subscription[];
+  onCreatureOpen: (id: string) => void;
+};
+
+type GardenSize = {
+  width: number;
+  height: number;
+};
+
+const CREATURE_SIZE = 72;
+const GARDEN_PADDING = 16;
+const MINIMUM_CREATURE_DISTANCE = 92;
+const DEFAULT_GARDEN_BACKGROUND =
+  GARDEN_BACKGROUNDS.find(({ id }) => id === "cottage-light") ?? GARDEN_BACKGROUNDS[0];
+
+export function GardenScene({ subscriptions, onCreatureOpen }: Props) {
+  const [gardenSize, setGardenSize] = useState<GardenSize>({ width: 0, height: 0 });
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [gardenBackground] = useState(DEFAULT_GARDEN_BACKGROUND);
+  const {
+    minimumX: minimumCreatureX,
+    maximumX: maximumCreatureX,
+    minimumY: minimumCreatureY,
+    maximumY: maximumCreatureY,
+  } = getGardenMovementBounds({
+    sceneWidth: gardenSize.width,
+    sceneHeight: gardenSize.height,
+    actorSize: CREATURE_SIZE,
+    imageWidth: gardenBackground.imageSize.width,
+    imageHeight: gardenBackground.imageSize.height,
+    groundLeftRatio: gardenBackground.walkableArea.minimumXRatio,
+    groundRightRatio: gardenBackground.walkableArea.maximumXRatio,
+    groundTopRatio: gardenBackground.walkableArea.minimumYRatio,
+    groundBottomRatio: gardenBackground.walkableArea.maximumYRatio,
+  });
+  const foregroundDepth = gardenBackground.foreground
+    ? getGardenImageDepth({
+        sceneWidth: gardenSize.width,
+        sceneHeight: gardenSize.height,
+        imageWidth: gardenBackground.imageSize.width,
+        imageHeight: gardenBackground.imageSize.height,
+        imageYRatio: gardenBackground.foreground.depthRatio,
+      })
+    : 0;
+
+  const spawnPositions = useMemo(() => {
+    const positions = new Map<string, GardenPoint>();
+    const occupied: GardenPoint[] = [];
+
+    if (gardenSize.width === 0 || gardenSize.height === 0) return positions;
+
+    subscriptions.forEach((subscription) => {
+      const point = findOpenGardenPoint({
+        width: gardenSize.width,
+        height: gardenSize.height,
+        actorSize: CREATURE_SIZE,
+        padding: GARDEN_PADDING,
+        occupied,
+        minimumDistance: MINIMUM_CREATURE_DISTANCE,
+        minimumX: minimumCreatureX,
+        maximumX: maximumCreatureX,
+        minimumY: minimumCreatureY,
+        maximumY: maximumCreatureY,
+      });
+
+      positions.set(subscription.id, point);
+      occupied.push(point);
+    });
+
+    return positions;
+  }, [
+    gardenSize.height,
+    gardenSize.width,
+    maximumCreatureX,
+    maximumCreatureY,
+    minimumCreatureX,
+    minimumCreatureY,
+    subscriptions,
+  ]);
+
+  const targetRegistry = useMemo(() => new Map(spawnPositions), [spawnPositions]);
+
+  useEffect(() => {
+    if (selectedId && !subscriptions.some((subscription) => subscription.id === selectedId)) {
+      setSelectedId(null);
+    }
+  }, [selectedId, subscriptions]);
+
+  const handleLayout = (event: LayoutChangeEvent) => {
+    const { width, height } = event.nativeEvent.layout;
+
+    setGardenSize((current) =>
+      current.width === width && current.height === height ? current : { width, height }
+    );
+  };
+
+  return (
+    <View
+      accessibilityLabel="Subscription creature garden"
+      onLayout={handleLayout}
+      style={styles.scene}
+    >
+      <View pointerEvents="none" style={styles.backgroundLayer}>
+        <Image
+          accessible={false}
+          source={gardenBackground.source}
+          resizeMode="cover"
+          style={styles.layerImage}
+        />
+      </View>
+
+      {subscriptions.map((subscription) => {
+        const initialPosition = spawnPositions.get(subscription.id);
+        if (!initialPosition) return null;
+
+        return (
+          <RandomMovingCreature
+            key={subscription.id}
+            subscription={subscription}
+            initialPosition={initialPosition}
+            gardenWidth={gardenSize.width}
+            gardenHeight={gardenSize.height}
+            minimumX={minimumCreatureX}
+            maximumX={maximumCreatureX}
+            minimumY={minimumCreatureY}
+            maximumY={maximumCreatureY}
+            targetRegistry={targetRegistry}
+            selected={selectedId === subscription.id}
+            onSelect={() => setSelectedId(subscription.id)}
+            onOpen={() => onCreatureOpen(subscription.id)}
+          />
+        );
+      })}
+
+      {gardenBackground.foreground ? (
+        <View
+          pointerEvents="none"
+          style={[styles.foregroundLayer, { zIndex: Math.round(foregroundDepth) }]}
+        >
+          <Image
+            accessible={false}
+            source={gardenBackground.foreground.source}
+            resizeMode="cover"
+            style={styles.layerImage}
+          />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  backgroundLayer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  foregroundLayer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  layerImage: {
+    width: "100%",
+    height: "100%",
+  },
+  scene: {
+    position: "relative",
+    flex: 1,
+    overflow: "hidden",
+    backgroundColor: "#183B2B",
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.xl,
+  },
+});
