@@ -35,6 +35,14 @@ async def clerk_client(
     app = create_app(settings)
     fake_client = MagicMock()
     fake_client.authenticate_request.return_value = state
+    fake_client.users.get.return_value.model_dump.return_value = {
+        "id": "user_from_clerk",
+        "primary_email_address_id": "email_primary",
+        "email_addresses": [{"id": "email_primary", "email_address": "clerk-user@example.com"}],
+        "first_name": "Clerk",
+        "last_name": "User",
+        "image_url": "https://img.clerk.com/user.png",
+    }
     with patch("tamalife_backend.services.auth._clerk_client", return_value=fake_client):
         async with app.router.lifespan_context(app):
             transport = httpx.ASGITransport(app=app)
@@ -78,13 +86,19 @@ async def test_clerk_identity_is_persisted_and_reused(tmp_path: Path) -> None:
         is_signed_in=True,
         payload={"sub": "user_123", "sid": "sess_abc", "azp": "tamalife"},
     )
-    async with clerk_client(tmp_path, state) as (client, fake_client, _):
+    async with clerk_client(tmp_path, state) as (client, fake_client, app):
         first = await client.get("/v1/me", headers={"Authorization": "Bearer valid"})
         second = await client.get("/v1/me", headers={"Authorization": "Bearer valid"})
+        async with app.state.session_factory() as session:
+            persisted = await session.scalar(select(User).where(User.clerk_user_id == "user_123"))
     assert first.status_code == 200
     assert first.json()["clerk_user_id"] == "user_123"
     assert first.json()["session_id"] == "sess_abc"
     assert first.json()["user_id"] == second.json()["user_id"]
+    assert persisted is not None
+    assert persisted.email == "clerk-user@example.com"
+    assert persisted.display_name == "Clerk User"
+    fake_client.users.get.assert_called_once_with(user_id="user_123")
     options = fake_client.authenticate_request.call_args.args[1]
     assert options.accepts_token == ["session_token"]
     assert options.authorized_parties == ["tamalife://"]

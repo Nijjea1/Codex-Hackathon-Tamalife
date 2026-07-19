@@ -16,6 +16,7 @@ from tamalife_backend.config import Settings
 from tamalife_backend.db.models import User, WidgetToken
 from tamalife_backend.errors import ApiError
 from tamalife_backend.services.auth import verify_clerk_request
+from tamalife_backend.services.clerk_users import get_or_create_user
 from tamalife_backend.services.extraction import Extractor
 from tamalife_backend.services.metrics import Metrics
 from tamalife_backend.services.redis import Cache, ParseRateLimiter
@@ -54,36 +55,9 @@ async def authenticated_user(
 ) -> AuthenticatedUser:
     if settings.clerk_auth_enabled:
         identity = await asyncio.to_thread(verify_clerk_request, request, settings)
-        user = await session.scalar(select(User).where(User.clerk_user_id == identity.user_id))
-        email = next(
-            (
-                value
-                for key in ("email", "email_address")
-                if isinstance((value := identity.claims.get(key)), str) and value
-            ),
-            None,
-        )
-        if user is None:
-            display_name = next(
-                (
-                    value
-                    for key in ("name", "first_name")
-                    if isinstance((value := identity.claims.get(key)), str) and value
-                ),
-                None,
-            )
-            user = User(
-                clerk_user_id=identity.user_id,
-                email=email,
-                display_name=display_name,
-            )
-            session.add(user)
-            await session.flush()
-        else:
-            if user.disabled_at is not None or user.deleted_at is not None:
-                raise ApiError("account_disabled", "This account is disabled", 403)
-            if user.email is None and email is not None:
-                user.email = email
+        user = await get_or_create_user(session, identity.user_id, settings)
+        if user.disabled_at is not None or user.deleted_at is not None:
+            raise ApiError("account_disabled", "This account is disabled", 403)
         return AuthenticatedUser(user, identity.user_id, identity.session_id, identity.claims)
 
     user_id = settings.default_user_id
@@ -92,17 +66,17 @@ async def authenticated_user(
             user_id = UUID(x_user_id)
         except ValueError as exc:
             raise ApiError("invalid_user_id", "X-User-ID must be a UUID", 400) from exc
-    user = await session.get(User, user_id)
-    if user is None:
-        user = User(
+    local_user = await session.get(User, user_id)
+    if local_user is None:
+        local_user = User(
             id=user_id,
             email=settings.default_user_email if user_id == settings.default_user_id else None,
         )
-        session.add(user)
+        session.add(local_user)
         await session.flush()
-    elif user.disabled_at is not None or user.deleted_at is not None:
+    elif local_user.disabled_at is not None or local_user.deleted_at is not None:
         raise ApiError("account_disabled", "This account is disabled", 403)
-    return AuthenticatedUser(user, f"development:{user.id}", None, {})
+    return AuthenticatedUser(local_user, f"development:{local_user.id}", None, {})
 
 
 async def current_user(

@@ -25,6 +25,12 @@ def _clerk_client(secret_key: str) -> Clerk:
     return Clerk(bearer_auth=secret_key)
 
 
+def get_clerk_client(settings: Settings) -> Clerk:
+    if not settings.clerk_secret_key:
+        raise ApiError("server_misconfigured", "Clerk authentication is not configured", 500)
+    return _clerk_client(settings.clerk_secret_key)
+
+
 def _as_httpx_request(request: Request) -> httpx.Request:
     return httpx.Request(
         method=request.method,
@@ -37,18 +43,13 @@ def verify_clerk_request(request: Request, settings: Settings) -> ClerkIdentity:
     authorization = request.headers.get("Authorization", "")
     if not authorization.startswith("Bearer ") or not authorization.removeprefix("Bearer ").strip():
         raise ApiError("unauthorized", "Authentication required", 401)
-    if not settings.clerk_secret_key:
-        raise ApiError("server_misconfigured", "Clerk authentication is not configured", 500)
-
     options = AuthenticateRequestOptions(
         authorized_parties=settings.clerk_authorized_parties or None,
         jwt_key=settings.clerk_jwt_key,
         accepts_token=[TokenType.SESSION_TOKEN.value],
     )
     try:
-        state = _clerk_client(settings.clerk_secret_key).authenticate_request(
-            _as_httpx_request(request), options
-        )
+        state = get_clerk_client(settings).authenticate_request(_as_httpx_request(request), options)
     except Exception as exc:
         raise ApiError("unauthorized", "Could not verify authentication token", 401) from exc
 
