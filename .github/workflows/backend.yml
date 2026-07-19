@@ -1,0 +1,27 @@
+name: Backend
+
+on:
+  pull_request:
+  push:
+    branches: [main, backend]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+          enable-cache: true
+      - run: uv lock --check
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run mypy src
+      - run: uv run pytest --cov --cov-report=term-missing
+      - run: uv run alembic upgrade head
+      - run: docker build .

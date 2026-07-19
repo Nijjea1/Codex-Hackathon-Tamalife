@@ -1,0 +1,64 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: tamalife
+      POSTGRES_USER: tamalife
+      POSTGRES_PASSWORD: tamalife-local
+    ports:
+      - "5432:5432"
+    volumes:
+      - tamalife-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tamalife -d tamalife"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: backend
+    environment: &backend-env
+      TAMALIFE_DATABASE_URL: postgresql+asyncpg://tamalife:tamalife-local@postgres:5432/tamalife
+      TAMALIFE_REDIS_URL: redis://redis:6379/0
+      TAMALIFE_CACHE_ENABLED: "true"
+      TAMALIFE_AUTO_CREATE_SCHEMA: "false"
+    command: ["sh", "-c", "alembic upgrade head && uvicorn tamalife_backend.main:app --host 0.0.0.0 --port 8000"]
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: backend
+    environment: *backend-env
+    command: ["celery", "-A", "tamalife_backend.tasks.celery_app:celery_app", "worker", "--loglevel=INFO"]
+    depends_on:
+      api:
+        condition: service_started
+
+  beat:
+    build:
+      context: backend
+    environment: *backend-env
+    command: ["celery", "-A", "tamalife_backend.tasks.celery_app:celery_app", "beat", "--loglevel=INFO"]
+    depends_on:
+      api:
+        condition: service_started
+
+volumes:
+  tamalife-postgres:
