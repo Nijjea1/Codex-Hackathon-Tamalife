@@ -66,12 +66,14 @@ class EventType(str, enum.Enum):
 class RawInputType(str, enum.Enum):
     text = "text"
     image = "image"
+    document = "document"
 
 
 class ParseStatus(str, enum.Enum):
     pending = "pending"
     completed = "completed"
     needs_review = "needs_review"
+    failed = "failed"
     confirmed = "confirmed"
 
 

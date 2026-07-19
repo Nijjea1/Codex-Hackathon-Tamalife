@@ -5,10 +5,13 @@ from datetime import UTC, datetime, timedelta
 from typing import Annotated
 from uuid import UUID, uuid4
 
+import structlog
 from fastapi import APIRouter, File, Form, Response, UploadFile, status
 from pydantic import ValidationError
+from sqlalchemy import select
 
 from tamalife_backend.api.dependencies import (
+    CacheDep,
     ExtractorDep,
     LimiterDep,
     SessionDep,
@@ -37,6 +40,7 @@ from tamalife_backend.services.subscriptions import to_response
 
 router = APIRouter(prefix="/parse", tags=["extraction"])
 RECEIPT_SIGNED_URL_TTL_SECONDS = 300
+logger = structlog.get_logger()
 
 
 def parse_response(receipt: ParsedReceipt) -> ParseResponse:
@@ -75,7 +79,13 @@ async def parse_document(
     receipt = ParsedReceipt(
         id=uuid4(),
         user_id=user.id,
-        raw_input_type=RawInputType.image if image else RawInputType.text,
+        raw_input_type=(
+            RawInputType.document
+            if image and image.content_type == "application/pdf"
+            else RawInputType.image
+            if image
+            else RawInputType.text
+        ),
         raw_text=text.strip() if text else None,
         status=ParseStatus.pending,
         prompt_version=settings.extraction_prompt_version,
@@ -102,19 +112,28 @@ async def parse_document(
     errors: list[dict[str, object]] = []
     for attempt in range(2):
         try:
-            extracted = (
-                await extractor.extract_image(image_data, content_type)
+            result = (
+                await extractor.extract_document(image_data, content_type, repair=attempt == 1)
+                if image_data is not None and content_type == "application/pdf"
+                else await extractor.extract_image(image_data, content_type, repair=attempt == 1)
                 if image_data is not None
-                else await extractor.extract_text(text or "")
+                else await extractor.extract_text(text or "", repair=attempt == 1)
             )
+            extracted = result.parsed
             receipt.extracted_payload = extracted.model_dump(mode="json")
-            receipt.raw_model_response = receipt.extracted_payload
+            receipt.raw_model_response = result.raw_response
             receipt.confidence = extracted.confidence
             receipt.status = ParseStatus.completed
             await session.flush()
             return parse_response(receipt)
         except (ValueError, ValidationError) as exc:
             errors.append({"attempt": attempt + 1, "message": str(exc)[:1000]})
+        except Exception as exc:
+            logger.exception("receipt_extraction_failed", receipt_id=str(receipt.id))
+            receipt.status = ParseStatus.failed
+            receipt.validation_errors = [{"attempt": attempt + 1, "message": type(exc).__name__}]
+            await session.flush()
+            return parse_response(receipt)
 
     receipt.status = ParseStatus.needs_review
     receipt.validation_errors = errors
@@ -190,9 +209,15 @@ async def delete_parse(
 
 @router.post("/{receipt_id}/confirm", response_model=dict, status_code=201)
 async def confirm_parse(
-    receipt_id: UUID, body: ConfirmParseRequest, session: SessionDep, user: UserDep
+    receipt_id: UUID,
+    body: ConfirmParseRequest,
+    session: SessionDep,
+    user: UserDep,
+    cache: CacheDep,
 ) -> dict[str, object]:
-    receipt = await session.get(ParsedReceipt, receipt_id)
+    receipt = await session.scalar(
+        select(ParsedReceipt).where(ParsedReceipt.id == receipt_id).with_for_update()
+    )
     if receipt is None or receipt.user_id != user.id:
         raise ApiError("parse_not_found", "Parsed receipt was not found", 404)
     if receipt.subscription_id:
@@ -246,4 +271,5 @@ async def confirm_parse(
     receipt.status = ParseStatus.confirmed
     receipt.confirmed_at = datetime.now(UTC)
     await session.refresh(subscription, attribute_names=["events"])
+    await cache.delete(f"widget:{user.id}")
     return {"subscription": to_response(subscription).model_dump(mode="json")}
