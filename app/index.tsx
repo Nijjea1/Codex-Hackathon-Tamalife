@@ -1,3 +1,4 @@
+import { useAuth } from "@clerk/expo";
 import { useRouter } from "expo-router";
 import React, { useEffect } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
@@ -20,6 +21,7 @@ import { useUIStore } from "../store/useUIStore";
 // and glows — then auto-advances to the welcome screen.
 export default function LaunchScreen() {
   const router = useRouter();
+  const { isLoaded, isSignedIn } = useAuth();
   const reducedMotion = useUIStore((s) => s.reducedMotion);
 
   const drop = useSharedValue(-260);
@@ -31,6 +33,11 @@ export default function LaunchScreen() {
   const leaf = useSharedValue(0);
 
   useEffect(() => {
+    if (!isLoaded) return;
+    if (isSignedIn) {
+      router.replace("/(tabs)/home");
+      return;
+    }
     if (reducedMotion) {
       drop.value = 0;
       shadowScale.value = 1;
@@ -83,7 +90,19 @@ export default function LaunchScreen() {
     wordmark.value = withDelay(1000, withTiming(1, { duration: 600 }));
     const t = setTimeout(() => router.replace("/(auth)/welcome"), 2600);
     return () => clearTimeout(t);
-  }, [reducedMotion, router, drop, squash, float, glow, shadowScale, wordmark, leaf]);
+  }, [
+    isLoaded,
+    isSignedIn,
+    reducedMotion,
+    router,
+    drop,
+    squash,
+    float,
+    glow,
+    shadowScale,
+    wordmark,
+    leaf,
+  ]);
 
   const eggStyle = useAnimatedStyle(() => ({
     transform: [

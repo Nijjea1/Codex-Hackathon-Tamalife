@@ -7,13 +7,11 @@ import { colors, fonts, radius, spacing, type } from "../../constants/theme";
 import { Creature } from "../../components/creatures/Creature";
 import { CreatureParticles } from "../../components/creatures/CreatureParticles";
 import { Button } from "../../components/ui/Button";
-import { useUIStore } from "../../store/useUIStore";
 
 export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [showBubble, setShowBubble] = useState(false);
-  const showToast = useUIStore((s) => s.showToast);
 
   useEffect(() => {
     const t = setTimeout(() => setShowBubble(true), 1200);
@@ -47,7 +45,9 @@ export default function WelcomeScreen() {
         />
         <Pressable
           accessibilityRole="button"
-          onPress={() => showToast({ message: "Sign-in is mocked in this prototype", tone: "info" })}
+          onPress={() =>
+            router.push({ pathname: "/(auth)/sign-up", params: { mode: "signIn" } })
+          }
           style={{ marginTop: spacing.md }}
           hitSlop={8}
         >

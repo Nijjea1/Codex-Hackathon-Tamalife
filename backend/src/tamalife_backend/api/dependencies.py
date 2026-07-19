@@ -61,11 +61,26 @@ async def authenticated_user(
             None,
         )
         if user is None:
-            user = User(clerk_user_id=identity.user_id, email=email)
+            display_name = next(
+                (
+                    value
+                    for key in ("name", "first_name")
+                    if isinstance((value := identity.claims.get(key)), str) and value
+                ),
+                None,
+            )
+            user = User(
+                clerk_user_id=identity.user_id,
+                email=email,
+                display_name=display_name,
+            )
             session.add(user)
             await session.flush()
-        elif user.email is None and email is not None:
-            user.email = email
+        else:
+            if user.disabled_at is not None or user.deleted_at is not None:
+                raise ApiError("account_disabled", "This account is disabled", 403)
+            if user.email is None and email is not None:
+                user.email = email
         return AuthenticatedUser(user, identity.user_id, identity.session_id, identity.claims)
 
     user_id = settings.default_user_id

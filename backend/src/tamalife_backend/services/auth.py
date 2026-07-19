@@ -6,7 +6,7 @@ from typing import Any
 
 import httpx
 from clerk_backend_api import Clerk
-from clerk_backend_api.security.types import AuthenticateRequestOptions
+from clerk_backend_api.security.types import AuthenticateRequestOptions, TokenType
 from fastapi import Request
 
 from tamalife_backend.config import Settings
@@ -42,6 +42,8 @@ def verify_clerk_request(request: Request, settings: Settings) -> ClerkIdentity:
 
     options = AuthenticateRequestOptions(
         authorized_parties=settings.clerk_authorized_parties or None,
+        jwt_key=settings.clerk_jwt_key,
+        accepts_token=[TokenType.SESSION_TOKEN.value],
     )
     try:
         state = _clerk_client(settings.clerk_secret_key).authenticate_request(

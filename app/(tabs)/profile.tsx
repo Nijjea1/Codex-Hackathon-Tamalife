@@ -1,4 +1,4 @@
-import { useClerk } from "@clerk/clerk-expo";
+import { useClerk } from "@clerk/expo";
 import { useRouter } from "expo-router";
 import {
   Bell,
@@ -39,7 +39,7 @@ export default function ProfileScreen() {
   const { signOut: clerkSignOut } = useClerk();
   const userName = useAuthStore((s) => s.userName);
   const selectedStarter = useAuthStore((s) => s.selectedStarter);
-  const signOut = useAuthStore((s) => s.signOut);
+  const resetLocalState = useAuthStore((s) => s.resetLocalState);
   const reducedMotion = useUIStore((s) => s.reducedMotion);
   const setReducedMotion = useUIStore((s) => s.setReducedMotion);
   const showToast = useUIStore((s) => s.showToast);
@@ -50,7 +50,7 @@ export default function ProfileScreen() {
     } catch {
       // ignore — demo sessions have no Clerk session to end
     }
-    signOut();
+    resetLocalState();
     router.replace("/");
   };
 

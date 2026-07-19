@@ -9,7 +9,6 @@ type OnboardingAnswers = {
 
 type AuthState = {
   isOnboarded: boolean;
-  isAuthenticated: boolean;
   selectedStarter: string | null;
   userName: string;
   answers: OnboardingAnswers;
@@ -17,13 +16,11 @@ type AuthState = {
   setAnswer: <K extends keyof OnboardingAnswers>(key: K, value: OnboardingAnswers[K]) => void;
   setUserName: (name: string) => void;
   completeOnboarding: () => void;
-  signIn: () => void;
-  signOut: () => void;
+  resetLocalState: () => void;
 };
 
 export const useAuthStore = create<AuthState>((set) => ({
   isOnboarded: false,
-  isAuthenticated: false,
   selectedStarter: null,
   userName: "Alex",
   answers: { protections: [], goal: null, expenseCount: null, reminderDays: [] },
@@ -32,10 +29,8 @@ export const useAuthStore = create<AuthState>((set) => ({
     set((s) => ({ answers: { ...s.answers, [key]: value } })),
   setUserName: (name) => set({ userName: name }),
   completeOnboarding: () => set({ isOnboarded: true }),
-  signIn: () => set({ isAuthenticated: true }),
-  signOut: () =>
+  resetLocalState: () =>
     set({
-      isAuthenticated: false,
       isOnboarded: false,
       selectedStarter: null,
       answers: { protections: [], goal: null, expenseCount: null, reminderDays: [] },

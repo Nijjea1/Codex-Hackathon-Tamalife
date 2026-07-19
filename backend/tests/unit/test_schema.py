@@ -38,6 +38,7 @@ def test_users_store_a_unique_clerk_identity() -> None:
         index.unique and tuple(column.name for column in index.columns) == ("clerk_user_id",)
         for index in table.indexes
     )
+    assert {"display_name", "image_url", "disabled_at", "deleted_at"} <= set(table.columns.keys())
 
 
 def test_idempotency_and_delivery_constraints_are_unique() -> None:

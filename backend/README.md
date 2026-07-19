@@ -16,6 +16,19 @@ Set `TAMALIFE_CLERK_SECRET_KEY` only on the backend. Optionally restrict token `
 for offline tests/local tooling with `TAMALIFE_CLERK_AUTH_ENABLED=false`; production rejects that
 configuration. In that mode only, `X-User-ID` can select a development tenant.
 
+Configure a Clerk webhook endpoint at `https://<api-host>/v1/webhooks/clerk`, subscribe it to
+`user.created`, `user.updated`, and `user.deleted`, and store its signing secret as
+`TAMALIFE_CLERK_WEBHOOK_SIGNING_SECRET`. Deliveries are signature-verified, recorded by unique
+event ID, and safely ignored after successful processing. User deletion disables the local user
+and uses `TAMALIFE_CLERK_DELETED_USER_POLICY=anonymize` by default to remove denormalized PII.
+Just-in-time creation remains enabled so webhook delay never blocks a valid first request.
+
+The Clerk Dashboard still owns environment-specific identity policy: use separate development
+and production instances, enable the Native API, configure email verification and the chosen
+password/passwordless policy, enable Google, enable Apple before iOS release, and allowlist the
+actual Expo/deep-link redirect URLs. Keep publishable keys per frontend environment and all
+secret/webhook keys in backend deployment secrets.
+
 ## Quick start
 
 ```powershell
@@ -102,6 +115,7 @@ ISO dates, and billing intervals without network access. Image extraction requir
 
 - `GET /health`, `GET /ready`
 - `GET /v1/me`
+- `POST /v1/webhooks/clerk` (public endpoint with Svix signature verification)
 - `GET/POST /v1/subscriptions`
 - `GET/PATCH/DELETE /v1/subscriptions/{id}`
 - `PATCH /v1/subscriptions/{id}/resolve`

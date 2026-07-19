@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Annotated, Literal
 from uuid import UUID
 
-from pydantic import Field, field_validator
+from pydantic import AliasChoices, Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -16,6 +16,7 @@ class Settings(BaseSettings):
         env_prefix="TAMALIFE_",
         extra="ignore",
         case_sensitive=False,
+        populate_by_name=True,
     )
 
     environment: Literal["local", "test", "staging", "production"] = "local"
@@ -34,8 +35,27 @@ class Settings(BaseSettings):
     auto_create_schema: bool = True
 
     clerk_auth_enabled: bool = True
-    clerk_secret_key: str | None = None
-    clerk_authorized_parties: Annotated[list[str], NoDecode] = Field(default_factory=list)
+    clerk_secret_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("TAMALIFE_CLERK_SECRET_KEY", "CLERK_SECRET_KEY"),
+    )
+    clerk_authorized_parties: Annotated[list[str], NoDecode] = Field(
+        default_factory=list,
+        validation_alias=AliasChoices(
+            "TAMALIFE_CLERK_AUTHORIZED_PARTIES", "CLERK_AUTHORIZED_PARTIES"
+        ),
+    )
+    clerk_webhook_signing_secret: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices(
+            "TAMALIFE_CLERK_WEBHOOK_SIGNING_SECRET", "CLERK_WEBHOOK_SIGNING_SECRET"
+        ),
+    )
+    clerk_jwt_key: str | None = Field(
+        default=None,
+        validation_alias=AliasChoices("TAMALIFE_CLERK_JWT_KEY", "CLERK_JWT_KEY"),
+    )
+    clerk_deleted_user_policy: Literal["disable", "anonymize"] = "anonymize"
 
     # Used only when Clerk auth is explicitly disabled for tests/local tooling.
     default_user_id: UUID = UUID("00000000-0000-0000-0000-000000000001")
@@ -114,6 +134,10 @@ class Settings(BaseSettings):
             raise ValueError("TAMALIFE_CLERK_SECRET_KEY is required when Clerk auth is enabled")
         if self.environment == "production" and not self.clerk_auth_enabled:
             raise ValueError("Clerk authentication cannot be disabled in production")
+        if self.environment == "production" and not self.clerk_authorized_parties:
+            raise ValueError("Production must configure TAMALIFE_CLERK_AUTHORIZED_PARTIES")
+        if self.environment == "production" and not self.clerk_webhook_signing_secret:
+            raise ValueError("Production must configure TAMALIFE_CLERK_WEBHOOK_SIGNING_SECRET")
 
 
 @lru_cache

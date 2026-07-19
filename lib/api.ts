@@ -1,8 +1,5 @@
-/**
- * Thin client for the Tamalife backend. The whole point of this file is the
- * auth handshake: attach the Clerk session token as a Bearer header so the
- * backend can verify who's calling.
- */
+import { useAuth } from "@clerk/expo";
+import { useMemo } from "react";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:8000";
 
@@ -13,26 +10,59 @@ export type MeResponse = {
   claims: Record<string, unknown>;
 };
 
-async function request<T>(path: string, token: string | null): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  });
-  if (!res.ok) {
-    let code = `http_${res.status}`;
-    try {
-      const body = await res.json();
-      code = body?.error?.code ?? code;
-    } catch {
-      // response wasn't JSON; keep the status-based code
-    }
-    throw new Error(code);
+export type ApiRequestOptions = RequestInit & {
+  authenticated?: boolean;
+};
+
+export class ApiError extends Error {
+  constructor(
+    public readonly code: string,
+    public readonly status: number,
+  ) {
+    super(code);
   }
-  return (await res.json()) as T;
 }
 
-/** Calls the protected /v1/me endpoint with the current Clerk token. */
-export function fetchMe(token: string | null): Promise<MeResponse> {
-  return request<MeResponse>("/v1/me", token);
+async function request<T>(
+  path: string,
+  getToken: () => Promise<string | null>,
+  options: ApiRequestOptions = {},
+): Promise<T> {
+  const { authenticated = true, ...requestInit } = options;
+  const headers = new Headers(requestInit.headers);
+  if (authenticated) {
+    const token = await getToken();
+    if (!token) throw new ApiError("not_authenticated", 401);
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+  if (requestInit.body && !headers.has("Content-Type") && !(requestInit.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
+
+  const response = await fetch(`${BASE_URL}${path}`, { ...requestInit, headers });
+  if (!response.ok) {
+    let code = `http_${response.status}`;
+    try {
+      const body = await response.json();
+      code = body?.error?.code ?? code;
+    } catch {
+      // Keep the status-derived code when the response has no JSON envelope.
+    }
+    throw new ApiError(code, response.status);
+  }
+  if (response.status === 204) return undefined as T;
+  return (await response.json()) as T;
+}
+
+export function useApiClient() {
+  const { getToken } = useAuth();
+  return useMemo(
+    () => ({
+      request: <T>(path: string, options?: ApiRequestOptions) =>
+        request<T>(path, getToken, options),
+    }),
+    [getToken],
+  );
 }
 
 export const apiBaseUrl = BASE_URL;

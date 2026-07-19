@@ -19,7 +19,8 @@
       "expo-font",
       "expo-splash-screen",
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@clerk/expo"
     ],
     "scheme": "tamalife",
     "backgroundColor": "#0B0D17",
