@@ -85,6 +85,7 @@ class SubscriptionResponse(StrictModel):
     health_score: int
     mood: str
     needs_attention: bool
+    attention_state: Literal["none", "upcoming", "urgent", "overdue", "resolved"]
     health_reason: str
     monthly_cost: Decimal
     annual_cost: Decimal
@@ -93,6 +94,15 @@ class SubscriptionResponse(StrictModel):
 class SubscriptionList(StrictModel):
     items: list[SubscriptionResponse]
     next_cursor: str | None = None
+
+
+class DashboardSummary(StrictModel):
+    active_count: int
+    needs_attention_count: int
+    overdue_count: int
+    monthly_cost: Decimal
+    annual_cost: Decimal
+    next_item: SubscriptionResponse | None
 
 
 class ResolutionRequest(StrictModel):

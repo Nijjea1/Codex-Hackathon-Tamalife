@@ -29,6 +29,16 @@ async def load_subscription(
 
 def to_response(subscription: Subscription, *, today: date | None = None) -> SubscriptionResponse:
     health = calculate_health(subscription, list(subscription.events), today=today)
+    if health.mood == "resolved":
+        attention_state = "resolved"
+    elif health.days_remaining is not None and health.days_remaining <= 0:
+        attention_state = "overdue"
+    elif health.days_remaining is not None and health.days_remaining <= 3:
+        attention_state = "urgent"
+    elif health.needs_attention:
+        attention_state = "upcoming"
+    else:
+        attention_state = "none"
     return SubscriptionResponse(
         id=subscription.id,
         vendor_name=subscription.vendor_name,
@@ -51,6 +61,7 @@ def to_response(subscription: Subscription, *, today: date | None = None) -> Sub
         health_score=health.health_score,
         mood=health.mood,
         needs_attention=health.needs_attention,
+        attention_state=attention_state,
         health_reason=health.reason,
         monthly_cost=monthly_amount(subscription.amount, subscription.billing_cycle),
         annual_cost=annualized_amount(subscription.amount, subscription.billing_cycle),

@@ -24,6 +24,7 @@ async def test_subscription_crud_and_resolution(
     item = await create_item(client, subscription_payload)
     assert item["currency"] == "USD"
     assert item["annual_cost"] == "239.88"
+    assert item["attention_state"] in {"none", "upcoming", "urgent", "overdue"}
 
     listing = await client.get("/v1/subscriptions")
     assert listing.status_code == 200
@@ -45,6 +46,31 @@ async def test_subscription_crud_and_resolution(
     archived = await client.delete(f"/v1/subscriptions/{item['id']}")
     assert archived.status_code == 204
     assert (await client.get("/v1/subscriptions")).json()["items"] == []
+
+
+async def test_dashboard_summary_is_user_scoped(
+    client: httpx.AsyncClient, subscription_payload: dict[str, object]
+) -> None:
+    await create_item(client, subscription_payload)
+    other = dict(subscription_payload)
+    other["display_name"] = "Another user's item"
+    response = await client.post(
+        "/v1/subscriptions",
+        json=other,
+        headers={"X-User-ID": "00000000-0000-0000-0000-000000000002"},
+    )
+    assert response.status_code == 201
+
+    summary = await client.get("/v1/dashboard/summary")
+    assert summary.status_code == 200
+    assert summary.json()["active_count"] == 1
+    assert summary.json()["monthly_cost"] == "19.99"
+
+
+async def test_me_returns_local_identity(client: httpx.AsyncClient) -> None:
+    response = await client.get("/v1/me")
+    assert response.status_code == 200
+    assert response.json()["user_id"] == "00000000-0000-0000-0000-000000000001"
 
 
 async def test_ownership_scope(
