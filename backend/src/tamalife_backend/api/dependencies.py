@@ -20,6 +20,8 @@ from tamalife_backend.services.extraction import Extractor
 from tamalife_backend.services.redis import Cache, ParseRateLimiter
 from tamalife_backend.services.storage import Storage
 
+WIDGET_READ_SCOPE = "widget:read"
+
 
 def settings_from(request: Request) -> Settings:
     return cast(Settings, request.app.state.settings)
@@ -118,6 +120,7 @@ async def widget_user(
     result = await session.execute(
         select(WidgetToken).where(
             WidgetToken.token_hash == digest,
+            WidgetToken.scope == WIDGET_READ_SCOPE,
             WidgetToken.revoked_at.is_(None),
             WidgetToken.expires_at > now,
         )
@@ -129,6 +132,8 @@ async def widget_user(
     user = await session.get(User, token.user_id)
     if user is None:
         raise ApiError("invalid_widget_token", "Widget token owner no longer exists", 401)
+    if user.disabled_at is not None or user.deleted_at is not None:
+        raise ApiError("invalid_widget_token", "Widget token owner is disabled", 401)
     return user
 
 

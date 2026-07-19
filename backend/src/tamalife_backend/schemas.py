@@ -175,8 +175,25 @@ class NotificationPreferencesUpdate(StrictModel):
 
 
 class WidgetTokenResponse(StrictModel):
+    id: UUID
     token: str
+    scope: Literal["widget:read"]
+    created_at: datetime
     expires_at: datetime
+
+
+class WidgetTokenMetadata(StrictModel):
+    id: UUID
+    scope: Literal["widget:read"]
+    created_at: datetime
+    expires_at: datetime
+    last_used_at: datetime | None
+    revoked_at: datetime | None
+    active: bool
+
+
+class WidgetTokenList(StrictModel):
+    items: list[WidgetTokenMetadata]
 
 
 class WidgetSummary(StrictModel):
