@@ -79,6 +79,7 @@ class User(TimestampMixin, Base):
     __tablename__ = "users"
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    clerk_user_id: Mapped[str | None] = mapped_column(String(200), unique=True, index=True)
     email: Mapped[str | None] = mapped_column(String(320), nullable=True, index=True)
     subscriptions: Mapped[list[Subscription]] = relationship(
         back_populates="user", cascade="all, delete-orphan"

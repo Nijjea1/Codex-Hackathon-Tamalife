@@ -33,8 +33,11 @@ class Settings(BaseSettings):
     database_pool_size: int = 5
     auto_create_schema: bool = True
 
-    # Authentication is intentionally out of scope. This ID supplies a stable
-    # development tenant; X-User-ID can select another tenant in non-production.
+    clerk_auth_enabled: bool = True
+    clerk_secret_key: str | None = None
+    clerk_authorized_parties: Annotated[list[str], NoDecode] = Field(default_factory=list)
+
+    # Used only when Clerk auth is explicitly disabled for tests/local tooling.
     default_user_id: UUID = UUID("00000000-0000-0000-0000-000000000001")
     default_user_email: str = "demo@tamalife.local"
 
@@ -66,7 +69,7 @@ class Settings(BaseSettings):
     sentry_traces_sample_rate: float = 0.0
     log_level: str = "INFO"
 
-    @field_validator("cors_origins", mode="before")
+    @field_validator("cors_origins", "clerk_authorized_parties", mode="before")
     @classmethod
     def parse_origins(cls, value: object) -> object:
         if isinstance(value, str):
@@ -107,6 +110,10 @@ class Settings(BaseSettings):
             raise ValueError("Supabase URL and service key are required for Supabase storage")
         if self.environment == "production" and self.database_url.startswith("sqlite"):
             raise ValueError("Production must use PostgreSQL, not SQLite")
+        if self.clerk_auth_enabled and not self.clerk_secret_key:
+            raise ValueError("TAMALIFE_CLERK_SECRET_KEY is required when Clerk auth is enabled")
+        if self.environment == "production" and not self.clerk_auth_enabled:
+            raise ValueError("Clerk authentication cannot be disabled in production")
 
 
 @lru_cache

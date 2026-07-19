@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import os
 from collections.abc import AsyncIterator
 from pathlib import Path
 
 import httpx
 import pytest
+
+os.environ["TAMALIFE_CLERK_AUTH_ENABLED"] = "false"
 
 from tamalife_backend.config import Settings
 from tamalife_backend.main import create_app
@@ -17,6 +20,7 @@ async def client(tmp_path: Path) -> AsyncIterator[httpx.AsyncClient]:
         database_url=f"sqlite+aiosqlite:///{(tmp_path / 'test.db').as_posix()}",
         local_storage_root=tmp_path / "storage",
         auto_create_schema=True,
+        clerk_auth_enabled=False,
         extraction_provider="heuristic",
         cache_enabled=False,
     )

@@ -181,3 +181,10 @@ class HealthResponse(StrictModel):
 class ReadinessResponse(StrictModel):
     status: Literal["ready"] = "ready"
     database: Literal["ok"] = "ok"
+
+
+class MeResponse(StrictModel):
+    user_id: UUID
+    clerk_user_id: str
+    session_id: str | None = None
+    claims: dict[str, Any] = Field(default_factory=dict)

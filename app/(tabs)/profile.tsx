@@ -1,3 +1,4 @@
+import { useClerk } from "@clerk/clerk-expo";
 import { useRouter } from "expo-router";
 import {
   Bell,
@@ -12,6 +13,7 @@ import {
 import React from "react";
 import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
 import { colors, fonts, radius, spacing, type } from "../../constants/theme";
+import { AccountCard } from "../../components/AccountCard";
 import { Creature } from "../../components/creatures/Creature";
 import { Card } from "../../components/ui/Card";
 import { Screen } from "../../components/ui/Screen";
@@ -34,12 +36,23 @@ const lockedSpecies: { name: string; species: CreatureSpecies }[] = [
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { signOut: clerkSignOut } = useClerk();
   const userName = useAuthStore((s) => s.userName);
   const selectedStarter = useAuthStore((s) => s.selectedStarter);
   const signOut = useAuthStore((s) => s.signOut);
   const reducedMotion = useUIStore((s) => s.reducedMotion);
   const setReducedMotion = useUIStore((s) => s.setReducedMotion);
   const showToast = useUIStore((s) => s.showToast);
+
+  const handleSignOut = async () => {
+    try {
+      await clerkSignOut();
+    } catch {
+      // ignore — demo sessions have no Clerk session to end
+    }
+    signOut();
+    router.replace("/");
+  };
 
   const species = starterSpecies[selectedStarter ?? "sprout"] ?? "sprout";
 
@@ -68,6 +81,8 @@ export default function ProfileScreen() {
           <Creature species={species} mood="happy" size="small" />
         </View>
       </Card>
+
+      <AccountCard />
 
       <SectionHeader title="Settings" />
       <Card style={{ paddingVertical: 4 }}>
@@ -125,10 +140,7 @@ export default function ProfileScreen() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Sign out"
-        onPress={() => {
-          signOut();
-          router.replace("/");
-        }}
+        onPress={handleSignOut}
         style={({ pressed }) => [styles.signOut, pressed && { opacity: 0.7 }]}
       >
         <LogOut size={18} color={colors.danger} />

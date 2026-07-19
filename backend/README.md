@@ -6,14 +6,15 @@ from the Expo application.
 
 ## Authentication status
 
-Application authentication is deliberately **not implemented**. There is no Clerk dependency
-or configuration. Local and test requests use the configured demo user. In non-production
-environments, `X-User-ID: <uuid>` can select another test tenant. Production ignores that
-header and uses the configured default user.
+Clerk session-token authentication protects user-scoped API routes. The Expo client sends its
+session token as `Authorization: Bearer <token>`; the backend verifies it with Clerk and maps the
+stable `sub` claim to a unique `users.clerk_user_id` record. `GET /v1/me` verifies the complete
+mobile-to-backend identity chain.
 
-This is suitable for backend/mobile integration before an identity provider is selected. It is
-not a multi-user production security boundary. Add real authentication before exposing mutating
-routes to the public internet.
+Set `TAMALIFE_CLERK_SECRET_KEY` only on the backend. Optionally restrict token `azp` claims with
+`TAMALIFE_CLERK_AUTHORIZED_PARTIES`, especially in production. Authentication can be disabled
+for offline tests/local tooling with `TAMALIFE_CLERK_AUTH_ENABLED=false`; production rejects that
+configuration. In that mode only, `X-User-ID` can select a development tenant.
 
 ## Quick start
 
@@ -21,13 +22,14 @@ routes to the public internet.
 cd backend
 uv sync
 Copy-Item .env.example .env
+# Replace the Clerk placeholder and configure the database before continuing.
 uv run alembic upgrade head
 uv run tamalife-seed
 uv run uvicorn tamalife_backend.main:app --reload
 ```
 
 Open `http://127.0.0.1:8000/docs`. SQLite, local receipt storage, and a deterministic heuristic
-extractor are the local defaults, so no credentials are necessary.
+extractor are the local defaults; Clerk requires a backend secret unless explicitly disabled.
 
 Run verification:
 
@@ -74,9 +76,9 @@ application schema contains:
 - `widget_tokens`
 - `clerk_webhook_events`
 
-`clerk_webhook_events` is reserved for future webhook deduplication and does not enable Clerk
-authentication. No Supabase SQL migration duplicates these application tables; the only SQL
-bootstrap file creates the private Storage bucket.
+`clerk_webhook_events` provides webhook deduplication storage; session authentication itself is
+handled by Clerk token verification. No Supabase SQL migration duplicates these application
+tables; the only SQL bootstrap file creates the private Storage bucket.
 
 ## OpenAI extraction
 
@@ -99,6 +101,7 @@ ISO dates, and billing intervals without network access. Image extraction requir
 ## Main routes
 
 - `GET /health`, `GET /ready`
+- `GET /v1/me`
 - `GET/POST /v1/subscriptions`
 - `GET/PATCH/DELETE /v1/subscriptions/{id}`
 - `PATCH /v1/subscriptions/{id}/resolve`

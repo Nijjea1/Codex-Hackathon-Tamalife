@@ -31,6 +31,15 @@ def test_widget_tokens_store_only_hashes() -> None:
     assert "token" not in columns
 
 
+def test_users_store_a_unique_clerk_identity() -> None:
+    table = Base.metadata.tables["users"]
+    assert "clerk_user_id" in table.columns
+    assert any(
+        index.unique and tuple(column.name for column in index.columns) == ("clerk_user_id",)
+        for index in table.indexes
+    )
+
+
 def test_idempotency_and_delivery_constraints_are_unique() -> None:
     assert ("user_id", "scope", "key") in unique_columns("idempotency_keys")
     assert ("subscription_id", "idempotency_key") in unique_columns("subscription_events")

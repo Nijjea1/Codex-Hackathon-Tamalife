@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Annotated, cast
+from typing import Annotated, Any, cast
 from uuid import UUID
 
 from fastapi import Depends, Header, Request
@@ -13,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from tamalife_backend.config import Settings
 from tamalife_backend.db.models import User, WidgetToken
 from tamalife_backend.errors import ApiError
+from tamalife_backend.services.auth import verify_clerk_request
 from tamalife_backend.services.extraction import Extractor
 from tamalife_backend.services.redis import Cache, ParseRateLimiter
 from tamalife_backend.services.storage import Storage
@@ -20,6 +23,14 @@ from tamalife_backend.services.storage import Storage
 
 def settings_from(request: Request) -> Settings:
     return cast(Settings, request.app.state.settings)
+
+
+@dataclass(frozen=True)
+class AuthenticatedUser:
+    user: User
+    clerk_user_id: str
+    session_id: str | None
+    claims: dict[str, Any]
 
 
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
@@ -32,11 +43,31 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
             raise
 
 
-async def current_user(
+async def authenticated_user(
+    request: Request,
     settings: Annotated[Settings, Depends(settings_from)],
     session: Annotated[AsyncSession, Depends(get_session)],
     x_user_id: Annotated[str | None, Header()] = None,
-) -> User:
+) -> AuthenticatedUser:
+    if settings.clerk_auth_enabled:
+        identity = await asyncio.to_thread(verify_clerk_request, request, settings)
+        user = await session.scalar(select(User).where(User.clerk_user_id == identity.user_id))
+        email = next(
+            (
+                value
+                for key in ("email", "email_address")
+                if isinstance((value := identity.claims.get(key)), str) and value
+            ),
+            None,
+        )
+        if user is None:
+            user = User(clerk_user_id=identity.user_id, email=email)
+            session.add(user)
+            await session.flush()
+        elif user.email is None and email is not None:
+            user.email = email
+        return AuthenticatedUser(user, identity.user_id, identity.session_id, identity.claims)
+
     user_id = settings.default_user_id
     if x_user_id and settings.environment != "production":
         try:
@@ -51,7 +82,13 @@ async def current_user(
         )
         session.add(user)
         await session.flush()
-    return user
+    return AuthenticatedUser(user, f"development:{user.id}", None, {})
+
+
+async def current_user(
+    authenticated: Annotated[AuthenticatedUser, Depends(authenticated_user)],
+) -> User:
+    return authenticated.user
 
 
 async def widget_user(
@@ -97,6 +134,7 @@ def limiter_from(request: Request) -> ParseRateLimiter:
 
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
+AuthenticatedUserDep = Annotated[AuthenticatedUser, Depends(authenticated_user)]
 UserDep = Annotated[User, Depends(current_user)]
 WidgetUserDep = Annotated[User, Depends(widget_user)]
 SettingsDep = Annotated[Settings, Depends(settings_from)]
