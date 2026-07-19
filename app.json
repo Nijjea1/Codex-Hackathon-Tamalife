@@ -19,7 +19,16 @@
       "expo-font",
       "expo-splash-screen",
       "expo-secure-store",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@clerk/expo",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Tamalife to choose receipt screenshots for private parsing.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ]
     ],
     "scheme": "tamalife",
     "backgroundColor": "#0B0D17",

@@ -1,5 +1,8 @@
-import { useSignIn, useSignUp } from "@clerk/clerk-expo";
-import { useRouter } from "expo-router";
+import { useSSO } from "@clerk/expo";
+import { useSignIn, useSignUp } from "@clerk/expo/legacy";
+import * as Linking from "expo-linking";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import * as WebBrowser from "expo-web-browser";
 import { Eye, EyeOff, Mail } from "lucide-react-native";
 import React, { useState } from "react";
 import {
@@ -17,7 +20,6 @@ import { colors, fonts, radius, spacing, type } from "../../constants/theme";
 import { Creature } from "../../components/creatures/Creature";
 import { Button } from "../../components/ui/Button";
 import { useAuthStore } from "../../store/useAuthStore";
-import { useUIStore } from "../../store/useUIStore";
 import { CreatureSpecies } from "../../types/subscription";
 
 const starterSpecies: Record<string, CreatureSpecies> = {
@@ -26,22 +28,25 @@ const starterSpecies: Record<string, CreatureSpecies> = {
   puff: "cloud",
 };
 
+WebBrowser.maybeCompleteAuthSession();
+
 type Step = "choose" | "form" | "verify";
 type Mode = "signUp" | "signIn";
 
 export default function SignUpScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{ mode?: string }>();
   const insets = useSafeAreaInsets();
   const selectedStarter = useAuthStore((s) => s.selectedStarter);
-  const signInStore = useAuthStore((s) => s.signIn);
   const completeOnboarding = useAuthStore((s) => s.completeOnboarding);
-  const showToast = useUIStore((s) => s.showToast);
 
   const { isLoaded: signUpLoaded, signUp, setActive: setActiveSignUp } = useSignUp();
   const { isLoaded: signInLoaded, signIn, setActive: setActiveSignIn } = useSignIn();
+  const { startSSOFlow } = useSSO();
 
-  const [step, setStep] = useState<Step>("choose");
-  const [mode, setMode] = useState<Mode>("signUp");
+  const initialMode: Mode = params.mode === "signIn" ? "signIn" : "signUp";
+  const [step, setStep] = useState<Step>(initialMode === "signIn" ? "form" : "choose");
+  const [mode, setMode] = useState<Mode>(initialMode);
   const [firstName, setFirstName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -54,8 +59,28 @@ export default function SignUpScreen() {
 
   const finish = () => {
     completeOnboarding();
-    signInStore();
     router.replace("/(auth)/reveal");
+  };
+
+  const submitSocial = async (strategy: "oauth_google" | "oauth_apple") => {
+    setError(null);
+    setLoading(strategy);
+    try {
+      const { createdSessionId, setActive } = await startSSOFlow({
+        strategy,
+        redirectUrl: Linking.createURL("/(auth)/reveal", { scheme: "tamalife" }),
+      });
+      if (!createdSessionId || !setActive) {
+        setError("Additional verification is required to finish signing in.");
+        return;
+      }
+      await setActive({ session: createdSessionId });
+      finish();
+    } catch (e) {
+      setError(readableError(e));
+    } finally {
+      setLoading(null);
+    }
   };
 
   const readableError = (e: unknown): string => {
@@ -115,15 +140,6 @@ export default function SignUpScreen() {
     }
   };
 
-  const exploreDemo = () => {
-    setLoading("demo");
-    setTimeout(() => {
-      signInStore();
-      completeOnboarding();
-      router.replace("/(auth)/reveal");
-    }, 600);
-  };
-
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.background }}
@@ -161,16 +177,14 @@ export default function SignUpScreen() {
             <View style={{ gap: spacing.sm + 2 }}>
               <Button
                 label="Continue with Apple"
-                onPress={() =>
-                  showToast({ message: "Apple sign-in is coming soon — use email", tone: "info" })
-                }
+                onPress={() => submitSocial("oauth_apple")}
+                loading={loading === "oauth_apple"}
                 variant="secondary"
               />
               <Button
                 label="Continue with Google"
-                onPress={() =>
-                  showToast({ message: "Google sign-in is coming soon — use email", tone: "info" })
-                }
+                onPress={() => submitSocial("oauth_google")}
+                loading={loading === "oauth_google"}
                 variant="secondary"
               />
               <Button
@@ -307,16 +321,6 @@ export default function SignUpScreen() {
           )}
         </View>
 
-        <Pressable
-          accessibilityRole="button"
-          onPress={exploreDemo}
-          style={{ marginTop: spacing.lg, alignSelf: "center" }}
-          hitSlop={8}
-        >
-          <Text style={styles.demoLink}>
-            {loading === "demo" ? "Opening the garden..." : "Explore demo first"}
-          </Text>
-        </Pressable>
       </ScrollView>
     </KeyboardAvoidingView>
   );
@@ -364,5 +368,4 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginTop: 4,
   },
-  demoLink: { fontFamily: fonts.bold, fontSize: 14, color: colors.secondary },
 });

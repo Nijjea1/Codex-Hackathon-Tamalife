@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
-    "@clerk/clerk-expo": "^2.19.31",
+    "@clerk/expo": "^3.7.8",
     "@expo-google-fonts/plus-jakarta-sans": "^0.4.2",
     "expo": "~54.0.0",
     "expo-auth-session": "~7.0.11",
@@ -11,6 +11,7 @@
     "expo-crypto": "~15.0.9",
     "expo-font": "~14.0.12",
     "expo-haptics": "~15.0.8",
+    "expo-image-picker": "~17.0.11",
     "expo-linear-gradient": "~15.0.8",
     "expo-linking": "~8.0.12",
     "expo-router": "~6.0.24",

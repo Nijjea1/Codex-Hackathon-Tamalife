@@ -1,50 +1,51 @@
-"""Test fixtures.
-
-Because we use Clerk's official SDK (which verifies against live Clerk), tests
-mock at the SDK boundary rather than minting real tokens:
-
-  * `mock_clerk_state` patches `Clerk.authenticate_request` so we can simulate
-    a signed-in or signed-out caller.
-  * `client` is a plain TestClient over the app.
-
-This keeps the suite fully offline and CI-safe while still exercising the real
-route + dependency wiring.
-"""
+from __future__ import annotations
 
 import os
-from collections.abc import Iterator
-from unittest.mock import MagicMock, patch
+from collections.abc import AsyncIterator
+from pathlib import Path
 
+import httpx
 import pytest
-from fastapi.testclient import TestClient
 
-# Ensure settings never depend on a real .env during tests.
-os.environ.setdefault("CLERK_SECRET_KEY", "sk_test_dummy_for_tests")
-os.environ.setdefault("ENVIRONMENT", "test")
+os.environ["TAMALIFE_CLERK_AUTH_ENABLED"] = "false"
 
-from app.config import get_settings  # noqa: E402
-from app.core.security import get_clerk_client  # noqa: E402
-from app.main import create_app  # noqa: E402
-
-
-@pytest.fixture(autouse=True)
-def _clear_caches() -> Iterator[None]:
-    get_settings.cache_clear()
-    get_clerk_client.cache_clear()
-    yield
-    get_settings.cache_clear()
-    get_clerk_client.cache_clear()
+from tamalife_backend.config import Settings
+from tamalife_backend.main import create_app
 
 
 @pytest.fixture
-def client() -> TestClient:
-    return TestClient(create_app())
+async def client(tmp_path: Path) -> AsyncIterator[httpx.AsyncClient]:
+    settings = Settings(
+        environment="test",
+        database_url=f"sqlite+aiosqlite:///{(tmp_path / 'test.db').as_posix()}",
+        local_storage_root=tmp_path / "storage",
+        auto_create_schema=True,
+        clerk_auth_enabled=False,
+        extraction_provider="heuristic",
+        cache_enabled=False,
+        max_upload_bytes=512,
+        max_request_body_bytes=1024,
+    )
+    app = create_app(settings)
+    async with app.router.lifespan_context(app):
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as value:
+            yield value
 
 
 @pytest.fixture
-def mock_clerk_state() -> Iterator[MagicMock]:
-    """Patch the Clerk client's authenticate_request; yields the mock so a test
-    can set `.return_value.is_signed_in` / `.payload`."""
-    fake_client = MagicMock()
-    with patch("app.core.security.get_clerk_client", return_value=fake_client):
-        yield fake_client.authenticate_request
+def subscription_payload() -> dict[str, object]:
+    return {
+        "vendor_name": "StreamFlix",
+        "display_name": "Video Streaming",
+        "item_type": "subscription",
+        "category": "Entertainment",
+        "amount": "19.99",
+        "previous_amount": "17.99",
+        "currency": "usd",
+        "billing_cycle": "monthly",
+        "renewal_or_expiry_date": "2026-08-12",
+        "cancellation_difficulty": "moderate",
+        "creature_name": "Nova",
+        "creature_species": "gem",
+    }

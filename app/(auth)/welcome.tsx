@@ -7,13 +7,14 @@ import { colors, fonts, radius, spacing, type } from "../../constants/theme";
 import { Creature } from "../../components/creatures/Creature";
 import { CreatureParticles } from "../../components/creatures/CreatureParticles";
 import { Button } from "../../components/ui/Button";
-import { useUIStore } from "../../store/useUIStore";
+import { demoModeAvailable } from "../../lib/config";
+import { useDemoModeStore } from "../../store/useDemoModeStore";
 
 export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [showBubble, setShowBubble] = useState(false);
-  const showToast = useUIStore((s) => s.showToast);
+  const enterDemo = useDemoModeStore((s) => s.enter);
 
   useEffect(() => {
     const t = setTimeout(() => setShowBubble(true), 1200);
@@ -47,12 +48,27 @@ export default function WelcomeScreen() {
         />
         <Pressable
           accessibilityRole="button"
-          onPress={() => showToast({ message: "Sign-in is mocked in this prototype", tone: "info" })}
+          onPress={() =>
+            router.push({ pathname: "/(auth)/sign-up", params: { mode: "signIn" } })
+          }
           style={{ marginTop: spacing.md }}
           hitSlop={8}
         >
           <Text style={styles.secondaryLink}>I already have an account</Text>
         </Pressable>
+        {demoModeAvailable && (
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              enterDemo();
+              router.replace("/(tabs)/home");
+            }}
+            style={{ marginTop: spacing.md }}
+            hitSlop={8}
+          >
+            <Text style={styles.secondaryLink}>Try demo data</Text>
+          </Pressable>
+        )}
         <View style={styles.footerLinks}>
           <Text style={styles.footerLink}>Privacy</Text>
           <Text style={styles.footerDot}>·</Text>

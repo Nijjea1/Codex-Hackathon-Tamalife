@@ -1,4 +1,5 @@
-import { useRouter } from "expo-router";
+import { useAuth } from "@clerk/expo";
+import { Redirect, useRouter } from "expo-router";
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated, { FadeIn, FadeInDown, ZoomIn } from "react-native-reanimated";
@@ -19,6 +20,7 @@ const starterSpecies: Record<string, CreatureSpecies> = {
 // First garden reveal: the starter appears alone, then the demo creatures
 // emerge one by one around it.
 export default function RevealScreen() {
+  const { isLoaded, isSignedIn } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const selectedStarter = useAuthStore((s) => s.selectedStarter);
@@ -30,6 +32,9 @@ export default function RevealScreen() {
     const t = setTimeout(() => setPhase("garden"), 1600);
     return () => clearTimeout(t);
   }, []);
+
+  if (!isLoaded) return null;
+  if (!isSignedIn) return <Redirect href="/(auth)/sign-up" />;
 
   return (
     <View style={[styles.root, { paddingBottom: insets.bottom + spacing.lg }]}>

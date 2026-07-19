@@ -15,9 +15,9 @@ import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { IconButton } from "../../components/ui/IconButton";
 import { Screen } from "../../components/ui/Screen";
-import { useSubscriptionStore } from "../../store/useSubscriptionStore";
 import { useUIStore } from "../../store/useUIStore";
 import { ResolutionAction } from "../../types/subscription";
+import { useSubscriptionData } from "../../lib/useSubscriptionData";
 import {
   daysLabel,
   formatDate,
@@ -39,10 +39,8 @@ export default function CreatureDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const subscription = useSubscriptionStore((s) =>
-    s.subscriptions.find((sub) => sub.id === id)
-  );
-  const resolveSubscription = useSubscriptionStore((s) => s.resolveSubscription);
+  const { subscriptions, loading, resolve: resolveSubscription } = useSubscriptionData(id);
+  const subscription = subscriptions.find((sub) => sub.id === id);
   const showToast = useUIStore((s) => s.showToast);
 
   const [sheetVisible, setSheetVisible] = useState(false);
@@ -52,7 +50,7 @@ export default function CreatureDetailScreen() {
   if (!subscription) {
     return (
       <Screen scroll={false} contentStyle={{ alignItems: "center", justifyContent: "center" }}>
-        <Text style={type.heading}>Creature not found</Text>
+        <Text style={type.heading}>{loading ? "Loading creatureâ€¦" : "Creature not found"}</Text>
         <Button label="Back to garden" onPress={() => router.back()} style={{ marginTop: spacing.md }} />
       </Screen>
     );
@@ -64,12 +62,16 @@ export default function CreatureDetailScreen() {
   const handleResolve = (action: ResolutionAction) => {
     setSheetVisible(false);
     if (action === "snooze") {
-      resolveSubscription(s.id, "snooze");
+      void resolveSubscription(s.id, "snooze").catch((e) =>
+        showToast({ message: (e as Error).message, tone: "warning" })
+      );
       showToast({ message: "We'll remind you again in 3 days.", tone: "info" });
       return;
     }
     if (action === "dispute") {
-      resolveSubscription(s.id, "dispute");
+      void resolveSubscription(s.id, "dispute").catch((e) =>
+        showToast({ message: (e as Error).message, tone: "warning" })
+      );
       showToast({ message: "Charge flagged. We'll keep an eye on it.", tone: "warning" });
       return;
     }
@@ -77,7 +79,11 @@ export default function CreatureDetailScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     setPhase("reviving");
     setTimeout(() => {
-      resolveSubscription(s.id, action);
+      const apiAction = action === "acceptPrice" ? "keep" : action;
+      void resolveSubscription(s.id, apiAction).catch((e) => {
+        setPhase("normal");
+        showToast({ message: (e as Error).message, tone: "warning" });
+      });
       setPhase("celebrated");
     }, 1600);
   };

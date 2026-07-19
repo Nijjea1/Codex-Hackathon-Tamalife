@@ -1,4 +1,4 @@
-import { useClerk } from "@clerk/clerk-expo";
+import { useClerk } from "@clerk/expo";
 import { useRouter } from "expo-router";
 import {
   Bell,
@@ -21,6 +21,7 @@ import { SectionHeader } from "../../components/ui/SectionHeader";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useUIStore } from "../../store/useUIStore";
 import { CreatureSpecies } from "../../types/subscription";
+import { useDemoModeStore } from "../../store/useDemoModeStore";
 
 const starterSpecies: Record<string, CreatureSpecies> = {
   sprout: "sprout",
@@ -39,18 +40,24 @@ export default function ProfileScreen() {
   const { signOut: clerkSignOut } = useClerk();
   const userName = useAuthStore((s) => s.userName);
   const selectedStarter = useAuthStore((s) => s.selectedStarter);
-  const signOut = useAuthStore((s) => s.signOut);
+  const resetLocalState = useAuthStore((s) => s.resetLocalState);
   const reducedMotion = useUIStore((s) => s.reducedMotion);
   const setReducedMotion = useUIStore((s) => s.setReducedMotion);
   const showToast = useUIStore((s) => s.showToast);
+  const demoMode = useDemoModeStore((s) => s.active);
+  const leaveDemo = useDemoModeStore((s) => s.leave);
 
   const handleSignOut = async () => {
     try {
-      await clerkSignOut();
+      if (demoMode) {
+        leaveDemo();
+      } else {
+        await clerkSignOut();
+      }
     } catch {
       // ignore — demo sessions have no Clerk session to end
     }
-    signOut();
+    resetLocalState();
     router.replace("/");
   };
 
@@ -104,7 +111,9 @@ export default function ProfileScreen() {
             key={label}
             accessibilityRole="button"
             accessibilityLabel={label}
-            onPress={() => showToast({ message: `${label} is mocked in this demo`, tone: "info" })}
+            onPress={() => label === "Notification preferences"
+              ? router.push("/notification-preferences")
+              : showToast({ message: `${label} is not available yet`, tone: "info" })}
             style={({ pressed }) => [styles.row, styles.rowBorder, pressed && { opacity: 0.7 }]}
           >
             <View style={styles.rowIcon}>

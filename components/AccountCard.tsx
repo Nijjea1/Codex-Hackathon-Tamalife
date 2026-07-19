@@ -1,9 +1,9 @@
-import { useAuth, useUser } from "@clerk/clerk-expo";
+import { useUser } from "@clerk/expo";
 import { CheckCircle2, CloudOff, Loader } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { colors, fonts, radius, spacing, type } from "../constants/theme";
-import { apiBaseUrl, fetchMe } from "../lib/api";
+import { apiBaseUrl, MeResponse, useApiClient } from "../lib/api";
 import { Card } from "./ui/Card";
 
 type Status =
@@ -19,7 +19,7 @@ type Status =
  */
 export function AccountCard() {
   const { isSignedIn, user } = useUser();
-  const { getToken } = useAuth();
+  const api = useApiClient();
   const [status, setStatus] = useState<Status>({ kind: "loading" });
 
   useEffect(() => {
@@ -31,8 +31,7 @@ export function AccountCard() {
       }
       setStatus({ kind: "loading" });
       try {
-        const token = await getToken();
-        const me = await fetchMe(token);
+        const me = await api.request<MeResponse>("/v1/me");
         if (active) setStatus({ kind: "connected", userId: me.clerk_user_id });
       } catch (e) {
         if (active) setStatus({ kind: "error", code: (e as Error).message });
@@ -41,7 +40,7 @@ export function AccountCard() {
     return () => {
       active = false;
     };
-  }, [isSignedIn, getToken]);
+  }, [isSignedIn, api]);
 
   const email = user?.primaryEmailAddress?.emailAddress;
 

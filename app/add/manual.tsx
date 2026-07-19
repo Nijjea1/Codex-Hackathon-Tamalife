@@ -10,6 +10,9 @@ import { Screen } from "../../components/ui/Screen";
 import { useSubscriptionStore } from "../../store/useSubscriptionStore";
 import { useUIStore } from "../../store/useUIStore";
 import { SubscriptionCategory } from "../../types/subscription";
+import { useDemoModeStore } from "../../store/useDemoModeStore";
+import { useApiClient } from "../../lib/api";
+import { BillingCycleDto } from "../../types/api";
 
 const categories: SubscriptionCategory[] = [
   "Entertainment",
@@ -25,36 +28,63 @@ export default function ManualScreen() {
   const router = useRouter();
   const addSubscription = useSubscriptionStore((s) => s.addSubscription);
   const showToast = useUIStore((s) => s.showToast);
+  const demoMode = useDemoModeStore((s) => s.active);
+  const api = useApiClient();
 
   const [name, setName] = useState("");
   const [merchant, setMerchant] = useState("");
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState<SubscriptionCategory>("Other");
+  const [billingCycle, setBillingCycle] = useState<Exclude<BillingCycleDto, "one_time">>("monthly");
+  const [renewalDate, setRenewalDate] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const valid = name.trim().length > 0 && merchant.trim().length > 0 && Number(price) > 0;
 
-  const create = () => {
+  const create = async () => {
     const priceNum = Number(price);
     const creatureName =
       creatureNames[Math.floor(Math.random() * creatureNames.length)];
-    addSubscription({
-      id: `manual-${Date.now()}`,
-      merchant: merchant.trim(),
-      displayName: name.trim(),
-      creatureName,
-      species: "blob",
-      price: priceNum,
-      billingInterval: "monthly",
-      nextActionDate: "2026-08-16",
-      daysRemaining: 30,
-      mood: "happy",
-      healthScore: 94,
-      category,
-      annualCost: priceNum * 12,
-      status: "active",
-    });
-    showToast({ message: `${creatureName} joined your garden!`, tone: "success" });
-    router.dismissTo("/(tabs)/garden");
+    setLoading(true);
+    try {
+      const local = {
+        id: `manual-${Date.now()}`,
+        merchant: merchant.trim(),
+        displayName: name.trim(),
+        creatureName,
+        species: "blob",
+        price: priceNum,
+        billingInterval: billingCycle,
+        nextActionDate: renewalDate,
+        daysRemaining: 30,
+        mood: "happy",
+        healthScore: 94,
+        category,
+      annualCost: billingCycle === "yearly" ? priceNum : billingCycle === "weekly" ? priceNum * 52 : priceNum * 12,
+        status: "active",
+      } as const;
+      if (demoMode) {
+        addSubscription(local);
+      } else {
+        await api.createSubscription({
+          vendor_name: merchant.trim(),
+          display_name: name.trim(),
+          category,
+          amount: priceNum,
+          currency: "USD",
+          billing_cycle: billingCycle,
+          renewal_or_expiry_date: renewalDate || null,
+          creature_name: creatureName,
+          creature_species: "blob",
+        });
+      }
+      showToast({ message: `${creatureName} joined your garden!`, tone: "success" });
+      router.dismissTo("/(tabs)/garden");
+    } catch (e) {
+      showToast({ message: (e as Error).message, tone: "warning" });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -88,7 +118,7 @@ export default function ManualScreen() {
         accessibilityLabel="Merchant"
       />
 
-      <Text style={styles.label}>Monthly price (USD)</Text>
+      <Text style={styles.label}>Price (USD)</Text>
       <TextInput
         style={styles.input}
         placeholder="9.99"
@@ -96,7 +126,7 @@ export default function ManualScreen() {
         keyboardType="decimal-pad"
         value={price}
         onChangeText={setPrice}
-        accessibilityLabel="Monthly price"
+        accessibilityLabel="Price"
       />
 
       <Text style={styles.label}>Category</Text>
@@ -111,7 +141,24 @@ export default function ManualScreen() {
         ))}
       </ScrollView>
 
-      <Button label="Create creature" onPress={create} disabled={!valid} />
+      <Text style={styles.label}>Billing frequency</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }} style={{ flexGrow: 0, marginBottom: spacing.md }}>
+        {(["weekly", "monthly", "yearly", "trial"] as Exclude<BillingCycleDto, "one_time">[]).map((cycle) => (
+          <Chip key={cycle} label={cycle} selected={billingCycle === cycle} onPress={() => setBillingCycle(cycle)} />
+        ))}
+      </ScrollView>
+
+      <Text style={styles.label}>Renewal or expiry date</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="YYYY-MM-DD"
+        placeholderTextColor={colors.textMuted}
+        value={renewalDate}
+        onChangeText={setRenewalDate}
+        accessibilityLabel="Renewal or expiry date"
+      />
+
+      <Button label="Create creature" onPress={create} disabled={!valid} loading={loading} />
     </Screen>
   );
 }

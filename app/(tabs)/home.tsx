@@ -15,6 +15,9 @@ import { SectionHeader } from "../../components/ui/SectionHeader";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useSubscriptionStore } from "../../store/useSubscriptionStore";
 import { useUIStore } from "../../store/useUIStore";
+import { useSubscriptionData } from "../../lib/useSubscriptionData";
+import { useApiClient } from "../../lib/api";
+import { DashboardSummaryDto } from "../../types/api";
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -26,17 +29,27 @@ function greeting(): string {
 export default function HomeScreen() {
   const router = useRouter();
   const userName = useAuthStore((s) => s.userName);
-  const subscriptions = useSubscriptionStore((s) => s.subscriptions);
-  const resolveSubscription = useSubscriptionStore((s) => s.resolveSubscription);
+  const { subscriptions, loading, error, resolve: resolveSubscription, demo } = useSubscriptionData();
   const lastSaving = useSubscriptionStore((s) => s.lastSaving);
   const showToast = useUIStore((s) => s.showToast);
+  const api = useApiClient();
+  const [summary, setSummary] = React.useState<DashboardSummaryDto | null>(null);
+
+  React.useEffect(() => {
+    if (demo) return;
+    api.dashboardSummary().then(setSummary).catch((e) =>
+      showToast({ message: (e as Error).message, tone: "warning" })
+    );
+  }, [api, demo, showToast]);
 
   const active = subscriptions.filter((s) => s.status !== "cancelled");
-  const monthly = active.reduce(
+  const localMonthly = active.reduce(
     (sum, s) => sum + (s.billingInterval === "yearly" ? s.price / 12 : s.price),
     0
   );
-  const annual = active.reduce((sum, s) => sum + s.annualCost, 0);
+  const localAnnual = active.reduce((sum, s) => sum + s.annualCost, 0);
+  const monthly = summary ? Number(summary.monthly_cost) : localMonthly;
+  const annual = summary ? Number(summary.annual_cost) : localAnnual;
 
   const urgent = [...subscriptions]
     .filter((s) => s.status === "active" && ["sick", "critical"].includes(s.mood))
@@ -49,6 +62,8 @@ export default function HomeScreen() {
 
   return (
     <Screen>
+      {loading && <Text style={type.bodySmall}>Loading your gardenâ€¦</Text>}
+      {error && <Text style={[type.bodySmall, { color: colors.warning }]}>{error}</Text>}
       <View style={styles.topBar}>
         <View>
           <Text style={type.title}>
@@ -82,7 +97,9 @@ export default function HomeScreen() {
             subscription={urgent}
             onReview={() => router.push(`/creature/${urgent.id}`)}
             onSnooze={() => {
-              resolveSubscription(urgent.id, "snooze");
+              void resolveSubscription(urgent.id, "snooze").catch((e) =>
+                showToast({ message: (e as Error).message, tone: "warning" })
+              );
               showToast({ message: `We'll remind you about ${urgent.merchant} in 3 days`, tone: "info" });
             }}
           />
@@ -106,7 +123,7 @@ export default function HomeScreen() {
         onViewAll={() => router.push("/(tabs)/garden")}
       />
 
-      {lastSaving && (
+      {demo && lastSaving && (
         <View style={{ marginTop: spacing.lg }}>
           <RecentWinCard merchant={lastSaving.merchant} annualAmount={lastSaving.annualAmount} />
         </View>

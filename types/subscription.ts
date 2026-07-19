@@ -35,7 +35,12 @@ export type Subscription = {
   healthScore: number;
   category: SubscriptionCategory;
   annualCost: number;
-  status: "active" | "cancelled" | "renewed" | "snoozed";
+  monthlyCost?: number;
+  needsAttention?: boolean;
+  attentionState?: "none" | "upcoming" | "urgent" | "overdue" | "resolved";
+  healthReason?: string;
+  currency?: string;
+  status: "active" | "cancelled" | "renewed" | "snoozed" | "disputed";
   notes?: string;
   receiptText?: string;
   snoozeCount?: number;

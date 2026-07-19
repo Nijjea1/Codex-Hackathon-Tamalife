@@ -8,6 +8,12 @@ import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
 import { IconButton } from "../../components/ui/IconButton";
 import { Screen } from "../../components/ui/Screen";
+import { useReceiptDraftStore } from "../../store/useReceiptDraftStore";
+import { useDemoModeStore } from "../../store/useDemoModeStore";
+import { useApiClient } from "../../lib/api";
+import { mapSubscription } from "../../lib/mappers";
+import { BillingCycleDto } from "../../types/api";
+import { useUIStore } from "../../store/useUIStore";
 
 const evidence = [
   { label: "Renewal date", snippet: "“will renew on August 12, 2026”" },
@@ -17,15 +23,23 @@ const evidence = [
 
 export default function ReviewScreen() {
   const router = useRouter();
+  const parseId = useReceiptDraftStore((s) => s.parseId);
+  const extracted = useReceiptDraftStore((s) => s.extracted);
+  const setExtracted = useReceiptDraftStore((s) => s.setExtracted);
+  const setSubscription = useReceiptDraftStore((s) => s.setSubscription);
+  const demoMode = useDemoModeStore((s) => s.active);
+  const api = useApiClient();
+  const showToast = useUIStore((s) => s.showToast);
+  const [submitting, setSubmitting] = useState(false);
   const [fields, setFields] = useState({
-    name: "Video Streaming",
-    merchant: "StreamFlix",
-    price: "19.99",
-    previousPrice: "17.99",
-    currency: "USD",
-    frequency: "Monthly",
-    renewalDate: "August 12, 2026",
-    category: "Entertainment",
+    name: extracted?.display_name ?? "Video Streaming",
+    merchant: extracted?.vendor_name ?? "StreamFlix",
+    price: extracted?.amount ?? "19.99",
+    previousPrice: extracted?.previous_amount ?? "17.99",
+    currency: extracted?.currency ?? "USD",
+    frequency: extracted?.billing_cycle ?? "monthly",
+    renewalDate: extracted?.renewal_or_expiry_date ?? "2026-08-12",
+    category: extracted?.category ?? "Entertainment",
   });
   const [showEvidence, setShowEvidence] = useState(false);
 
@@ -43,6 +57,35 @@ export default function ReviewScreen() {
     { key: "category", label: "Category" },
   ];
 
+  const confirm = async () => {
+    if (demoMode || !parseId || !extracted) {
+      router.push("/add/success");
+      return;
+    }
+    const edited = {
+      ...extracted,
+      display_name: fields.name.trim(),
+      vendor_name: fields.merchant.trim(),
+      amount: fields.price,
+      previous_amount: fields.previousPrice ? fields.previousPrice : null,
+      currency: fields.currency.toUpperCase(),
+      billing_cycle: fields.frequency.toLowerCase() as BillingCycleDto,
+      renewal_or_expiry_date: fields.renewalDate || null,
+      category: fields.category,
+    };
+    setSubmitting(true);
+    try {
+      setExtracted(edited);
+      const response = await api.confirmParse(parseId, edited, "Nova", "gem");
+      setSubscription(mapSubscription(response.subscription));
+      router.push("/add/success");
+    } catch (e) {
+      showToast({ message: (e as Error).message, tone: "warning" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
     <Screen>
       <View style={styles.header}>
@@ -58,7 +101,9 @@ export default function ReviewScreen() {
 
       <View style={styles.confidence}>
         <View style={styles.confidenceDot} />
-        <Text style={styles.confidenceText}>High confidence</Text>
+        <Text style={styles.confidenceText}>
+          {extracted ? `${Math.round(extracted.confidence * 100)}% confidence` : "High confidence"}
+        </Text>
       </View>
 
       <View style={styles.increase}>
@@ -96,7 +141,7 @@ export default function ReviewScreen() {
         </View>
         {showEvidence && (
           <Animated.View entering={FadeIn.duration(200)} style={{ marginTop: spacing.sm }}>
-            {evidence.map((e) => (
+            {(extracted?.evidence ?? evidence).map((e) => (
               <View key={e.label} style={styles.evidenceRow}>
                 <Text style={styles.evidenceLabel}>{e.label}</Text>
                 <Text style={styles.evidenceSnippet}>{e.snippet}</Text>
@@ -108,7 +153,8 @@ export default function ReviewScreen() {
 
       <Button
         label="Create creature"
-        onPress={() => router.push("/add/success")}
+        onPress={confirm}
+        loading={submitting}
         style={{ marginTop: spacing.lg }}
       />
     </Screen>
