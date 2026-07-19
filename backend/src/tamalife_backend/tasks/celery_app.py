@@ -10,7 +10,7 @@ celery_app = Celery(
     "tamalife",
     broker=settings.celery_broker_url or settings.redis_url,
     backend=settings.celery_result_backend or settings.redis_url,
-    include=["tamalife_backend.tasks.reminders"],
+    include=["tamalife_backend.tasks.reminders", "tamalife_backend.tasks.cleanup"],
 )
 celery_app.conf.update(
     task_serializer="json",
@@ -36,7 +36,11 @@ celery_app.conf.update(
         "scan-reminders-hourly": {
             "task": "tamalife.scan_reminders",
             "schedule": float(settings.reminder_scan_interval_seconds),
-        }
+        },
+        "cleanup-abandoned-receipts-daily": {
+            "task": "tamalife.cleanup_receipts",
+            "schedule": 86400.0,
+        },
     },
 )
 

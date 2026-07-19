@@ -50,6 +50,9 @@ services:
     depends_on:
       api:
         condition: service_started
+    healthcheck:
+      disable: true
+    stop_grace_period: 90s
 
   beat:
     build:
@@ -59,6 +62,9 @@ services:
     depends_on:
       api:
         condition: service_started
+    healthcheck:
+      disable: true
+    stop_grace_period: 30s
 
 volumes:
   tamalife-postgres:

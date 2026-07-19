@@ -23,6 +23,8 @@ async def client(tmp_path: Path) -> AsyncIterator[httpx.AsyncClient]:
         clerk_auth_enabled=False,
         extraction_provider="heuristic",
         cache_enabled=False,
+        max_upload_bytes=512,
+        max_request_body_bytes=1024,
     )
     app = create_app(settings)
     async with app.router.lifespan_context(app):

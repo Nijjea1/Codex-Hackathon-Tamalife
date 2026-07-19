@@ -14,6 +14,7 @@ from tamalife_backend.api.dependencies import (
     CacheDep,
     ExtractorDep,
     LimiterDep,
+    MetricsDep,
     SessionDep,
     SettingsDep,
     StorageDep,
@@ -69,12 +70,14 @@ async def parse_document(
     extractor: ExtractorDep,
     storage: StorageDep,
     limiter: LimiterDep,
+    metrics: MetricsDep,
     text: Annotated[str | None, Form()] = None,
     image: Annotated[UploadFile | None, File()] = None,
 ) -> ParseResponse:
     if bool(text and text.strip()) == bool(image):
         raise ApiError("invalid_parse_input", "Provide exactly one of text or image", 400)
     await limiter.check(str(user.id))
+    metrics.increment("receipt_parse_attempts_total")
 
     receipt = ParsedReceipt(
         id=uuid4(),
@@ -124,6 +127,7 @@ async def parse_document(
             receipt.raw_model_response = result.raw_response
             receipt.confidence = extracted.confidence
             receipt.status = ParseStatus.completed
+            metrics.increment("receipt_parse_successes_total")
             await session.flush()
             return parse_response(receipt)
         except (ValueError, ValidationError) as exc:
@@ -131,11 +135,13 @@ async def parse_document(
         except Exception as exc:
             logger.exception("receipt_extraction_failed", receipt_id=str(receipt.id))
             receipt.status = ParseStatus.failed
+            metrics.increment("receipt_parse_failures_total")
             receipt.validation_errors = [{"attempt": attempt + 1, "message": type(exc).__name__}]
             await session.flush()
             return parse_response(receipt)
 
     receipt.status = ParseStatus.needs_review
+    metrics.increment("receipt_parse_manual_review_total")
     receipt.validation_errors = errors
     await session.flush()
     return parse_response(receipt)

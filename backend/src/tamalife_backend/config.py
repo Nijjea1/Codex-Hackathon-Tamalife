@@ -27,11 +27,15 @@ class Settings(BaseSettings):
     cors_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["http://localhost:8081"]
     )
+    trusted_hosts: Annotated[list[str], NoDecode] = Field(
+        default_factory=lambda: ["localhost", "127.0.0.1", "test", "testserver"]
+    )
 
     database_url: str = "sqlite+aiosqlite:///./.data/tamalife.db"
     migration_database_url: str | None = None
     database_echo: bool = False
     database_pool_size: int = 5
+    database_statement_timeout_ms: int = Field(default=15000, ge=1000, le=120000)
     auto_create_schema: bool = True
 
     clerk_auth_enabled: bool = True
@@ -73,6 +77,8 @@ class Settings(BaseSettings):
     supabase_service_key: str | None = None
     supabase_storage_bucket: str = "receipts"
     max_upload_bytes: int = 10 * 1024 * 1024
+    max_request_body_bytes: int = 12 * 1024 * 1024
+    abandoned_receipt_retention_days: int = Field(default=7, ge=1, le=90)
     allowed_upload_types: set[str] = Field(
         default_factory=lambda: {"image/jpeg", "image/png", "image/webp", "application/pdf"}
     )
@@ -102,7 +108,7 @@ class Settings(BaseSettings):
     sentry_traces_sample_rate: float = 0.0
     log_level: str = "INFO"
 
-    @field_validator("cors_origins", "clerk_authorized_parties", mode="before")
+    @field_validator("cors_origins", "trusted_hosts", "clerk_authorized_parties", mode="before")
     @classmethod
     def parse_origins(cls, value: object) -> object:
         if isinstance(value, str):
@@ -143,6 +149,8 @@ class Settings(BaseSettings):
             raise ValueError("Supabase URL and service key are required for Supabase storage")
         if self.environment == "production" and self.database_url.startswith("sqlite"):
             raise ValueError("Production must use PostgreSQL, not SQLite")
+        if self.max_request_body_bytes <= self.max_upload_bytes:
+            raise ValueError("Maximum request size must exceed maximum receipt upload size")
         if self.clerk_auth_enabled and not self.clerk_secret_key:
             raise ValueError("TAMALIFE_CLERK_SECRET_KEY is required when Clerk auth is enabled")
         if self.environment == "production" and not self.clerk_auth_enabled:
@@ -151,6 +159,22 @@ class Settings(BaseSettings):
             raise ValueError("Production must configure TAMALIFE_CLERK_AUTHORIZED_PARTIES")
         if self.environment == "production" and not self.clerk_webhook_signing_secret:
             raise ValueError("Production must configure TAMALIFE_CLERK_WEBHOOK_SIGNING_SECRET")
+        if self.environment == "production" and (
+            self.debug or self.database_echo or self.auto_create_schema
+        ):
+            raise ValueError("Production disables debug, SQL echo, and automatic schema creation")
+        if self.environment == "production" and (
+            "*" in self.cors_origins or "*" in self.trusted_hosts
+        ):
+            raise ValueError("Production CORS origins and trusted hosts must be explicit")
+        if self.environment == "production" and {"test", "testserver"}.intersection(
+            self.trusted_hosts
+        ):
+            raise ValueError("Production must configure its real TAMALIFE_TRUSTED_HOSTS")
+        if self.environment == "production" and self.storage_backend != "supabase":
+            raise ValueError("Production receipt storage must use Supabase")
+        if self.environment == "production" and self.extraction_provider != "openai":
+            raise ValueError("Production receipt extraction must use OpenAI")
         if (
             self.environment == "production"
             and self.reminder_delivery_enabled

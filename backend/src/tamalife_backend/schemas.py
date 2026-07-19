@@ -213,6 +213,8 @@ class HealthResponse(StrictModel):
 class ReadinessResponse(StrictModel):
     status: Literal["ready"] = "ready"
     database: Literal["ok"] = "ok"
+    cache: Literal["ok", "disabled"]
+    storage: Literal["ok"] = "ok"
 
 
 class MeResponse(StrictModel):

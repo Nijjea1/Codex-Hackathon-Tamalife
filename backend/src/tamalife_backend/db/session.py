@@ -18,6 +18,11 @@ def create_engine(settings: Settings) -> AsyncEngine:
     kwargs: dict[str, object] = {"echo": settings.database_echo, "pool_pre_ping": True}
     if not settings.database_url.startswith("sqlite"):
         kwargs["pool_size"] = settings.database_pool_size
+        kwargs["connect_args"] = {
+            "server_settings": {
+                "statement_timeout": str(settings.database_statement_timeout_ms),
+            }
+        }
     return create_async_engine(settings.database_url, **kwargs)
 
 

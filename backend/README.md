@@ -93,6 +93,10 @@ application schema contains:
 handled by Clerk token verification. No Supabase SQL migration duplicates these application
 tables; the only SQL bootstrap file creates the private Storage bucket.
 
+The hardening migration enables RLS on these public-schema tables and revokes direct access from
+Supabase `anon` and `authenticated` roles. It intentionally creates no client policies: FastAPI's
+database owner/service credential is the only application data path and must never reach Expo.
+
 ## OpenAI extraction
 
 Set:

@@ -14,8 +14,15 @@ async def test_health_and_readiness(client: httpx.AsyncClient) -> None:
     ready = await client.get("/ready")
     assert health.status_code == 200
     assert health.json()["status"] == "ok"
-    assert ready.json() == {"status": "ready", "database": "ok"}
+    assert ready.json() == {
+        "status": "ready",
+        "database": "ok",
+        "cache": "disabled",
+        "storage": "ok",
+    }
     assert health.headers["x-request-id"]
+    assert health.headers["x-content-type-options"] == "nosniff"
+    assert health.headers["x-frame-options"] == "DENY"
 
 
 async def test_subscription_crud_and_resolution(
@@ -160,3 +167,28 @@ async def test_consistent_validation_error(client: httpx.AsyncClient) -> None:
     response = await client.post("/v1/subscriptions", json={})
     assert response.status_code == 422
     assert response.json()["error"]["code"] == "validation_error"
+
+
+async def test_request_body_limit(client: httpx.AsyncClient) -> None:
+    response = await client.post(
+        "/v1/parse",
+        content=b"x" * 2048,
+        headers={"Content-Type": "application/octet-stream"},
+    )
+    assert response.status_code == 413
+    assert response.json()["error"]["code"] == "request_too_large"
+
+
+async def test_account_export_and_deletion(
+    client: httpx.AsyncClient, subscription_payload: dict[str, object]
+) -> None:
+    await create_item(client, subscription_payload)
+    exported = await client.get("/v1/me/export")
+    assert exported.status_code == 200
+    assert exported.json()["subscriptions"][0]["vendor_name"] == "StreamFlix"
+
+    deleted = await client.delete("/v1/me")
+    assert deleted.status_code == 204
+    disabled = await client.get("/v1/me")
+    assert disabled.status_code == 403
+    assert disabled.json()["error"]["code"] == "account_disabled"

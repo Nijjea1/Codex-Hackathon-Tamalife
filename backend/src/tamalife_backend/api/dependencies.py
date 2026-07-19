@@ -17,6 +17,7 @@ from tamalife_backend.db.models import User, WidgetToken
 from tamalife_backend.errors import ApiError
 from tamalife_backend.services.auth import verify_clerk_request
 from tamalife_backend.services.extraction import Extractor
+from tamalife_backend.services.metrics import Metrics
 from tamalife_backend.services.redis import Cache, ParseRateLimiter
 from tamalife_backend.services.storage import Storage
 
@@ -99,6 +100,8 @@ async def authenticated_user(
         )
         session.add(user)
         await session.flush()
+    elif user.disabled_at is not None or user.deleted_at is not None:
+        raise ApiError("account_disabled", "This account is disabled", 403)
     return AuthenticatedUser(user, f"development:{user.id}", None, {})
 
 
@@ -153,6 +156,10 @@ def limiter_from(request: Request) -> ParseRateLimiter:
     return cast(ParseRateLimiter, request.app.state.parse_limiter)
 
 
+def metrics_from(request: Request) -> Metrics:
+    return cast(Metrics, request.app.state.metrics)
+
+
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 AuthenticatedUserDep = Annotated[AuthenticatedUser, Depends(authenticated_user)]
 UserDep = Annotated[User, Depends(current_user)]
@@ -162,3 +169,4 @@ ExtractorDep = Annotated[Extractor, Depends(extractor_from)]
 StorageDep = Annotated[Storage, Depends(storage_from)]
 CacheDep = Annotated[Cache, Depends(cache_from)]
 LimiterDep = Annotated[ParseRateLimiter, Depends(limiter_from)]
+MetricsDep = Annotated[Metrics, Depends(metrics_from)]

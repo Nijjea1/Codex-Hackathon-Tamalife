@@ -49,6 +49,14 @@ class Cache:
             except RedisError:
                 return
 
+    async def ping(self) -> bool:
+        if self.redis is None:
+            return False
+        try:
+            return bool(await self.redis.ping())
+        except RedisError:
+            return False
+
 
 class ParseRateLimiter:
     def __init__(self, settings: Settings) -> None:
@@ -77,3 +85,10 @@ class ParseRateLimiter:
         if len(bucket) >= self.limit:
             raise ApiError("rate_limit_exceeded", "Parse rate limit exceeded", 429)
         bucket.append(now)
+
+    async def close(self) -> None:
+        if self.redis is not None:
+            try:
+                await self.redis.aclose()
+            except RedisError:
+                return

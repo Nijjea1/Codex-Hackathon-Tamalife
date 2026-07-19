@@ -19,6 +19,8 @@ class Storage(Protocol):
 
     async def create_signed_url(self, path: str, expires_in: int) -> str | None: ...
 
+    async def healthcheck(self) -> None: ...
+
 
 @dataclass(frozen=True)
 class ValidatedUpload:
@@ -76,6 +78,9 @@ class LocalStorage:
         del path, expires_in
         return None
 
+    async def healthcheck(self) -> None:
+        await asyncio.to_thread(self.root.mkdir, parents=True, exist_ok=True)
+
 
 class SupabaseStorage:
     def __init__(self, url: str, service_key: str, bucket: str) -> None:
@@ -107,6 +112,9 @@ class SupabaseStorage:
         )
         value = response.get("signedURL") or response.get("signedUrl")
         return str(value) if value else None
+
+    async def healthcheck(self) -> None:
+        await asyncio.to_thread(self.client.storage.get_bucket, self.bucket)
 
 
 def create_storage(settings: Settings) -> Storage:

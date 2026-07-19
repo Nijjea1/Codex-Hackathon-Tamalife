@@ -12,6 +12,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.engine import make_url
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from tamalife_backend.api.router import api_router
 from tamalife_backend.config import Settings, get_settings
@@ -19,7 +20,9 @@ from tamalife_backend.db.session import create_engine, create_schema, create_ses
 from tamalife_backend.errors import ApiError, api_error_handler, validation_error_handler
 from tamalife_backend.logging import configure_logging
 from tamalife_backend.schemas import HealthResponse, ReadinessResponse
+from tamalife_backend.security import SecurityMiddleware
 from tamalife_backend.services.extraction import create_extractor
+from tamalife_backend.services.metrics import Metrics
 from tamalife_backend.services.redis import Cache, ParseRateLimiter
 from tamalife_backend.services.storage import create_storage
 
@@ -56,8 +59,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         app.state.extractor = create_extractor(settings)
         app.state.cache = Cache(settings)
         app.state.parse_limiter = ParseRateLimiter(settings)
+        app.state.metrics = Metrics()
         logger.info("application_started", environment=settings.environment)
         yield
+        await app.state.parse_limiter.close()
         await app.state.cache.close()
         await engine.dispose()
         logger.info("application_stopped")
@@ -72,12 +77,26 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.settings = settings
     app.state.engine = engine
     app.state.session_factory = session_factory
+    app.state.metrics = Metrics()
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
         allow_credentials=False,
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["Authorization", "Content-Type", "Idempotency-Key", "X-User-ID"],
+        allow_headers=[
+            "Authorization",
+            "Content-Type",
+            "Idempotency-Key",
+            "X-Request-ID",
+            "X-User-ID",
+        ],
+        expose_headers=["X-Request-ID"],
+    )
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.trusted_hosts)
+    app.add_middleware(
+        SecurityMiddleware,
+        max_body_bytes=settings.max_request_body_bytes,
+        hsts=settings.environment == "production",
     )
     app.add_exception_handler(ApiError, api_error_handler)  # type: ignore[arg-type]
     app.add_exception_handler(RequestValidationError, validation_error_handler)  # type: ignore[arg-type]
@@ -99,7 +118,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def ready() -> ReadinessResponse:
         async with engine.connect() as connection:
             await connection.execute(text("SELECT 1"))
-        return ReadinessResponse()
+        await app.state.storage.healthcheck()
+        cache_ok = await app.state.cache.ping()
+        if settings.cache_enabled and not cache_ok:
+            raise ApiError("cache_unavailable", "Redis is not ready", 503)
+        cache_status = "ok" if cache_ok else "disabled"
+        return ReadinessResponse(cache=cache_status)
 
     app.include_router(api_router, prefix=settings.api_prefix)
     return app
