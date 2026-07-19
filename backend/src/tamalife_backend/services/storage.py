@@ -5,7 +5,6 @@ from pathlib import Path
 from typing import Protocol
 
 from supabase import Client, create_client
-
 from tamalife_backend.config import Settings
 
 
