@@ -67,8 +67,8 @@ class Settings(BaseSettings):
     default_user_email: str = "demo@tamalife.local"
 
     openai_api_key: str | None = None
-    openai_model: str = "gpt-5.6"
-    openai_reasoning_effort: Literal["none", "low", "medium", "high"] = "none"
+    openai_model: str = "gpt-5-mini"
+    openai_reasoning_effort: Literal["none", "low", "medium", "high"] = "low"
     extraction_provider: Literal["heuristic", "openai"] = "heuristic"
     extraction_prompt_version: str = "receipt-v1"
 

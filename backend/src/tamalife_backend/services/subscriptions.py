@@ -63,6 +63,8 @@ def to_response(subscription: Subscription, *, today: date | None = None) -> Sub
         needs_attention=health.needs_attention,
         attention_state=attention_state,
         health_reason=health.reason,
+        price_hike_detected=health.price_hike_detected,
+        next_transition_at=health.next_transition_at,
         monthly_cost=monthly_amount(subscription.amount, subscription.billing_cycle),
         annual_cost=annualized_amount(subscription.amount, subscription.billing_cycle),
     )
