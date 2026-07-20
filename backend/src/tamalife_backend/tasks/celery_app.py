@@ -14,6 +14,7 @@ celery_app = Celery(
         "tamalife_backend.tasks.reminders",
         "tamalife_backend.tasks.cleanup",
         "tamalife_backend.tasks.discovery",
+        "tamalife_backend.tasks.source_monitoring",
     ],
 )
 
@@ -33,6 +34,11 @@ def build_beat_schedule(config: Settings) -> dict[str, dict[str, object]]:
         schedule["discover-pricing-sources-monthly"] = {
             "task": "tamalife.schedule_source_discovery",
             "schedule": float(config.discovery_interval_days * 86400),
+        }
+    if config.scraper_monitoring_enabled:
+        schedule["monitor-pricing-sources"] = {
+            "task": "tamalife.schedule_source_monitoring",
+            "schedule": float(config.scraper_monitor_interval_seconds),
         }
     return schedule
 

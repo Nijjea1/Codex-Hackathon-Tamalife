@@ -20,6 +20,7 @@ def test_discovery_and_scraper_defaults_are_safe_and_bounded() -> None:
     assert settings.scraper_max_response_bytes == 2 * 1024 * 1024
     assert settings.scraper_max_redirects == 3
     assert settings.scraper_missing_plan_threshold == 2
+    assert settings.scraper_monitoring_enabled is False
 
 
 def test_discovery_settings_load_from_prefixed_environment(monkeypatch: pytest.MonkeyPatch) -> None:

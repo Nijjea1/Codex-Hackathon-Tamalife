@@ -802,6 +802,7 @@ class SourceFetch(TimestampMixin, Base):
     changed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     extraction_strategy: Mapped[str | None] = mapped_column(String(80))
     extraction_version: Mapped[str | None] = mapped_column(String(80))
+    extracted_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     confidence: Mapped[float | None] = mapped_column(Float)
     raw_storage_path: Mapped[str | None] = mapped_column(String(1000))
     retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
