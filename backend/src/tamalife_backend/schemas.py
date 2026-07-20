@@ -174,6 +174,22 @@ class NotificationPreferencesUpdate(StrictModel):
         return sorted(set(value), reverse=True) if value else value
 
 
+class DevicePushTokenRegister(StrictModel):
+    token: str = Field(min_length=1, max_length=512)
+    platform: Literal["ios", "android"]
+
+
+class DevicePushTokenResponse(StrictModel):
+    id: UUID
+    platform: Literal["ios", "android"]
+    created_at: datetime
+    last_seen_at: datetime | None
+
+
+class DevicePushTokenUnregister(StrictModel):
+    token: str = Field(min_length=1, max_length=512)
+
+
 class WidgetTokenResponse(StrictModel):
     id: UUID
     token: str
