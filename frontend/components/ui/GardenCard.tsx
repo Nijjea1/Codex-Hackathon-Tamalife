@@ -9,12 +9,26 @@ type Props = {
   style?: ViewStyle;
   onPress?: () => void;
   onLongPress?: () => void;
-  raised?: boolean;
   accessibilityLabel?: string;
+  /** Softer look with no hard drop shadow. */
+  flat?: boolean;
+  /** Tighter padding. */
+  compact?: boolean;
 };
 
-/** Legacy Card, garden-themed: cream/plum sticker card with a hard shadow. */
-export function Card({ children, style, onPress, onLongPress, raised, accessibilityLabel }: Props) {
+/**
+ * Cream (day) / plum (night) "sticker" card with the garden's signature hard
+ * pixel shadow. The core surface used across every revamped screen.
+ */
+export function GardenCard({
+  children,
+  style,
+  onPress,
+  onLongPress,
+  accessibilityLabel,
+  flat = false,
+  compact = false,
+}: Props) {
   const p = useGardenPalette();
   const scale = useSharedValue(1);
   const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
@@ -24,10 +38,12 @@ export function Card({ children, style, onPress, onLongPress, raised, accessibil
       style={[
         styles.card,
         {
-          backgroundColor: raised ? p.cardBgSolid : p.cardBg,
+          backgroundColor: p.cardBg,
           borderColor: p.cardBorder,
-          shadowColor: p.cardShadow,
+          padding: compact ? spacing.md : spacing.md + 2,
         },
+        !flat && { shadowColor: p.cardShadow },
+        !flat && styles.shadow,
         animated,
         style,
       ]}
@@ -55,7 +71,8 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 14,
     borderWidth: 2.5,
-    padding: spacing.md,
+  },
+  shadow: {
     shadowOffset: { width: 4, height: 5 },
     shadowOpacity: 0.5,
     shadowRadius: 0,

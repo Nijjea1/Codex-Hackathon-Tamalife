@@ -1,10 +1,11 @@
 import { useRouter } from "expo-router";
-import { ChevronLeft } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Switch, Text, View } from "react-native";
-import { IconButton } from "../components/ui/IconButton";
-import { Screen } from "../components/ui/Screen";
-import { colors, fonts, radius, spacing, type } from "../constants/theme";
+import { GardenScreen } from "../components/ui/GardenScreen";
+import { Card } from "../components/ui/Card";
+import { GardenKicker } from "../components/ui/GardenKit";
+import { fonts, spacing } from "../constants/theme";
+import { useGardenPalette } from "../constants/garden";
 import { useApiClient } from "../lib/api";
 import { useDemoModeStore } from "../store/useDemoModeStore";
 import { useUIStore } from "../store/useUIStore";
@@ -18,6 +19,7 @@ const defaults: NotificationPreferencesDto = {
 
 export default function NotificationPreferencesScreen() {
   const router = useRouter();
+  const p = useGardenPalette();
   const api = useApiClient();
   const demo = useDemoModeStore((s) => s.active);
   const showToast = useUIStore((s) => s.showToast);
@@ -45,34 +47,47 @@ export default function NotificationPreferencesScreen() {
     }
   };
 
+  const row = (label: string, value: boolean, onChange: (v: boolean) => void, border: boolean) => (
+    <View style={[styles.row, border && { borderBottomWidth: 1.5, borderBottomColor: p.cardBorder }]}>
+      <Text style={[styles.label, { color: p.ink }]}>{label}</Text>
+      <Switch
+        accessibilityLabel={label}
+        value={value}
+        onValueChange={onChange}
+        trackColor={{ true: p.gold, false: p.pillBorder }}
+        thumbColor={p.cardBgSolid}
+      />
+    </View>
+  );
+
   return (
-    <Screen>
-      <View style={styles.header}>
-        <IconButton accessibilityLabel="Go back" icon={<ChevronLeft size={22} color={colors.text} />} onPress={() => router.back()} />
-        <Text style={type.title}>Notifications</Text>
-      </View>
-      {loading ? <Text style={type.bodySmall}>Loading preferencesâ€¦</Text> : (
-        <View style={styles.card}>
-          <PreferenceRow label="Push reminders" value={preferences.push_enabled} onChange={(value) => void update("push_enabled", value)} />
-          <PreferenceRow label="Email reminders" value={preferences.email_enabled} onChange={(value) => void update("email_enabled", value)} />
+    <GardenScreen title="Notifications" onBack={() => router.back()}>
+      <GardenKicker>STAY IN THE LOOP</GardenKicker>
+      <Text style={[styles.lead, { color: p.body }]}>
+        Choose how Penny nudges you before a renewal.
+      </Text>
+      {loading ? (
+        <Text style={[styles.lead, { color: p.muted }]}>Loading preferences…</Text>
+      ) : (
+        <Card style={{ paddingVertical: 0 }}>
+          {row("Push reminders", preferences.push_enabled, (v) => void update("push_enabled", v), true)}
+          {row("Email reminders", preferences.email_enabled, (v) => void update("email_enabled", v), true)}
           <View style={styles.schedule}>
-            <Text style={styles.label}>Reminder schedule</Text>
-            <Text style={type.bodySmall}>{preferences.reminder_days_before.join(", ")} days before</Text>
+            <Text style={[styles.label, { color: p.ink }]}>Reminder schedule</Text>
+            <Text style={[styles.scheduleNote, { color: p.body }]}>
+              {preferences.reminder_days_before.join(", ")} days before
+            </Text>
           </View>
-        </View>
+        </Card>
       )}
-    </Screen>
+    </GardenScreen>
   );
 }
 
-function PreferenceRow({ label, value, onChange }: { label: string; value: boolean; onChange: (value: boolean) => void }) {
-  return <View style={styles.row}><Text style={styles.label}>{label}</Text><Switch accessibilityLabel={label} value={value} onValueChange={onChange} /></View>;
-}
-
 const styles = StyleSheet.create({
-  header: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.lg },
-  card: { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1, borderRadius: radius.md, paddingHorizontal: spacing.md },
-  row: { minHeight: 60, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderBottomColor: colors.border, borderBottomWidth: 1 },
+  lead: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 20, marginTop: 4, marginBottom: spacing.md },
+  row: { minHeight: 60, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   schedule: { paddingVertical: spacing.md, gap: 4 },
-  label: { fontFamily: fonts.semiBold, fontSize: 14, color: colors.text },
+  label: { fontFamily: fonts.pixelBold, fontSize: 14 },
+  scheduleNote: { fontFamily: fonts.medium, fontSize: 13 },
 });

@@ -18,6 +18,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { colors } from "../constants/theme";
 import { ClerkSync } from "../components/ClerkSync";
+import { GardenAmbienceProvider } from "../components/onboarding/GardenAmbience";
 import { ToastHost } from "../components/ui/Toast";
 import { useUIStore } from "../store/useUIStore";
 import { useDemoModeStore } from "../store/useDemoModeStore";
@@ -74,24 +75,26 @@ function AuthenticatedNavigation() {
         <SafeAreaProvider>
           <StatusBar style="light" />
           <ClerkSync />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colors.background },
-              animation: "fade_from_bottom",
-            }}
-          >
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(auth)" />
-            <Stack.Protected guard={!!isSignedIn || demoMode}>
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="add" options={{ presentation: "modal" }} />
-              <Stack.Screen name="creature/[id]" />
-              <Stack.Screen name="subscription/[id]" />
-              <Stack.Screen name="notification-preferences" />
-            </Stack.Protected>
-          </Stack>
-          <ToastHost />
+          <GardenAmbienceProvider>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.background },
+                animation: "fade_from_bottom",
+              }}
+            >
+              <Stack.Screen name="index" />
+              <Stack.Screen name="(auth)" />
+              <Stack.Protected guard={!!isSignedIn || demoMode}>
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="add" options={{ presentation: "modal" }} />
+                <Stack.Screen name="creature/[id]" />
+                <Stack.Screen name="subscription/[id]" />
+                <Stack.Screen name="notification-preferences" />
+              </Stack.Protected>
+            </Stack>
+            <ToastHost />
+          </GardenAmbienceProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
   );

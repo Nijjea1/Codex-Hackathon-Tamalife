@@ -1,7 +1,8 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { colors, spacing, type } from "../../constants/theme";
-import { Creature } from "../creatures/Creature";
+import { fonts, spacing } from "../../constants/theme";
+import { useGardenPalette } from "../../constants/garden";
+import { MascotPortrait } from "../onboarding/MascotPortrait";
 import { Button } from "./Button";
 
 type Props = {
@@ -9,14 +10,18 @@ type Props = {
   message: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** Which mascot to show (default penny). */
+  mascot?: string;
 };
 
-export function EmptyState({ title, message, actionLabel, onAction }: Props) {
+/** Garden-themed empty state with a friendly mascot. */
+export function EmptyState({ title, message, actionLabel, onAction, mascot = "penny" }: Props) {
+  const p = useGardenPalette();
   return (
     <View style={styles.wrap}>
-      <Creature species="egg" mood="resolved" size="medium" />
-      <Text style={[type.heading, { marginTop: spacing.md, textAlign: "center" }]}>{title}</Text>
-      <Text style={[type.body, { textAlign: "center", marginTop: 6 }]}>{message}</Text>
+      <MascotPortrait id={mascot} size={108} />
+      <Text style={[styles.title, { color: p.ink }]}>{title}</Text>
+      <Text style={[styles.message, { color: p.body }]}>{message}</Text>
       {actionLabel && onAction ? (
         <Button label={actionLabel} onPress={onAction} style={{ marginTop: spacing.lg, alignSelf: "stretch" }} />
       ) : null}
@@ -27,7 +32,20 @@ export function EmptyState({ title, message, actionLabel, onAction }: Props) {
 const styles = StyleSheet.create({
   wrap: {
     alignItems: "center",
-    paddingVertical: spacing.xxl,
+    paddingVertical: spacing.xl,
     paddingHorizontal: spacing.lg,
+  },
+  title: {
+    fontFamily: fonts.pixelBold,
+    fontSize: 18,
+    marginTop: spacing.md,
+    textAlign: "center",
+  },
+  message: {
+    fontFamily: fonts.medium,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center",
+    marginTop: 6,
   },
 });

@@ -2,9 +2,11 @@ import { useUser } from "@clerk/expo";
 import { CheckCircle2, CloudOff, Loader } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { colors, fonts, radius, spacing, type } from "../constants/theme";
+import { fonts, spacing } from "../constants/theme";
+import { useGardenPalette } from "../constants/garden";
 import { apiBaseUrl, MeResponse, useApiClient } from "../lib/api";
 import { Card } from "./ui/Card";
+import { GardenKicker } from "./ui/GardenKit";
 
 type Status =
   | { kind: "demo" }
@@ -18,6 +20,7 @@ type Status =
  * /v1/me with the live Clerk token.
  */
 export function AccountCard() {
+  const p = useGardenPalette();
   const { isSignedIn, user } = useUser();
   const api = useApiClient();
   const [status, setStatus] = useState<Status>({ kind: "loading" });
@@ -46,63 +49,63 @@ export function AccountCard() {
 
   return (
     <Card style={{ gap: spacing.sm, marginTop: spacing.md }}>
-      <Text style={type.caption}>ACCOUNT</Text>
+      <GardenKicker>ACCOUNT</GardenKicker>
 
       {isSignedIn ? (
         <>
-          <Text style={styles.name}>{user?.fullName || user?.firstName || "Signed in"}</Text>
-          {email && <Text style={type.bodySmall}>{email}</Text>}
+          <Text style={[styles.name, { color: p.ink }]}>{user?.fullName || user?.firstName || "Signed in"}</Text>
+          {email && <Text style={[styles.body, { color: p.body }]}>{email}</Text>}
         </>
       ) : (
-        <Text style={styles.name}>Demo mode</Text>
+        <Text style={[styles.name, { color: p.ink }]}>Demo mode</Text>
       )}
 
-      <View style={styles.statusRow}>
+      <View style={[styles.statusRow, { backgroundColor: p.warningBg }]}>
         {status.kind === "loading" && (
           <>
-            <Loader size={16} color={colors.textMuted} />
-            <Text style={styles.statusText}>Checking backend…</Text>
+            <Loader size={16} color={p.muted} />
+            <Text style={[styles.statusText, { color: p.body }]}>Checking backend…</Text>
           </>
         )}
         {status.kind === "connected" && (
           <>
-            <CheckCircle2 size={16} color={colors.success} />
-            <Text style={[styles.statusText, { color: colors.success }]}>
+            <CheckCircle2 size={16} color={p.success} />
+            <Text style={[styles.statusText, { color: p.success }]}>
               Backend verified you — id {status.userId.slice(0, 14)}…
             </Text>
           </>
         )}
         {status.kind === "demo" && (
           <>
-            <CloudOff size={16} color={colors.textMuted} />
-            <Text style={styles.statusText}>Not signed in (demo data)</Text>
+            <CloudOff size={16} color={p.muted} />
+            <Text style={[styles.statusText, { color: p.body }]}>Not signed in (demo data)</Text>
           </>
         )}
         {status.kind === "error" && (
           <>
-            <CloudOff size={16} color={colors.warning} />
-            <Text style={[styles.statusText, { color: colors.warning }]}>
+            <CloudOff size={16} color={p.warning} />
+            <Text style={[styles.statusText, { color: p.warning }]}>
               Backend unreachable ({status.code})
             </Text>
           </>
         )}
       </View>
-      <Text style={styles.apiUrl}>API: {apiBaseUrl}</Text>
+      <Text style={[styles.apiUrl, { color: p.muted }]}>API: {apiBaseUrl}</Text>
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
-  name: { fontFamily: fonts.bold, fontSize: 16, color: colors.text },
+  name: { fontFamily: fonts.pixelBold, fontSize: 16 },
+  body: { fontFamily: fonts.medium, fontSize: 13 },
   statusRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: colors.backgroundRaised,
-    borderRadius: radius.sm,
+    borderRadius: 10,
     paddingHorizontal: 10,
     paddingVertical: 8,
   },
-  statusText: { fontFamily: fonts.semiBold, fontSize: 12, color: colors.textSecondary, flex: 1 },
-  apiUrl: { fontFamily: fonts.regular, fontSize: 11, color: colors.textMuted },
+  statusText: { fontFamily: fonts.medium, fontSize: 12, flex: 1 },
+  apiUrl: { fontFamily: fonts.regular, fontSize: 11 },
 });

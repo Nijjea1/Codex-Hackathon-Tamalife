@@ -1,6 +1,6 @@
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { colors, radius } from "../../constants/theme";
+import { useGardenPalette } from "../../constants/garden";
 
 type Props = {
   icon: React.ReactNode;
@@ -9,17 +9,23 @@ type Props = {
   badge?: boolean;
 };
 
+/** Legacy IconButton, garden-themed as a cream/plum pill. */
 export function IconButton({ icon, onPress, accessibilityLabel, badge }: Props) {
+  const p = useGardenPalette();
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       onPress={onPress}
-      style={({ pressed }) => [styles.btn, pressed && { opacity: 0.7 }]}
+      style={({ pressed }) => [
+        styles.btn,
+        { backgroundColor: p.pill, borderColor: p.pillBorder },
+        pressed && { transform: [{ translateY: 2 }] },
+      ]}
       hitSlop={6}
     >
       {icon}
-      {badge && <View style={styles.badge} />}
+      {badge && <View style={[styles.badge, { borderColor: p.pill }]} />}
     </Pressable>
   );
 }
@@ -28,20 +34,19 @@ const styles = StyleSheet.create({
   btn: {
     width: 44,
     height: 44,
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: 22,
+    borderWidth: 2,
     alignItems: "center",
     justifyContent: "center",
   },
   badge: {
     position: "absolute",
-    top: 9,
-    right: 9,
-    width: 8,
-    height: 8,
-    borderRadius: 8,
-    backgroundColor: colors.danger,
+    top: 8,
+    right: 8,
+    width: 10,
+    height: 10,
+    borderRadius: 10,
+    borderWidth: 1.5,
+    backgroundColor: "#e5533f",
   },
 });

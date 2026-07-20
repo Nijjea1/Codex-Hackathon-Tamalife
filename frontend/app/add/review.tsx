@@ -1,13 +1,14 @@
 import { useRouter } from "expo-router";
-import { ChevronDown, ChevronLeft, ChevronUp, TrendingUp } from "lucide-react-native";
+import { ChevronDown, ChevronUp, TrendingUp } from "lucide-react-native";
 import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import Animated, { FadeIn } from "react-native-reanimated";
-import { colors, fonts, radius, spacing, type } from "../../constants/theme";
+import { fonts, spacing } from "../../constants/theme";
+import { useGardenPalette } from "../../constants/garden";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
-import { IconButton } from "../../components/ui/IconButton";
-import { Screen } from "../../components/ui/Screen";
+import { GardenScreen } from "../../components/ui/GardenScreen";
+import { GardenPill } from "../../components/ui/GardenKit";
 import { useReceiptDraftStore } from "../../store/useReceiptDraftStore";
 import { useDemoModeStore } from "../../store/useDemoModeStore";
 import { useApiClient } from "../../lib/api";
@@ -23,6 +24,7 @@ const evidence = [
 
 export default function ReviewScreen() {
   const router = useRouter();
+  const p = useGardenPalette();
   const parseId = useReceiptDraftStore((s) => s.parseId);
   const extracted = useReceiptDraftStore((s) => s.extracted);
   const setExtracted = useReceiptDraftStore((s) => s.setExtracted);
@@ -87,36 +89,26 @@ export default function ReviewScreen() {
   };
 
   return (
-    <Screen>
-      <View style={styles.header}>
-        <IconButton
-          accessibilityLabel="Go back"
-          icon={<ChevronLeft size={22} color={colors.text} />}
-          onPress={() => router.back()}
+    <GardenScreen title="We found a subscription" onBack={() => router.back()}>
+      <View style={styles.badges}>
+        <GardenPill
+          tone="success"
+          label={extracted ? `${Math.round(extracted.confidence * 100)}% CONFIDENCE` : "HIGH CONFIDENCE"}
         />
-        <View style={{ flex: 1 }}>
-          <Text style={type.title}>We found a subscription</Text>
-        </View>
+        <GardenPill tone="warning" label="PRICE +$2.00 / MO" />
       </View>
 
-      <View style={styles.confidence}>
-        <View style={styles.confidenceDot} />
-        <Text style={styles.confidenceText}>
-          {extracted ? `${Math.round(extracted.confidence * 100)}% confidence` : "High confidence"}
-        </Text>
-      </View>
-
-      <View style={styles.increase}>
-        <TrendingUp size={16} color={colors.warning} />
-        <Text style={styles.increaseText}>Price increased by $2.00 per month.</Text>
+      <View style={[styles.increase, { backgroundColor: p.warningBg }]}>
+        <TrendingUp size={16} color={p.accent} strokeWidth={2.4} />
+        <Text style={[styles.increaseText, { color: p.body }]}>Price increased by $2.00 per month.</Text>
       </View>
 
       <Card style={{ paddingVertical: spacing.xs }}>
         {rows.map(({ key, label }, i) => (
-          <View key={key} style={[styles.fieldRow, i > 0 && styles.fieldDivider]}>
-            <Text style={styles.fieldLabel}>{label}</Text>
+          <View key={key} style={[styles.fieldRow, i > 0 && { borderTopWidth: 1.5, borderTopColor: p.cardBorder }]}>
+            <Text style={[styles.fieldLabel, { color: p.muted }]}>{label}</Text>
             <TextInput
-              style={styles.fieldInput}
+              style={[styles.fieldInput, { color: p.inkStrong }]}
               value={fields[key]}
               onChangeText={set(key)}
               accessibilityLabel={label}
@@ -129,22 +121,22 @@ export default function ReviewScreen() {
         accessibilityRole="button"
         accessibilityState={{ expanded: showEvidence }}
         onPress={() => setShowEvidence((v) => !v)}
-        style={styles.evidence}
+        style={[styles.evidence, { backgroundColor: p.cardBg, borderColor: p.cardBorder }]}
       >
         <View style={styles.evidenceHeader}>
-          <Text style={type.subheading}>Where we found this</Text>
+          <Text style={[styles.evidenceTitle, { color: p.ink }]}>Where we found this</Text>
           {showEvidence ? (
-            <ChevronUp size={18} color={colors.textMuted} />
+            <ChevronUp size={18} color={p.muted} />
           ) : (
-            <ChevronDown size={18} color={colors.textMuted} />
+            <ChevronDown size={18} color={p.muted} />
           )}
         </View>
         {showEvidence && (
           <Animated.View entering={FadeIn.duration(200)} style={{ marginTop: spacing.sm }}>
             {(extracted?.evidence ?? evidence).map((e) => (
               <View key={e.label} style={styles.evidenceRow}>
-                <Text style={styles.evidenceLabel}>{e.label}</Text>
-                <Text style={styles.evidenceSnippet}>{e.snippet}</Text>
+                <Text style={[styles.evidenceLabel, { color: p.accent }]}>{e.label}</Text>
+                <Text style={[styles.evidenceSnippet, { color: p.body }]}>{e.snippet}</Text>
               </View>
             ))}
           </Animated.View>
@@ -157,40 +149,21 @@ export default function ReviewScreen() {
         loading={submitting}
         style={{ marginTop: spacing.lg }}
       />
-    </Screen>
+    </GardenScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm + 4,
-    marginBottom: spacing.md,
-  },
-  confidence: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    backgroundColor: colors.successSoft,
-    alignSelf: "flex-start",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
-    marginBottom: spacing.sm + 2,
-  },
-  confidenceDot: { width: 8, height: 8, borderRadius: 8, backgroundColor: colors.success },
-  confidenceText: { fontFamily: fonts.bold, fontSize: 13, color: colors.success },
+  badges: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.sm + 2, flexWrap: "wrap" },
   increase: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
-    backgroundColor: colors.warningSoft,
-    borderRadius: radius.md,
+    borderRadius: 12,
     padding: spacing.sm + 4,
     marginBottom: spacing.md,
   },
-  increaseText: { fontFamily: fonts.semiBold, fontSize: 13, color: colors.warning },
+  increaseText: { fontFamily: fonts.medium, fontSize: 13 },
   fieldRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -198,21 +171,17 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.sm + 2,
     gap: spacing.md,
   },
-  fieldDivider: { borderTopWidth: 1, borderTopColor: colors.border },
-  fieldLabel: { fontFamily: fonts.medium, fontSize: 13, color: colors.textSecondary },
+  fieldLabel: { fontFamily: fonts.medium, fontSize: 13 },
   fieldInput: {
-    fontFamily: fonts.bold,
+    fontFamily: fonts.pixelBold,
     fontSize: 14,
-    color: colors.text,
     textAlign: "right",
     flex: 1,
     padding: 0,
   },
   evidence: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
+    borderWidth: 2,
+    borderRadius: 12,
     padding: spacing.md,
     marginTop: spacing.sm + 2,
   },
@@ -221,7 +190,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
+  evidenceTitle: { fontFamily: fonts.pixelBold, fontSize: 15 },
   evidenceRow: { marginBottom: spacing.sm },
-  evidenceLabel: { fontFamily: fonts.semiBold, fontSize: 12, color: colors.primaryLight },
-  evidenceSnippet: { fontFamily: fonts.regular, fontSize: 13, color: colors.textSecondary, marginTop: 1 },
+  evidenceLabel: { fontFamily: "monospace", fontWeight: "900", fontSize: 11 },
+  evidenceSnippet: { fontFamily: fonts.regular, fontSize: 13, marginTop: 1 },
 });

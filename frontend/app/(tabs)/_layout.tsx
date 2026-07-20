@@ -1,3 +1,4 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { Tabs, useRouter } from "expo-router";
 import { ChartPie, Flower2, House, Plus, UserRound } from "lucide-react-native";
 import React from "react";
@@ -7,7 +8,8 @@ import Animated, {
   useSharedValue,
   withSpring,
 } from "react-native-reanimated";
-import { colors } from "../../constants/theme";
+import { useGardenPalette } from "../../constants/garden";
+import { useGardenContinueSound } from "../../components/onboarding/GardenAmbience";
 
 function TabIcon({
   focused,
@@ -17,31 +19,40 @@ function TabIcon({
   children: React.ReactNode;
 }) {
   const scale = useSharedValue(1);
+  const lift = useSharedValue(0);
   React.useEffect(() => {
-    scale.value = withSpring(focused ? 1.15 : 1, { damping: 10 });
-  }, [focused, scale]);
-  const style = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+    scale.value = withSpring(focused ? 1.18 : 1, { damping: 10 });
+    lift.value = withSpring(focused ? -3 : 0, { damping: 12 });
+  }, [focused, scale, lift]);
+  const style = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }, { translateY: lift.value }],
+  }));
   return <Animated.View style={style}>{children}</Animated.View>;
 }
 
 export default function TabsLayout() {
   const router = useRouter();
+  const p = useGardenPalette();
+  const playContinue = useGardenContinueSound();
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
         tabBarShowLabel: true,
-        tabBarActiveTintColor: colors.primaryLight,
-        tabBarInactiveTintColor: colors.textMuted,
+        tabBarActiveTintColor: p.isDay ? "#31543c" : "#fff4c8",
+        tabBarInactiveTintColor: p.isDay ? "#8aa07f" : "#8f83b8",
         tabBarStyle: {
-          backgroundColor: colors.backgroundRaised,
-          borderTopColor: colors.border,
-          borderTopWidth: 1,
-          height: 84,
-          paddingTop: 8,
+          backgroundColor: p.isDay ? "#fbf6dd" : "#20183f",
+          borderTopColor: p.cardBorder,
+          borderTopWidth: 2,
+          height: 86,
+          paddingTop: 10,
+          paddingBottom: 18,
         },
-        tabBarLabelStyle: { fontFamily: "PlusJakartaSans_600SemiBold", fontSize: 11 },
-        sceneStyle: { backgroundColor: colors.background },
+        tabBarItemStyle: { paddingTop: 2 },
+        tabBarLabelStyle: { fontFamily: "PixelifySans_500Medium", fontSize: 11, letterSpacing: 0.5 },
+        sceneStyle: { backgroundColor: p.bgDeep },
       }}
     >
       <Tabs.Screen
@@ -50,7 +61,7 @@ export default function TabsLayout() {
           title: "Home",
           tabBarIcon: ({ color, focused }) => (
             <TabIcon focused={focused}>
-              <House size={22} color={color} />
+              <House size={22} color={color} strokeWidth={2.4} />
             </TabIcon>
           ),
         }}
@@ -61,7 +72,7 @@ export default function TabsLayout() {
           title: "Garden",
           tabBarIcon: ({ color, focused }) => (
             <TabIcon focused={focused}>
-              <Flower2 size={22} color={color} />
+              <Flower2 size={22} color={color} strokeWidth={2.4} />
             </TabIcon>
           ),
         }}
@@ -75,10 +86,20 @@ export default function TabsLayout() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Add subscription"
-                onPress={() => router.push("/add")}
-                style={({ pressed }) => [styles.addBtn, pressed && { transform: [{ scale: 0.94 }] }]}
+                onPress={() => {
+                  playContinue();
+                  router.push("/add");
+                }}
+                style={({ pressed }) => [pressed && { transform: [{ scale: 0.93 }] }]}
               >
-                <Plus size={26} color="#fff" strokeWidth={2.5} />
+                <LinearGradient
+                  colors={[p.goldLight, p.gold]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[styles.addBtn, { borderColor: p.goldBorder, shadowColor: p.gold }]}
+                >
+                  <Plus size={26} color={p.onGold} strokeWidth={3} />
+                </LinearGradient>
               </Pressable>
             </View>
           ),
@@ -91,7 +112,7 @@ export default function TabsLayout() {
           title: "Insights",
           tabBarIcon: ({ color, focused }) => (
             <TabIcon focused={focused}>
-              <ChartPie size={22} color={color} />
+              <ChartPie size={22} color={color} strokeWidth={2.4} />
             </TabIcon>
           ),
         }}
@@ -102,7 +123,7 @@ export default function TabsLayout() {
           title: "Profile",
           tabBarIcon: ({ color, focused }) => (
             <TabIcon focused={focused}>
-              <UserRound size={22} color={color} />
+              <UserRound size={22} color={color} strokeWidth={2.4} />
             </TabIcon>
           ),
         }}
@@ -114,17 +135,16 @@ export default function TabsLayout() {
 const styles = StyleSheet.create({
   addWrap: { flex: 1, alignItems: "center", justifyContent: "center" },
   addBtn: {
-    width: 54,
-    height: 54,
+    width: 56,
+    height: 56,
     borderRadius: 20,
-    backgroundColor: colors.primary,
+    borderWidth: 2.5,
     alignItems: "center",
     justifyContent: "center",
-    marginTop: -22,
-    shadowColor: colors.primary,
+    marginTop: -24,
     shadowOpacity: 0.5,
-    shadowRadius: 14,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 8,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 5 },
+    elevation: 9,
   },
 });

@@ -1,16 +1,19 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, fonts, spacing, type } from "../../constants/theme";
+import { fonts, spacing } from "../../constants/theme";
+import { useGardenPalette } from "../../constants/garden";
 
 type Props = { title: string; actionLabel?: string; onAction?: () => void };
 
+/** Legacy SectionHeader, garden-themed with the pixel display font. */
 export function SectionHeader({ title, actionLabel, onAction }: Props) {
+  const p = useGardenPalette();
   return (
     <View style={styles.row}>
-      <Text style={type.heading}>{title}</Text>
+      <Text style={[styles.title, { color: p.ink }]}>{title}</Text>
       {actionLabel ? (
         <Pressable accessibilityRole="button" onPress={onAction} hitSlop={8}>
-          <Text style={styles.action}>{actionLabel}</Text>
+          <Text style={[styles.action, { color: p.accent }]}>{actionLabel}</Text>
         </Pressable>
       ) : null}
     </View>
@@ -25,5 +28,6 @@ const styles = StyleSheet.create({
     marginTop: spacing.lg,
     marginBottom: spacing.sm + 4,
   },
-  action: { fontFamily: fonts.semiBold, fontSize: 13, color: colors.primaryLight },
+  title: { fontFamily: fonts.pixelBold, fontSize: 17, letterSpacing: 0.5 },
+  action: { fontFamily: fonts.pixel, fontSize: 12, letterSpacing: 0.5 },
 });
