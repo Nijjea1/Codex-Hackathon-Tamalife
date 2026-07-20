@@ -3,7 +3,6 @@ import { Redirect, Stack, usePathname } from "expo-router";
 import React from "react";
 import { colors } from "../../constants/theme";
 import { useDemoModeStore } from "../../store/useDemoModeStore";
-import { GardenAmbienceProvider } from "../../components/onboarding/GardenAmbience";
 
 export default function AuthLayout() {
   const { isLoaded, isSignedIn } = useAuth();
@@ -16,14 +15,12 @@ export default function AuthLayout() {
   }
 
   return (
-    <GardenAmbienceProvider>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.background },
-          animation: "slide_from_right",
-        }}
-      />
-    </GardenAmbienceProvider>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: colors.background },
+        animation: "slide_from_right",
+      }}
+    />
   );
 }
