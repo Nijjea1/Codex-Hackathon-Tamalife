@@ -94,9 +94,10 @@ class Settings(BaseSettings):
     celery_result_expires_seconds: int = Field(default=3600, ge=60)
 
     reminder_delivery_enabled: bool = False
-    reminder_delivery_provider: Literal["log", "webhook"] = "log"
+    reminder_delivery_provider: Literal["log", "webhook", "fcm"] = "log"
     reminder_delivery_webhook_url: str | None = None
     reminder_delivery_webhook_token: str | None = None
+    firebase_credentials_json: str | None = None
     reminder_max_attempts: int = Field(default=5, ge=1, le=20)
     reminder_retry_base_seconds: int = Field(default=30, ge=1)
     reminder_retry_max_seconds: int = Field(default=3600, ge=1)
@@ -178,11 +179,13 @@ class Settings(BaseSettings):
         if (
             self.environment == "production"
             and self.reminder_delivery_enabled
-            and self.reminder_delivery_provider != "webhook"
+            and self.reminder_delivery_provider not in ("webhook", "fcm")
         ):
-            raise ValueError("Production reminder delivery must use the webhook provider")
+            raise ValueError("Production reminder delivery must use the webhook or fcm provider")
         if self.reminder_delivery_provider == "webhook" and not self.reminder_delivery_webhook_url:
             raise ValueError("The webhook reminder provider requires a delivery URL")
+        if self.reminder_delivery_provider == "fcm" and not self.firebase_credentials_json:
+            raise ValueError("The fcm reminder provider requires Firebase credentials")
         if self.celery_task_soft_time_limit_seconds >= self.celery_task_time_limit_seconds:
             raise ValueError("Celery soft time limit must be lower than its hard time limit")
 
