@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Text, TextStyle } from "react-native";
+import { StyleProp, Text, TextStyle } from "react-native";
 import Animated, {
   runOnJS,
   useAnimatedReaction,
@@ -9,7 +9,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { type } from "../../constants/theme";
 
-type Props = { value: number; prefix?: string; suffix?: string; style?: TextStyle };
+type Props = { value: number; prefix?: string; suffix?: string; style?: StyleProp<TextStyle> };
 
 // Counts toward the target value whenever it changes.
 export function AnimatedNumber({ value, prefix = "$", suffix = "", style }: Props) {

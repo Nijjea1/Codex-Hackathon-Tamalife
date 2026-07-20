@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { colors, fonts, radius, spacing } from "../../constants/theme";
+import { fonts, spacing } from "../../constants/theme";
+import { useGardenPalette } from "../../constants/garden";
 import { Subscription } from "../../types/subscription";
 import { moodMeta } from "../../utils/creatureMood";
 import { Creature } from "../creatures/Creature";
@@ -14,30 +14,21 @@ type Props = {
 // The hero garden: an atmospheric platform the user can swipe through.
 // Tapping a creature opens its detail screen.
 export function GardenHero({ subscriptions, onCreaturePress }: Props) {
+  const p = useGardenPalette();
   const [activeIndex, setActiveIndex] = useState(0);
   const attention = subscriptions.filter(
     (s) => s.status === "active" && ["concerned", "sick", "critical"].includes(s.mood)
   ).length;
 
   return (
-    <LinearGradient
-      colors={["#1A2040", "#151A31", "#12172A"]}
-      start={{ x: 0.3, y: 0 }}
-      end={{ x: 0.7, y: 1 }}
-      style={styles.hero}
-    >
-      <View style={[styles.ambient, { top: -50, left: -30, backgroundColor: colors.primary }]} />
-      <View style={[styles.ambient, { bottom: -70, right: -20, backgroundColor: colors.secondary }]} />
-
+    <View style={[styles.hero, { backgroundColor: p.cardBg, borderColor: p.cardBorder, shadowColor: p.cardShadow }]}>
       <View style={styles.overlayRow}>
-        <View style={styles.pill}>
-          <Text style={styles.pillText}>{subscriptions.length} creatures</Text>
+        <View style={[styles.pill, { backgroundColor: p.pill, borderColor: p.pillBorder }]}>
+          <Text style={[styles.pillText, { color: p.pillInk }]}>{subscriptions.length} CREATURES</Text>
         </View>
         {attention > 0 && (
-          <View style={[styles.pill, { backgroundColor: colors.warningSoft }]}>
-            <Text style={[styles.pillText, { color: colors.warning }]}>
-              {attention} need attention
-            </Text>
+          <View style={[styles.pill, { backgroundColor: p.warningBg, borderColor: p.warning }]}>
+            <Text style={[styles.pillText, { color: p.warning }]}>{attention} NEED ATTENTION</Text>
           </View>
         )}
       </View>
@@ -60,7 +51,7 @@ export function GardenHero({ subscriptions, onCreaturePress }: Props) {
             style={[styles.slot, i === activeIndex && styles.slotActive]}
           >
             <Creature species={s.species} mood={s.mood} size="medium" />
-            <Text style={styles.creatureName}>{s.creatureName}</Text>
+            <Text style={[styles.creatureName, { color: p.ink }]}>{s.creatureName}</Text>
             <Text style={[styles.creatureMood, { color: moodMeta[s.mood].color }]}>
               {moodMeta[s.mood].label}
             </Text>
@@ -68,49 +59,46 @@ export function GardenHero({ subscriptions, onCreaturePress }: Props) {
         ))}
       </ScrollView>
 
-      <View style={styles.platform} />
-    </LinearGradient>
+      <View style={[styles.platform, { backgroundColor: p.pillBorder }]} />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   hero: {
-    borderRadius: radius.xl,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: 16,
+    borderWidth: 2.5,
     overflow: "hidden",
     paddingVertical: spacing.md,
-  },
-  ambient: {
-    position: "absolute",
-    width: 180,
-    height: 180,
-    borderRadius: 180,
-    opacity: 0.08,
+    shadowOffset: { width: 4, height: 5 },
+    shadowOpacity: 0.5,
+    shadowRadius: 0,
+    elevation: 5,
   },
   overlayRow: {
     flexDirection: "row",
     gap: spacing.sm,
     paddingHorizontal: spacing.md,
     marginBottom: spacing.sm,
+    flexWrap: "wrap",
   },
   pill: {
-    backgroundColor: "rgba(255,255,255,0.08)",
-    paddingHorizontal: 12,
+    paddingHorizontal: 11,
     paddingVertical: 5,
-    borderRadius: radius.pill,
+    borderRadius: 999,
+    borderWidth: 1.5,
   },
-  pillText: { fontFamily: fonts.semiBold, fontSize: 12, color: colors.textSecondary },
+  pillText: { fontFamily: "monospace", fontWeight: "900", fontSize: 9, letterSpacing: 0.5 },
   strip: { paddingHorizontal: spacing.md, gap: spacing.md, alignItems: "flex-end" },
-  slot: { width: 134, alignItems: "center", opacity: 0.75, transform: [{ scale: 0.92 }] },
+  slot: { width: 134, alignItems: "center", opacity: 0.72, transform: [{ scale: 0.92 }] },
   slotActive: { opacity: 1, transform: [{ scale: 1 }] },
-  creatureName: { fontFamily: fonts.bold, fontSize: 14, color: colors.text, marginTop: 6 },
-  creatureMood: { fontFamily: fonts.semiBold, fontSize: 11, marginTop: 1 },
+  creatureName: { fontFamily: fonts.pixelBold, fontSize: 14, marginTop: 6 },
+  creatureMood: { fontFamily: "monospace", fontWeight: "900", fontSize: 10, marginTop: 2 },
   platform: {
-    height: 10,
+    height: 8,
     marginTop: spacing.sm,
     marginHorizontal: spacing.lg,
     borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.05)",
+    opacity: 0.5,
   },
 });

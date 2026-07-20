@@ -3,10 +3,12 @@ import { StyleSheet, Text, View } from "react-native";
 import Animated, { FadeInUp, FadeOutUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CheckCircle2, Info, AlertTriangle } from "lucide-react-native";
-import { colors, fonts, radius, spacing } from "../../constants/theme";
+import { fonts, spacing } from "../../constants/theme";
+import { useGardenPalette } from "../../constants/garden";
 import { useUIStore } from "../../store/useUIStore";
 
 export function ToastHost() {
+  const p = useGardenPalette();
   const toast = useUIStore((s) => s.toast);
   const hideToast = useUIStore((s) => s.hideToast);
   const insets = useSafeAreaInsets();
@@ -21,7 +23,7 @@ export function ToastHost() {
   const Icon =
     toast.tone === "success" ? CheckCircle2 : toast.tone === "warning" ? AlertTriangle : Info;
   const tint =
-    toast.tone === "success" ? colors.success : toast.tone === "warning" ? colors.warning : colors.primaryLight;
+    toast.tone === "success" ? p.success : toast.tone === "warning" ? p.warning : p.accent;
 
   return (
     <Animated.View
@@ -30,9 +32,9 @@ export function ToastHost() {
       style={[styles.wrap, { top: insets.top + 8 }]}
       pointerEvents="none"
     >
-      <View style={styles.toast}>
-        <Icon size={18} color={tint} />
-        <Text style={styles.text}>{toast.message}</Text>
+      <View style={[styles.toast, { backgroundColor: p.cardBgSolid, borderColor: p.cardBorder, shadowColor: p.cardShadow }]}>
+        <Icon size={18} color={tint} strokeWidth={2.4} />
+        <Text style={[styles.text, { color: p.ink }]}>{toast.message}</Text>
       </View>
     </Animated.View>
   );
@@ -44,13 +46,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    backgroundColor: colors.surfaceRaised,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
-    borderRadius: radius.pill,
+    borderWidth: 2,
+    borderRadius: 999,
     paddingHorizontal: spacing.md,
     paddingVertical: 12,
     maxWidth: "88%",
+    shadowOffset: { width: 2, height: 3 },
+    shadowOpacity: 0.4,
+    shadowRadius: 0,
+    elevation: 4,
   },
-  text: { fontFamily: fonts.semiBold, fontSize: 13, color: colors.text },
+  text: { fontFamily: fonts.pixel, fontSize: 13 },
 });

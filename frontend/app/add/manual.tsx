@@ -1,12 +1,11 @@
 import { useRouter } from "expo-router";
-import { ChevronLeft } from "lucide-react-native";
 import React, { useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { colors, fonts, radius, spacing, type } from "../../constants/theme";
+import { fonts, spacing } from "../../constants/theme";
+import { useGardenPalette } from "../../constants/garden";
 import { Button } from "../../components/ui/Button";
 import { Chip } from "../../components/ui/Chip";
-import { IconButton } from "../../components/ui/IconButton";
-import { Screen } from "../../components/ui/Screen";
+import { GardenScreen } from "../../components/ui/GardenScreen";
 import { useSubscriptionStore } from "../../store/useSubscriptionStore";
 import { useUIStore } from "../../store/useUIStore";
 import { SubscriptionCategory } from "../../types/subscription";
@@ -26,6 +25,7 @@ const creatureNames = ["Nova", "Bramble", "Echo", "Willow", "Zephyr", "Maple"];
 
 export default function ManualScreen() {
   const router = useRouter();
+  const p = useGardenPalette();
   const addSubscription = useSubscriptionStore((s) => s.addSubscription);
   const showToast = useUIStore((s) => s.showToast);
   const demoMode = useDemoModeStore((s) => s.active);
@@ -87,49 +87,42 @@ export default function ManualScreen() {
     }
   };
 
-  return (
-    <Screen>
-      <View style={styles.header}>
-        <IconButton
-          accessibilityLabel="Go back"
-          icon={<ChevronLeft size={22} color={colors.text} />}
-          onPress={() => router.back()}
-        />
-        <Text style={type.title}>Add manually</Text>
-      </View>
+  const inputStyle = [styles.input, { backgroundColor: p.inputBg, borderColor: p.inputBorder, color: p.inputInk }];
 
-      <Text style={styles.label}>Subscription name</Text>
+  return (
+    <GardenScreen title="Add manually" onBack={() => router.back()}>
+      <Text style={[styles.label, { color: p.ink }]}>Subscription name</Text>
       <TextInput
-        style={styles.input}
+        style={inputStyle}
         placeholder="e.g. Video Streaming"
-        placeholderTextColor={colors.textMuted}
+        placeholderTextColor={p.muted}
         value={name}
         onChangeText={setName}
         accessibilityLabel="Subscription name"
       />
 
-      <Text style={styles.label}>Merchant</Text>
+      <Text style={[styles.label, { color: p.ink }]}>Merchant</Text>
       <TextInput
-        style={styles.input}
+        style={inputStyle}
         placeholder="e.g. StreamFlix"
-        placeholderTextColor={colors.textMuted}
+        placeholderTextColor={p.muted}
         value={merchant}
         onChangeText={setMerchant}
         accessibilityLabel="Merchant"
       />
 
-      <Text style={styles.label}>Price (USD)</Text>
+      <Text style={[styles.label, { color: p.ink }]}>Price (USD)</Text>
       <TextInput
-        style={styles.input}
+        style={inputStyle}
         placeholder="9.99"
-        placeholderTextColor={colors.textMuted}
+        placeholderTextColor={p.muted}
         keyboardType="decimal-pad"
         value={price}
         onChangeText={setPrice}
         accessibilityLabel="Price"
       />
 
-      <Text style={styles.label}>Category</Text>
+      <Text style={[styles.label, { color: p.ink }]}>Category</Text>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -141,51 +134,41 @@ export default function ManualScreen() {
         ))}
       </ScrollView>
 
-      <Text style={styles.label}>Billing frequency</Text>
+      <Text style={[styles.label, { color: p.ink }]}>Billing frequency</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }} style={{ flexGrow: 0, marginBottom: spacing.md }}>
         {(["weekly", "monthly", "yearly", "trial"] as Exclude<BillingCycleDto, "one_time">[]).map((cycle) => (
           <Chip key={cycle} label={cycle} selected={billingCycle === cycle} onPress={() => setBillingCycle(cycle)} />
         ))}
       </ScrollView>
 
-      <Text style={styles.label}>Renewal or expiry date</Text>
+      <Text style={[styles.label, { color: p.ink }]}>Renewal or expiry date</Text>
       <TextInput
-        style={styles.input}
+        style={inputStyle}
         placeholder="YYYY-MM-DD"
-        placeholderTextColor={colors.textMuted}
+        placeholderTextColor={p.muted}
         value={renewalDate}
         onChangeText={setRenewalDate}
         accessibilityLabel="Renewal or expiry date"
       />
 
-      <Button label="Create creature" onPress={create} disabled={!valid} loading={loading} />
-    </Screen>
+      <Button label="Create creature" onPress={create} disabled={!valid} loading={loading} style={{ marginTop: spacing.sm }} />
+    </GardenScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm + 4,
-    marginBottom: spacing.lg,
-  },
   label: {
-    fontFamily: fonts.semiBold,
+    fontFamily: fonts.pixelBold,
     fontSize: 13,
-    color: colors.textSecondary,
     marginBottom: 6,
   },
   input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
+    borderWidth: 2,
+    borderRadius: 12,
     paddingHorizontal: spacing.md,
     minHeight: 52,
     fontFamily: fonts.medium,
     fontSize: 15,
-    color: colors.text,
     marginBottom: spacing.md,
   },
 });
