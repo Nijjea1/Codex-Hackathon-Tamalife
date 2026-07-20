@@ -25,6 +25,10 @@ expo-env.d.ts
 npm-debug.*
 yarn-debug.*
 yarn-error.*
+.codex-expo-*.log
+
+# raw asset archives (unpacked into assets/ instead)
+*.zip
 
 # macOS
 .DS_Store
