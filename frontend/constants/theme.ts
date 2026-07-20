@@ -30,6 +30,9 @@ export const fonts = {
   semiBold: "PlusJakartaSans_600SemiBold",
   bold: "PlusJakartaSans_700Bold",
   extraBold: "PlusJakartaSans_800ExtraBold",
+  // Pixel display family for the cozy game-style onboarding.
+  pixel: "PixelifySans_500Medium",
+  pixelBold: "PixelifySans_700Bold",
 } as const;
 
 export const spacing = {

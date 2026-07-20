@@ -1,7 +1,6 @@
 import { useRouter } from "expo-router";
 import { CalendarCheck, PiggyBank, Scissors, Search } from "lucide-react-native";
 import React from "react";
-import { colors } from "../../../constants/theme";
 import { OnboardingShell } from "../../../components/onboarding/OnboardingShell";
 import { OptionCard } from "../../../components/onboarding/OptionCard";
 import { useAuthStore } from "../../../store/useAuthStore";
@@ -40,7 +39,7 @@ export default function GoalsScreen() {
           key={id}
           title={title}
           description={description}
-          icon={<Icon size={20} color={colors.secondary} />}
+          icon={<Icon size={20} color="#3b7d58" />}
           selected={goal === id}
           onPress={() => setAnswer("goal", id)}
         />

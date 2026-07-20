@@ -9,3 +9,8 @@ Thumbs.db
 .vscode/
 .idea/
 .cursor/
+.claude/
+
+# Local env / secrets
+.env
+.env*.local

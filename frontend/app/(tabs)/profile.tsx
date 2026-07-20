@@ -12,31 +12,29 @@ import {
 } from "lucide-react-native";
 import React from "react";
 import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
-import { colors, fonts, radius, spacing, type } from "../../constants/theme";
+import { fonts, spacing } from "../../constants/theme";
+import { useGardenPalette } from "../../constants/garden";
 import { AccountCard } from "../../components/AccountCard";
-import { Creature } from "../../components/creatures/Creature";
+import { MascotPortrait } from "../../components/onboarding/MascotPortrait";
+import { AmbienceButton } from "../../components/onboarding/GardenAmbience";
+import { GardenModeButton } from "../../components/onboarding/GardenModeButton";
 import { Card } from "../../components/ui/Card";
 import { Screen } from "../../components/ui/Screen";
 import { SectionHeader } from "../../components/ui/SectionHeader";
+import { GardenKicker } from "../../components/ui/GardenKit";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useUIStore } from "../../store/useUIStore";
-import { CreatureSpecies } from "../../types/subscription";
 import { useDemoModeStore } from "../../store/useDemoModeStore";
 
-const starterSpecies: Record<string, CreatureSpecies> = {
-  sprout: "sprout",
-  glint: "gem",
-  puff: "cloud",
-};
-
-const lockedSpecies: { name: string; species: CreatureSpecies }[] = [
-  { name: "???", species: "ember" },
-  { name: "???", species: "blob" },
-  { name: "???", species: "egg" },
+const lockedMascots: { name: string; id: string }[] = [
+  { name: "???", id: "rolo" },
+  { name: "???", id: "twinkle" },
+  { name: "???", id: "bucky" },
 ];
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const p = useGardenPalette();
   const { signOut: clerkSignOut } = useClerk();
   const userName = useAuthStore((s) => s.userName);
   const selectedStarter = useAuthStore((s) => s.selectedStarter);
@@ -61,11 +59,11 @@ export default function ProfileScreen() {
     router.replace("/");
   };
 
-  const species = starterSpecies[selectedStarter ?? "sprout"] ?? "sprout";
+  const mascotId = selectedStarter ?? "penny";
 
   const rows = [
     { icon: Bell, label: "Notification preferences", note: "14, 7 and 1 day reminders" },
-    { icon: Palette, label: "Appearance", note: "Dark (default)" },
+    { icon: Palette, label: "Appearance", note: "Day & night garden" },
     { icon: CircleDollarSign, label: "Currency", note: "USD $" },
     { icon: Lock, label: "Security", note: "Coming soon" },
     { icon: Download, label: "Export data", note: "Coming soon" },
@@ -74,18 +72,24 @@ export default function ProfileScreen() {
 
   return (
     <Screen>
-      <Text style={type.title}>Profile</Text>
+      <View style={styles.header}>
+        <View>
+          <GardenKicker>YOUR PROFILE</GardenKicker>
+          <Text style={[styles.title, { color: p.ink }]}>Profile</Text>
+        </View>
+        <View style={{ flexDirection: "row", gap: spacing.sm, alignItems: "center" }}>
+          <AmbienceButton compact />
+          <GardenModeButton compact />
+        </View>
+      </View>
 
       <Card style={styles.profileCard}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{userName.charAt(0)}</Text>
+        <View style={[styles.avatar, { borderColor: p.pillBorder, backgroundColor: p.pill }]}>
+          <MascotPortrait id={mascotId} size={54} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.profileName}>{userName}</Text>
-          <Text style={type.bodySmall}>Garden Lv. 3 · 5 creatures</Text>
-        </View>
-        <View style={{ transform: [{ scale: 0.75 }] }}>
-          <Creature species={species} mood="happy" size="small" />
+          <Text style={[styles.profileName, { color: p.ink }]}>{userName}</Text>
+          <Text style={[styles.profileSub, { color: p.body }]}>Garden Lv. 3 · 5 creatures</Text>
         </View>
       </Card>
 
@@ -94,15 +98,15 @@ export default function ProfileScreen() {
       <SectionHeader title="Settings" />
       <Card style={{ paddingVertical: 4 }}>
         <View style={styles.row}>
-          <View style={styles.rowIcon}>
-            <Palette size={18} color={colors.primaryLight} />
+          <View style={[styles.rowIcon, { backgroundColor: p.warningBg, borderColor: p.goldBorder }]}>
+            <Palette size={18} color={p.accent} strokeWidth={2.4} />
           </View>
-          <Text style={[styles.rowLabel, { flex: 1 }]}>Reduce motion</Text>
+          <Text style={[styles.rowLabel, { flex: 1, color: p.ink }]}>Reduce motion</Text>
           <Switch
             value={reducedMotion}
             onValueChange={setReducedMotion}
-            trackColor={{ true: colors.primary, false: colors.surfaceRaised }}
-            thumbColor={colors.text}
+            trackColor={{ true: p.gold, false: p.pillBorder }}
+            thumbColor={p.cardBgSolid}
             accessibilityLabel="Reduce motion"
           />
         </View>
@@ -114,33 +118,33 @@ export default function ProfileScreen() {
             onPress={() => label === "Notification preferences"
               ? router.push("/notification-preferences")
               : showToast({ message: `${label} is not available yet`, tone: "info" })}
-            style={({ pressed }) => [styles.row, styles.rowBorder, pressed && { opacity: 0.7 }]}
+            style={({ pressed }) => [styles.row, { borderTopWidth: 1.5, borderTopColor: p.cardBorder }, pressed && { opacity: 0.7 }]}
           >
-            <View style={styles.rowIcon}>
-              <Icon size={18} color={colors.primaryLight} />
+            <View style={[styles.rowIcon, { backgroundColor: p.warningBg, borderColor: p.goldBorder }]}>
+              <Icon size={18} color={p.accent} strokeWidth={2.4} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.rowLabel}>{label}</Text>
-              <Text style={type.caption}>{note}</Text>
+              <Text style={[styles.rowLabel, { color: p.ink }]}>{label}</Text>
+              <Text style={[styles.rowNote, { color: p.muted }]}>{note}</Text>
             </View>
-            <ChevronRight size={18} color={colors.textMuted} />
+            <ChevronRight size={18} color={p.muted} />
           </Pressable>
         ))}
       </Card>
 
       <SectionHeader title="Creature collection" />
       <Card>
-        <Text style={[type.bodySmall, { marginBottom: spacing.sm }]}>
-          Future species you haven't met yet.
+        <Text style={[styles.rowNote, { color: p.body, marginBottom: spacing.sm, fontSize: 13 }]}>
+          Future friends you haven't met yet.
         </Text>
         <View style={styles.lockedRow}>
-          {lockedSpecies.map((l, i) => (
+          {lockedMascots.map((l, i) => (
             <View key={i} style={styles.lockedSlot}>
               <View style={styles.silhouette}>
-                <Creature species={l.species} mood="resolved" size="small" />
-                <View style={styles.silhouetteCover} />
+                <MascotPortrait id={l.id} size={64} />
+                <View style={[styles.silhouetteCover, { backgroundColor: p.cardBgSolid }]} />
               </View>
-              <Text style={type.caption}>{l.name}</Text>
+              <Text style={[styles.rowNote, { color: p.muted }]}>{l.name}</Text>
             </View>
           ))}
         </View>
@@ -150,16 +154,23 @@ export default function ProfileScreen() {
         accessibilityRole="button"
         accessibilityLabel="Sign out"
         onPress={handleSignOut}
-        style={({ pressed }) => [styles.signOut, pressed && { opacity: 0.7 }]}
+        style={({ pressed }) => [styles.signOut, { borderColor: p.danger, backgroundColor: p.dangerBg }, pressed && { transform: [{ translateY: 2 }] }]}
       >
-        <LogOut size={18} color={colors.danger} />
-        <Text style={styles.signOutText}>Sign out</Text>
+        <LogOut size={18} color={p.danger} strokeWidth={2.4} />
+        <Text style={[styles.signOutText, { color: p.danger }]}>Sign out</Text>
       </Pressable>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: spacing.sm,
+  },
+  title: { fontFamily: fonts.pixelBold, fontSize: 24, letterSpacing: 0.5, marginTop: 2 },
   profileCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -167,38 +178,38 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   avatar: {
-    width: 52,
-    height: 52,
-    borderRadius: 18,
-    backgroundColor: colors.primarySoft,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    borderWidth: 2.5,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
   },
-  avatarText: { fontFamily: fonts.extraBold, fontSize: 22, color: colors.primaryLight },
-  profileName: { fontFamily: fonts.bold, fontSize: 17, color: colors.text },
+  profileName: { fontFamily: fonts.pixelBold, fontSize: 18 },
+  profileSub: { fontFamily: fonts.medium, fontSize: 13, marginTop: 2 },
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm + 4,
     paddingVertical: spacing.sm + 4,
   },
-  rowBorder: { borderTopWidth: 1, borderTopColor: colors.border },
   rowIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: radius.sm,
-    backgroundColor: colors.primarySoft,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
   },
-  rowLabel: { fontFamily: fonts.semiBold, fontSize: 14, color: colors.text },
+  rowLabel: { fontFamily: fonts.pixelBold, fontSize: 14 },
+  rowNote: { fontFamily: fonts.medium, fontSize: 11 },
   lockedRow: { flexDirection: "row", gap: spacing.md },
   lockedSlot: { alignItems: "center", gap: 4 },
-  silhouette: { position: "relative" },
+  silhouette: { position: "relative", borderRadius: 12, overflow: "hidden" },
   silhouetteCover: {
     position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: colors.surface,
-    opacity: 0.82,
+    opacity: 0.8,
     borderRadius: 12,
   },
   signOut: {
@@ -208,9 +219,8 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     marginTop: spacing.lg,
     padding: spacing.md,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: "rgba(240,106,120,0.3)",
+    borderRadius: 14,
+    borderWidth: 2,
   },
-  signOutText: { fontFamily: fonts.bold, fontSize: 15, color: colors.danger },
+  signOutText: { fontFamily: fonts.pixelBold, fontSize: 15 },
 });

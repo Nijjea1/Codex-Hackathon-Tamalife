@@ -14,9 +14,11 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, fonts, spacing, type } from "../../constants/theme";
+import { fonts, spacing } from "../../constants/theme";
+import { useGardenPalette } from "../../constants/garden";
 import { Creature } from "../../components/creatures/Creature";
 import { Button } from "../../components/ui/Button";
+import { GardenBackdrop } from "../../components/onboarding/GardenBackdrop";
 import { useSubscriptionStore } from "../../store/useSubscriptionStore";
 import { useUIStore } from "../../store/useUIStore";
 import { Subscription } from "../../types/subscription";
@@ -47,6 +49,7 @@ type Phase = "orb" | "egg" | "hatched";
 // light bursts, and the new creature appears.
 export default function SuccessScreen() {
   const router = useRouter();
+  const p = useGardenPalette();
   const insets = useSafeAreaInsets();
   const reducedMotion = useUIStore((s) => s.reducedMotion);
   const addSubscription = useSubscriptionStore((s) => s.addSubscription);
@@ -84,14 +87,14 @@ export default function SuccessScreen() {
         ),
         3
       );
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     }, 1000);
     const t3 = setTimeout(() => {
       flash.value = withSequence(
         withTiming(1, { duration: 180 }),
         withTiming(0, { duration: 500 })
       );
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     }, 2000);
     const t4 = setTimeout(() => {
       setPhase("hatched");
@@ -115,11 +118,12 @@ export default function SuccessScreen() {
   };
 
   return (
-    <View style={[styles.root, { paddingBottom: insets.bottom + spacing.lg }]}>
+    <View style={[styles.root, { backgroundColor: p.bgDeep, paddingBottom: insets.bottom + spacing.lg }]}>
+      <GardenBackdrop />
       <View style={styles.stage}>
         {phase === "orb" && (
           <Animated.View style={[styles.orb, orbStyle]}>
-            <View style={styles.orbInner} />
+            <View style={[styles.orbInner, { backgroundColor: p.goldLight, shadowColor: p.gold }]} />
           </Animated.View>
         )}
         {(phase === "orb" || phase === "egg") && (
@@ -137,12 +141,12 @@ export default function SuccessScreen() {
 
       {phase === "hatched" ? (
         <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.bottom}>
-          <Text style={[type.display, { textAlign: "center" }]}>Meet {activeSubscription.creatureName}!</Text>
-          <Text style={[type.body, { textAlign: "center", marginTop: spacing.sm }]}>
+          <Text style={[styles.title, { color: p.ink }]}>Meet {activeSubscription.creatureName}!</Text>
+          <Text style={[styles.body, { color: p.body }]}>
             {activeSubscription.creatureName} is looking after your {activeSubscription.displayName}.
           </Text>
           <Button
-            label="Visit Nova"
+            label={`Visit ${activeSubscription.creatureName}`}
             onPress={() => router.dismissTo(`/creature/${activeSubscription.id}`)}
             style={{ marginTop: spacing.lg, alignSelf: "stretch" }}
           />
@@ -155,9 +159,9 @@ export default function SuccessScreen() {
         </Animated.View>
       ) : (
         <Animated.View entering={FadeIn.delay(300)} style={styles.bottom}>
-          <Text style={[type.body, { textAlign: "center" }]}>Something is hatching…</Text>
+          <Text style={[styles.body, { color: p.body }]}>Something is hatching…</Text>
           <Pressable accessibilityRole="button" onPress={skip} style={styles.skip} hitSlop={10}>
-            <Text style={styles.skipText}>Skip</Text>
+            <Text style={[styles.skipText, { color: p.muted }]}>Skip</Text>
           </Pressable>
         </Animated.View>
       )}
@@ -166,15 +170,13 @@ export default function SuccessScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background, paddingHorizontal: spacing.md },
+  root: { flex: 1, paddingHorizontal: spacing.md, overflow: "hidden" },
   stage: { flex: 1, alignItems: "center", justifyContent: "center" },
   orb: { position: "absolute", top: "22%", zIndex: 3 },
   orbInner: {
     width: 28,
     height: 28,
     borderRadius: 28,
-    backgroundColor: colors.primaryLight,
-    shadowColor: colors.primary,
     shadowOpacity: 0.9,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: 0 },
@@ -185,6 +187,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
   bottom: { paddingBottom: spacing.lg, alignItems: "center" },
+  title: { fontFamily: fonts.pixelBold, fontSize: 28, letterSpacing: 0.5, textAlign: "center" },
+  body: { fontFamily: fonts.medium, fontSize: 15, lineHeight: 21, textAlign: "center", marginTop: spacing.sm, maxWidth: 320 },
   skip: { marginTop: spacing.md },
-  skipText: { fontFamily: fonts.semiBold, fontSize: 13, color: colors.textMuted },
+  skipText: { fontFamily: "monospace", fontWeight: "900", fontSize: 12 },
 });

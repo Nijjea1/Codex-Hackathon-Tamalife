@@ -3,10 +3,12 @@ import { useRouter } from "expo-router";
 import { ClipboardPaste, Image as ImageIcon, Mail, PencilLine, X } from "lucide-react-native";
 import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors, fonts, radius, spacing, type } from "../../constants/theme";
-import { Creature } from "../../components/creatures/Creature";
+import { fonts, spacing } from "../../constants/theme";
+import { useGardenPalette } from "../../constants/garden";
+import { MascotPortrait } from "../../components/onboarding/MascotPortrait";
 import { IconButton } from "../../components/ui/IconButton";
 import { Screen } from "../../components/ui/Screen";
+import { GardenKicker } from "../../components/ui/GardenKit";
 import { useApiClient } from "../../lib/api";
 import { useDemoModeStore } from "../../store/useDemoModeStore";
 import { useReceiptDraftStore } from "../../store/useReceiptDraftStore";
@@ -50,6 +52,7 @@ const methods: Method[] = [
 
 export default function AddScreen() {
   const router = useRouter();
+  const p = useGardenPalette();
   const api = useApiClient();
   const demoMode = useDemoModeStore((state) => state.active);
   const setDraft = useReceiptDraftStore((state) => state.setDraft);
@@ -95,16 +98,19 @@ export default function AddScreen() {
   return (
     <Screen>
       <View style={styles.header}>
-        <Text style={type.title}>Bring an expense to life</Text>
+        <View style={{ flex: 1 }}>
+          <GardenKicker>NEW FRIEND</GardenKicker>
+          <Text style={[styles.title, { color: p.ink }]}>Bring an expense to life</Text>
+        </View>
         <IconButton
           accessibilityLabel="Close"
-          icon={<X size={20} color={colors.text} />}
+          icon={<X size={20} color={p.pillInk} strokeWidth={2.5} />}
           onPress={() => router.back()}
         />
       </View>
       <View style={styles.companion}>
-        <Creature species="egg" mood="happy" size="medium" />
-        <Text style={[type.body, { textAlign: "center", marginTop: spacing.sm }]}>
+        <MascotPortrait id="penny" size={120} />
+        <Text style={[styles.blurb, { color: p.body }]}>
           Every expense you add becomes a creature in your garden.
         </Text>
       </View>
@@ -118,28 +124,29 @@ export default function AddScreen() {
           onPress={() => (upload ? void uploadScreenshot() : route && router.push(route))}
           style={({ pressed }) => [
             styles.method,
-            pressed && { transform: [{ scale: 0.98 }] },
+            { backgroundColor: p.cardBg, borderColor: p.cardBorder, shadowColor: p.cardShadow },
+            pressed && { transform: [{ translateY: 2 }] },
             comingSoon && { opacity: 0.55 },
           ]}
         >
-          <View style={styles.methodIcon}>
-            <Icon size={22} color={comingSoon ? colors.textMuted : colors.primaryLight} />
+          <View style={[styles.methodIcon, { backgroundColor: p.warningBg, borderColor: p.goldBorder }]}>
+            <Icon size={22} color={comingSoon ? p.muted : p.accent} strokeWidth={2.4} />
           </View>
           <View style={{ flex: 1 }}>
             <View style={styles.methodTitleRow}>
-              <Text style={styles.methodTitle}>{title}</Text>
+              <Text style={[styles.methodTitle, { color: p.ink }]}>{title}</Text>
               {comingSoon && (
-                <View style={styles.soonBadge}>
-                  <Text style={styles.soonText}>Coming soon</Text>
+                <View style={[styles.soonBadge, { backgroundColor: p.warningBg, borderColor: p.warning }]}>
+                  <Text style={[styles.soonText, { color: p.warning }]}>SOON</Text>
                 </View>
               )}
               {upload && uploading && (
-                <View style={styles.soonBadge}>
-                  <Text style={styles.soonText}>Reading…</Text>
+                <View style={[styles.soonBadge, { backgroundColor: p.warningBg, borderColor: p.warning }]}>
+                  <Text style={[styles.soonText, { color: p.warning }]}>READING…</Text>
                 </View>
               )}
             </View>
-            <Text style={type.bodySmall}>{description}</Text>
+            <Text style={[styles.methodDesc, { color: p.body }]}>{description}</Text>
           </View>
         </Pressable>
       ))}
@@ -155,34 +162,39 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     marginBottom: spacing.sm,
   },
-  companion: { alignItems: "center", marginVertical: spacing.md },
+  title: { fontFamily: fonts.pixelBold, fontSize: 22, letterSpacing: 0.5, marginTop: 2 },
+  companion: { alignItems: "center", marginVertical: spacing.sm },
+  blurb: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 20, textAlign: "center", marginTop: spacing.sm, maxWidth: 300 },
   method: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
+    borderWidth: 2.5,
+    borderRadius: 14,
     padding: spacing.md,
     marginBottom: spacing.sm + 2,
     minHeight: 84,
+    shadowOffset: { width: 3, height: 4 },
+    shadowOpacity: 0.45,
+    shadowRadius: 0,
+    elevation: 3,
   },
   methodIcon: {
     width: 48,
     height: 48,
-    borderRadius: radius.md,
-    backgroundColor: colors.primarySoft,
+    borderRadius: 14,
+    borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
   },
   methodTitleRow: { flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 2 },
-  methodTitle: { fontFamily: fonts.bold, fontSize: 15, color: colors.text },
+  methodTitle: { fontFamily: fonts.pixelBold, fontSize: 15 },
+  methodDesc: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18 },
   soonBadge: {
-    backgroundColor: colors.warningSoft,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: radius.pill,
+    borderRadius: 999,
+    borderWidth: 1.5,
   },
-  soonText: { fontFamily: fonts.semiBold, fontSize: 10, color: colors.warning },
+  soonText: { fontFamily: "monospace", fontWeight: "900", fontSize: 8, letterSpacing: 0.5 },
 });

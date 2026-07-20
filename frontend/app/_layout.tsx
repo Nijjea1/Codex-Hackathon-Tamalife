@@ -6,6 +6,7 @@ import {
   PlusJakartaSans_800ExtraBold,
   useFonts,
 } from "@expo-google-fonts/plus-jakarta-sans";
+import { PixelifySans_500Medium, PixelifySans_700Bold } from "@expo-google-fonts/pixelify-sans";
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { Stack } from "expo-router";
@@ -17,6 +18,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { colors } from "../constants/theme";
 import { ClerkSync } from "../components/ClerkSync";
+import { GardenAmbienceProvider } from "../components/onboarding/GardenAmbience";
 import { ToastHost } from "../components/ui/Toast";
 import { useUIStore } from "../store/useUIStore";
 import { useDemoModeStore } from "../store/useDemoModeStore";
@@ -33,6 +35,8 @@ export default function RootLayout() {
     PlusJakartaSans_600SemiBold,
     PlusJakartaSans_700Bold,
     PlusJakartaSans_800ExtraBold,
+    PixelifySans_500Medium,
+    PixelifySans_700Bold,
   });
 
   useEffect(() => {
@@ -71,24 +75,26 @@ function AuthenticatedNavigation() {
         <SafeAreaProvider>
           <StatusBar style="light" />
           <ClerkSync />
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: colors.background },
-              animation: "fade_from_bottom",
-            }}
-          >
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(auth)" />
-            <Stack.Protected guard={!!isSignedIn || demoMode}>
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="add" options={{ presentation: "modal" }} />
-              <Stack.Screen name="creature/[id]" />
-              <Stack.Screen name="subscription/[id]" />
-              <Stack.Screen name="notification-preferences" />
-            </Stack.Protected>
-          </Stack>
-          <ToastHost />
+          <GardenAmbienceProvider>
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                contentStyle: { backgroundColor: colors.background },
+                animation: "fade_from_bottom",
+              }}
+            >
+              <Stack.Screen name="index" />
+              <Stack.Screen name="(auth)" />
+              <Stack.Protected guard={!!isSignedIn || demoMode}>
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="add" options={{ presentation: "modal" }} />
+                <Stack.Screen name="creature/[id]" />
+                <Stack.Screen name="subscription/[id]" />
+                <Stack.Screen name="notification-preferences" />
+              </Stack.Protected>
+            </Stack>
+            <ToastHost />
+          </GardenAmbienceProvider>
         </SafeAreaProvider>
       </GestureHandlerRootView>
   );
