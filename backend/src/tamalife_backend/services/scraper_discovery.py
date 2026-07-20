@@ -9,7 +9,7 @@ from urllib.parse import urlsplit, urlunsplit
 from uuid import UUID
 
 from openai import AsyncOpenAI
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import func, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,7 +34,7 @@ consulted through web search. Do not infer prices and do not recommend products.
 
 
 class DiscoveredSource(BaseModel):
-    url: HttpUrl
+    url: str = Field(min_length=1, max_length=2000)
     source_type: SourceType
     title: str | None = Field(default=None, max_length=500)
     country: str = Field(min_length=2, max_length=2)
@@ -42,6 +42,14 @@ class DiscoveredSource(BaseModel):
     language: str = Field(default="en", min_length=2, max_length=12)
     first_party: bool
     confidence: float = Field(ge=0, le=1)
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, value: str) -> str:
+        parsed = urlsplit(value.strip())
+        if parsed.scheme.lower() not in {"http", "https"} or not parsed.hostname:
+            raise ValueError("URL must be absolute HTTP(S)")
+        return value.strip()
 
 
 class DiscoveryPayload(BaseModel):
@@ -148,7 +156,10 @@ async def discover_provider_sources(
     existing = await session.scalar(
         select(SourceDiscoveryRun).where(SourceDiscoveryRun.idempotency_key == idempotency_key)
     )
-    if existing is not None:
+    retry_run = (
+        existing if existing is not None and existing.status is DiscoveryStatus.failed else None
+    )
+    if existing is not None and retry_run is None:
         return DiscoveryOutcome(existing.id, existing.status, False, existing.candidate_count)
 
     provider = await session.get(Provider, provider_id)
@@ -166,11 +177,39 @@ async def discover_provider_sources(
             SourceDiscoveryRun.created_at >= month_start
         )
     )
+    used_micros = int(used or 0) - (retry_run.estimated_cost_micros if retry_run is not None else 0)
     reservation = max(
         1,
         settings.discovery_monthly_cost_limit_micros // settings.discovery_max_providers_per_run,
     )
-    if int(used or 0) + reservation > settings.discovery_monthly_cost_limit_micros:
+    if used_micros + reservation > settings.discovery_monthly_cost_limit_micros:
+        if retry_run is None:
+            run = SourceDiscoveryRun(
+                provider_id=provider.id,
+                run_type="provider",
+                country=settings.discovery_country.upper(),
+                query_shard="default",
+                model=settings.discovery_model,
+                prompt_version=settings.discovery_prompt_version,
+                idempotency_key=idempotency_key,
+                status=DiscoveryStatus.cost_limited,
+                request_id=request_id,
+                started_at=current_time,
+                completed_at=current_time,
+                failure_reason="monthly discovery budget exhausted",
+            )
+            session.add(run)
+        else:
+            run = retry_run
+            run.status = DiscoveryStatus.cost_limited
+            run.request_id = request_id
+            run.completed_at = current_time
+            run.failure_reason = "monthly discovery budget exhausted"
+            run.estimated_cost_micros = 0
+        await session.flush()
+        return DiscoveryOutcome(run.id, run.status, True, 0)
+
+    if retry_run is None:
         run = SourceDiscoveryRun(
             provider_id=provider.id,
             run_type="provider",
@@ -179,30 +218,24 @@ async def discover_provider_sources(
             model=settings.discovery_model,
             prompt_version=settings.discovery_prompt_version,
             idempotency_key=idempotency_key,
-            status=DiscoveryStatus.cost_limited,
+            status=DiscoveryStatus.running,
+            estimated_cost_micros=reservation,
             request_id=request_id,
             started_at=current_time,
-            completed_at=current_time,
-            failure_reason="monthly discovery budget exhausted",
         )
         session.add(run)
-        await session.flush()
-        return DiscoveryOutcome(run.id, run.status, True, 0)
-
-    run = SourceDiscoveryRun(
-        provider_id=provider.id,
-        run_type="provider",
-        country=settings.discovery_country.upper(),
-        query_shard="default",
-        model=settings.discovery_model,
-        prompt_version=settings.discovery_prompt_version,
-        idempotency_key=idempotency_key,
-        status=DiscoveryStatus.running,
-        estimated_cost_micros=reservation,
-        request_id=request_id,
-        started_at=current_time,
-    )
-    session.add(run)
+    else:
+        run = retry_run
+        run.status = DiscoveryStatus.running
+        run.estimated_cost_micros = reservation
+        run.request_id = request_id
+        run.started_at = current_time
+        run.completed_at = None
+        run.failure_reason = None
+        run.candidate_count = 0
+        run.search_call_count = 0
+        run.input_tokens = 0
+        run.output_tokens = 0
     try:
         await session.flush()
     except IntegrityError:
@@ -248,7 +281,7 @@ async def discover_provider_sources(
             text_format=DiscoveryPayload,
             store=False,
         )
-        response_dump = cast(dict[str, Any], response.model_dump(mode="json"))
+        response_dump = cast(dict[str, Any], response.model_dump(mode="json", warnings=False))
         parsed = cast(DiscoveryPayload | None, response.output_parsed)
         if parsed is None:
             raise ValueError("OpenAI returned no structured discovery payload")
@@ -256,7 +289,7 @@ async def discover_provider_sources(
         grounded = {url for url, _title in evidence}
         accepted = 0
         for item in parsed.candidates[: settings.discovery_max_candidates_per_provider]:
-            normalized, domain = _normalize_url(str(item.url))
+            normalized, domain = _normalize_url(item.url)
             if normalized not in grounded:
                 continue
             url_hash = hashlib.sha256(normalized.encode()).hexdigest()
@@ -274,7 +307,7 @@ async def discover_provider_sources(
             candidate = SourceCandidate(
                 discovery_run_id=run.id,
                 provider_id=provider.id,
-                original_url=str(item.url),
+                original_url=item.url,
                 normalized_url=normalized,
                 normalized_url_hash=url_hash,
                 candidate_domain=domain,
@@ -329,7 +362,11 @@ async def discover_provider_sources(
         return DiscoveryOutcome(run.id, run.status, True, accepted)
     except Exception as exc:
         run.status = DiscoveryStatus.failed
-        run.failure_reason = type(exc).__name__
+        error_code = getattr(exc, "code", None)
+        error_param = getattr(exc, "param", None)
+        run.failure_reason = ":".join(
+            str(value) for value in (type(exc).__name__, error_code, error_param) if value
+        )[:500]
         run.completed_at = current_time
         await session.flush()
         logger.warning(

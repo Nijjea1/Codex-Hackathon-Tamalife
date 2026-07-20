@@ -45,8 +45,9 @@ class FakeResponse:
         )
         self.grounded = grounded
 
-    def model_dump(self, *, mode: str) -> dict[str, Any]:
+    def model_dump(self, *, mode: str, warnings: bool = True) -> dict[str, Any]:
         assert mode == "json"
+        assert warnings is False
         sources = [{"type": "url", "url": "https://example.com/pricing"}]
         if not self.grounded:
             sources = []
@@ -141,7 +142,29 @@ async def test_discovery_records_sanitized_failure_without_deleting_sources(tmp_
         assert outcome.status is DiscoveryStatus.failed
         assert run is not None and run.failure_reason == "RuntimeError"
         assert count == 0
+
+        retry_client = FakeClient(FakeResponse())
+        retried = await discover_provider_sources(
+            session,
+            settings,
+            provider.id,
+            request_id="req-retry",
+            client=retry_client,
+            now=datetime(2026, 8, 1, tzinfo=UTC),
+        )
+        await session.commit()
+        assert retried.run_id == outcome.run_id
+        assert retried.status is DiscoveryStatus.completed
+        assert retried.candidate_count == 1
+        assert len(retry_client.responses.calls) == 1
     await engine.dispose()
+
+
+def test_openai_discovery_schema_uses_plain_validated_url_string() -> None:
+    schema = DiscoveryPayload.model_json_schema()
+    source_schema = schema["$defs"]["DiscoveredSource"]["properties"]["url"]
+    assert source_schema["type"] == "string"
+    assert "format" not in source_schema
 
 
 async def test_discovery_cost_limit_skips_openai(tmp_path: Path) -> None:
