@@ -1,0 +1,75 @@
+[project]
+name = "tamalife-backend"
+version = "0.1.0"
+description = "Production-oriented FastAPI backend for Tamalife"
+readme = "README.md"
+authors = [
+    { name = "Pranoy Mukherjee", email = "pranoym101@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "aiosqlite>=0.21.0",
+    "alembic>=1.16.0",
+    "asyncpg>=0.30.0",
+    "celery>=5.5.0",
+    "clerk-backend-api>=2.0.0",
+    "fastapi>=0.116.0",
+    "httpx>=0.28.0",
+    "openai>=1.99.0",
+    "pydantic-settings>=2.10.0",
+    "python-multipart>=0.0.20",
+    "redis>=6.2.0",
+    "sentry-sdk[fastapi]>=2.35.0",
+    "sqlalchemy[asyncio]>=2.0.40",
+    "structlog>=25.4.0",
+    "supabase>=2.18.0",
+    "svix>=1.83.0",
+    "uvicorn[standard]>=0.35.0",
+]
+
+[project.scripts]
+tamalife-api = "tamalife_backend.cli:run"
+tamalife-seed = "tamalife_backend.cli:seed"
+
+[build-system]
+requires = ["uv_build>=0.11.29,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "mypy>=1.17.0",
+    "pytest>=8.4.0",
+    "pytest-asyncio>=1.1.0",
+    "pytest-cov>=6.2.0",
+    "ruff>=0.12.0",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC", "RUF"]
+ignore = ["UP042"]
+
+[tool.ruff.lint.per-file-ignores]
+"alembic/versions/*.py" = ["UP007", "UP035"]
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["pydantic.mypy"]
+strict = true
+warn_unused_ignores = false
+
+[[tool.mypy.overrides]]
+module = ["celery", "celery.*"]
+ignore_missing_imports = true
+
+[tool.coverage.run]
+source = ["tamalife_backend"]
+branch = true

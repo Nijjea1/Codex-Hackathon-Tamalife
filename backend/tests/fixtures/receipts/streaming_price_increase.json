@@ -1,0 +1,10 @@
+{
+  "input": "Northstar Video\nMonthly plan renewal 2026-08-12. Previous $17.99, now $19.99.",
+  "expected": {
+    "vendor_name": "Northstar Video",
+    "amount": "19.99",
+    "previous_amount": "17.99",
+    "billing_cycle": "monthly",
+    "renewal_or_expiry_date": "2026-08-12"
+  }
+}
