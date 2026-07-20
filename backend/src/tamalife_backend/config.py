@@ -97,6 +97,10 @@ class Settings(BaseSettings):
     scraper_monitor_interval_seconds: int = Field(default=3600, ge=300)
     pricing_evidence_storage_bucket: str = "pricing-evidence"
 
+    price_intelligence_refresh_enabled: bool = False
+    price_intelligence_refresh_interval_seconds: int = Field(default=3600, ge=300)
+    price_intelligence_refresh_batch_size: int = Field(default=100, ge=1, le=1000)
+
     storage_backend: Literal["local", "supabase"] = "local"
     local_storage_root: Path = Path(".data/storage")
     supabase_url: str | None = None

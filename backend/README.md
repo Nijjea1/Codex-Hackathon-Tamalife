@@ -66,6 +66,9 @@ Alembic before starting the API.
 
 ## Supabase setup
 
+The production price-intelligence deployment and incident runbook is in
+[`docs/PRICE_INTELLIGENCE.md`](docs/PRICE_INTELLIGENCE.md).
+
 1. Create separate Supabase projects for staging and production.
 2. Create a private Storage bucket named `receipts`.
 3. Use the direct PostgreSQL connection for Alembic migrations. Use the direct connection or

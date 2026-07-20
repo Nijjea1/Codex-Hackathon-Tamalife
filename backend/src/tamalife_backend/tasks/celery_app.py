@@ -15,6 +15,7 @@ celery_app = Celery(
         "tamalife_backend.tasks.cleanup",
         "tamalife_backend.tasks.discovery",
         "tamalife_backend.tasks.source_monitoring",
+        "tamalife_backend.tasks.recommendation_refresh",
     ],
 )
 
@@ -39,6 +40,11 @@ def build_beat_schedule(config: Settings) -> dict[str, dict[str, object]]:
         schedule["monitor-pricing-sources"] = {
             "task": "tamalife.schedule_source_monitoring",
             "schedule": float(config.scraper_monitor_interval_seconds),
+        }
+    if config.price_intelligence_refresh_enabled:
+        schedule["refresh-price-intelligence"] = {
+            "task": "tamalife.schedule_price_intelligence_refresh",
+            "schedule": float(config.price_intelligence_refresh_interval_seconds),
         }
     return schedule
 

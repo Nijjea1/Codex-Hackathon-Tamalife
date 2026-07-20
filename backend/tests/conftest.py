@@ -8,6 +8,11 @@ import httpx
 import pytest
 
 os.environ["TAMALIFE_CLERK_AUTH_ENABLED"] = "false"
+os.environ["TAMALIFE_STORAGE_BACKEND"] = "local"
+os.environ["TAMALIFE_EXTRACTION_PROVIDER"] = "heuristic"
+os.environ["TAMALIFE_DISCOVERY_ENABLED"] = "false"
+os.environ["TAMALIFE_SCRAPER_MONITORING_ENABLED"] = "false"
+os.environ["TAMALIFE_PRICE_INTELLIGENCE_REFRESH_ENABLED"] = "false"
 
 from tamalife_backend.config import Settings
 from tamalife_backend.main import create_app

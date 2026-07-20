@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "@clerk/expo";
 import { useDemoModeStore } from "../store/useDemoModeStore";
 import {
   AlternativesResponseDto,
@@ -20,15 +21,19 @@ export type ResourceState<T> = {
   update: (updater: (current: T) => T) => void;
 };
 
-function useResource<T>(loader: () => Promise<T>, demoData: T): ResourceState<T> {
+function useResource<T>(loader: (signal: AbortSignal) => Promise<T>, demoData: T): ResourceState<T> {
   const demo = useDemoModeStore((state) => state.active);
+  const { isLoaded, isSignedIn, userId, sessionId } = useAuth();
+  const authKey = `${userId ?? ""}:${sessionId ?? ""}`;
   const [data, setData] = useState<T | null>(demo ? demoData : null);
   const [loading, setLoading] = useState(!demo);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
   const sequence = useRef(0);
+  const activeRequest = useRef<AbortController | null>(null);
 
   const refresh = useCallback(async () => {
+    activeRequest.current?.abort();
     const request = ++sequence.current;
     if (demo) {
       setData(demoData);
@@ -37,14 +42,30 @@ function useResource<T>(loader: () => Promise<T>, demoData: T): ResourceState<T>
       setError(null);
       return;
     }
+    if (!isLoaded) {
+      setLoading(true);
+      return;
+    }
+    if (!isSignedIn) {
+      setData(null);
+      setLoading(false);
+      setRefreshing(false);
+      setError(null);
+      return;
+    }
+    const controller = new AbortController();
+    activeRequest.current = controller;
     if (data === null) setLoading(true);
     else setRefreshing(true);
     setError(null);
     try {
-      const next = await loader();
+      const next = await loader(controller.signal);
       if (sequence.current === request) setData(next);
     } catch (cause) {
-      if (sequence.current === request) {
+      if (
+        sequence.current === request &&
+        !(cause instanceof ApiError && cause.code === "request_cancelled")
+      ) {
         setError(cause instanceof ApiError ? cause : new ApiError("unknown_error", "Something went wrong.", 0));
       }
     } finally {
@@ -53,9 +74,16 @@ function useResource<T>(loader: () => Promise<T>, demoData: T): ResourceState<T>
         setRefreshing(false);
       }
     }
-  }, [data, demo, demoData, loader]);
+  }, [data, demo, demoData, isLoaded, isSignedIn, loader]);
 
-  useEffect(() => { void refresh(); }, [loader, demo]); // refresh is data-sensitive; loader/demo are the fetch triggers.
+  useEffect(() => {
+    if (!demo) setData(null);
+    void refresh();
+    return () => {
+      sequence.current += 1;
+      activeRequest.current?.abort();
+    };
+  }, [loader, demo, authKey, isLoaded, isSignedIn]); // Deliberately excludes data-sensitive refresh identity.
 
   const update = useCallback((updater: (current: T) => T) => {
     setData((current) => current === null ? current : updater(current));
@@ -78,12 +106,17 @@ const emptySummary: PriceIntelligenceSummaryDto = {
 
 export function usePriceIntelligenceSummary() {
   const api = useApiClient();
-  const loader = useCallback(() => api.priceIntelligenceSummary(), [api]);
+  const loader = useCallback((signal: AbortSignal) => api.priceIntelligenceSummary(signal), [api]);
   return useResource(loader, emptySummary);
 }
 
 export function useSubscriptionPriceIntelligence(subscriptionId: string) {
   const api = useApiClient();
+  const { userId, sessionId } = useAuth();
+  const sessionKey = `${userId ?? ""}:${sessionId ?? ""}`;
+  const sessionKeyRef = useRef(sessionKey);
+  sessionKeyRef.current = sessionKey;
+  const mutationMounted = useRef(true);
   const emptyIntelligence: SubscriptionIntelligenceDto = {
     subscription_id: subscriptionId,
     match: null,
@@ -92,26 +125,53 @@ export function useSubscriptionPriceIntelligence(subscriptionId: string) {
     generated_at: new Date(0).toISOString(),
   };
   const intelligenceLoader = useCallback(
-    () => api.subscriptionIntelligence(subscriptionId), [api, subscriptionId],
+    (signal: AbortSignal) => api.subscriptionIntelligence(subscriptionId, signal), [api, subscriptionId],
   );
-  const historyLoader = useCallback(() => api.priceHistory(subscriptionId), [api, subscriptionId]);
-  const dealsLoader = useCallback(() => api.subscriptionDeals(subscriptionId), [api, subscriptionId]);
+  const historyLoader = useCallback((signal: AbortSignal) => api.priceHistory(subscriptionId, signal), [api, subscriptionId]);
+  const dealsLoader = useCallback((signal: AbortSignal) => api.subscriptionDeals(subscriptionId, signal), [api, subscriptionId]);
   const alternativesLoader = useCallback(
-    () => api.subscriptionAlternatives(subscriptionId), [api, subscriptionId],
+    (signal: AbortSignal) => api.subscriptionAlternatives(subscriptionId, signal), [api, subscriptionId],
   );
   const intelligence = useResource(intelligenceLoader, emptyIntelligence);
   const history = useResource<PriceHistoryResponseDto>(historyLoader, { subscription_id: subscriptionId, items: [] });
   const deals = useResource<DealsResponseDto>(dealsLoader, { subscription_id: subscriptionId, items: [] });
   const alternatives = useResource<AlternativesResponseDto>(alternativesLoader, { subscription_id: subscriptionId, items: [] });
-  const [matchPending, setMatchPending] = useState(false);
+  const [matchPendingKey, setMatchPendingKey] = useState<string | null>(null);
   const [feedbackPending, setFeedbackPending] = useState<string | null>(null);
+  const pendingMutations = useRef(new Set<string>());
+  const mutationControllers = useRef(new Map<string, AbortController>());
+
+  useEffect(() => {
+    mutationMounted.current = true;
+    return () => { mutationMounted.current = false; };
+  }, []);
+
+  useEffect(() => () => {
+    mutationControllers.current.forEach((controller) => controller.abort());
+    mutationControllers.current.clear();
+    pendingMutations.current.clear();
+  }, [sessionKey]);
 
   const confirmMatch = useCallback(async (body: MatchConfirmationRequestDto) => {
-    setMatchPending(true);
+    const pendingKey = `match:${body.match_id}`;
+    if (pendingMutations.current.has(pendingKey)) {
+      throw new ApiError("mutation_pending", "This match confirmation is already being saved.", 0);
+    }
+    const controller = new AbortController();
+    const startedSession = sessionKeyRef.current;
+    pendingMutations.current.add(pendingKey);
+    mutationControllers.current.set(pendingKey, controller);
+    setMatchPendingKey(pendingKey);
     try {
       const result = await api.confirmSubscriptionMatch(
-        subscriptionId, body, createIdempotencyKey(`match:${body.match_id}`),
+        subscriptionId,
+        body,
+        createIdempotencyKey(pendingKey),
+        controller.signal,
       );
+      if (startedSession !== sessionKeyRef.current) {
+        throw new ApiError("request_cancelled", "The signed-in session changed.", 0);
+      }
       intelligence.update((current) => ({ ...current, match: result.match }));
       await Promise.all([history.refresh(), deals.refresh(), alternatives.refresh()]);
       return result.match;
@@ -119,7 +179,11 @@ export function useSubscriptionPriceIntelligence(subscriptionId: string) {
       if (error instanceof ApiError && error.status === 409) await intelligence.refresh();
       throw error;
     } finally {
-      setMatchPending(false);
+      pendingMutations.current.delete(pendingKey);
+      mutationControllers.current.delete(pendingKey);
+      if (mutationMounted.current) {
+        setMatchPendingKey((current) => current === pendingKey ? null : current);
+      }
     }
   }, [alternatives, api, deals, history, intelligence, subscriptionId]);
 
@@ -127,22 +191,50 @@ export function useSubscriptionPriceIntelligence(subscriptionId: string) {
     recommendationId: string,
     body: RecommendationFeedbackRequestDto,
   ) => {
+    const pendingKey = `feedback:${recommendationId}`;
+    if (pendingMutations.current.has(pendingKey)) {
+      throw new ApiError("mutation_pending", "This feedback is already being saved.", 0);
+    }
+    const controller = new AbortController();
+    const startedSession = sessionKeyRef.current;
+    pendingMutations.current.add(pendingKey);
+    mutationControllers.current.set(pendingKey, controller);
     setFeedbackPending(recommendationId);
     try {
       const updated = await api.recommendationFeedback(
-        recommendationId, body, createIdempotencyKey(`feedback:${recommendationId}`),
+        recommendationId,
+        body,
+        createIdempotencyKey(pendingKey),
+        controller.signal,
       );
+      if (startedSession !== sessionKeyRef.current) {
+        throw new ApiError("request_cancelled", "The signed-in session changed.", 0);
+      }
       intelligence.update((current) => ({
         ...current,
         recommendations: current.recommendations.map((item) => item.id === updated.id ? updated : item),
       }));
       return updated;
     } finally {
-      setFeedbackPending(null);
+      pendingMutations.current.delete(pendingKey);
+      mutationControllers.current.delete(pendingKey);
+      if (mutationMounted.current) {
+        setFeedbackPending((current) => current === recommendationId ? null : current);
+      }
     }
   }, [api, intelligence]);
 
-  return { intelligence, history, deals, alternatives, matchPending, feedbackPending, confirmMatch, submitFeedback };
+  return {
+    intelligence,
+    history,
+    deals,
+    alternatives,
+    matchPending: matchPendingKey !== null,
+    matchPendingKey,
+    feedbackPending,
+    confirmMatch,
+    submitFeedback,
+  };
 }
 
 export type DashboardIntelligence = {
@@ -153,11 +245,11 @@ export type DashboardIntelligence = {
 export function usePriceDashboardItems(subscriptionIds: string[]) {
   const api = useApiClient();
   const key = subscriptionIds.join(",");
-  const loader = useCallback(async (): Promise<DashboardIntelligence> => {
+  const loader = useCallback(async (signal: AbortSignal): Promise<DashboardIntelligence> => {
     const ids = key ? key.split(",") : [];
-    const intelligence = await Promise.all(ids.map((id) => api.subscriptionIntelligence(id)));
+    const intelligence = await Promise.all(ids.map((id) => api.subscriptionIntelligence(id, signal)));
     const confirmed = intelligence.filter((item) => item.match?.status === "confirmed");
-    const deals = await Promise.all(confirmed.map((item) => api.subscriptionDeals(item.subscription_id)));
+    const deals = await Promise.all(confirmed.map((item) => api.subscriptionDeals(item.subscription_id, signal)));
     return { intelligence, deals };
   }, [api, key]);
   return useResource<DashboardIntelligence>(loader, { intelligence: [], deals: [] });
