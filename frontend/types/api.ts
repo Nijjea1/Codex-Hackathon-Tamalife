@@ -27,6 +27,8 @@ export type SubscriptionDto = {
   needs_attention: boolean;
   attention_state: "none" | "upcoming" | "urgent" | "overdue" | "resolved";
   health_reason: string;
+  price_hike_detected: boolean;
+  next_transition_at: string | null;
   monthly_cost: string;
   annual_cost: string;
 };

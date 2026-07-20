@@ -18,6 +18,7 @@ from tamalife_backend.domain.health import (
     creature_mood,
     days_remaining,
     detect_price_increase,
+    has_unresolved_price_hike,
     health_score,
     matching_reminder_threshold,
     monthly_amount,
@@ -163,3 +164,104 @@ def test_timezone_rollover_is_deterministic() -> None:
 def test_leap_year_boundary() -> None:
     assert days_remaining(date(2028, 3, 1), now=date(2028, 2, 28)) == 2
     assert days_remaining(date(2027, 3, 1), now=date(2027, 2, 28)) == 1
+
+
+# --- Decay engine: grace period, price-hike acceleration, transitions -------
+
+NOON = datetime(2026, 7, 18, 12, 0, tzinfo=UTC)
+
+
+def hike_event(sub: Subscription, *, at: datetime) -> SubscriptionEvent:
+    return SubscriptionEvent(
+        subscription_id=sub.id, event_type=EventType.price_hike_detected, occurred_at=at
+    )
+
+
+def resolve_event(sub: Subscription, *, at: datetime) -> SubscriptionEvent:
+    return SubscriptionEvent(
+        subscription_id=sub.id, event_type=EventType.resolved_keep, occurred_at=at
+    )
+
+
+def test_just_added_item_is_thriving_during_grace() -> None:
+    # Renewal is imminent (1 day out) but the item was added moments ago.
+    sub = item(1)
+    sub.created_at = NOON - timedelta(minutes=5)
+    health = calculate_health(sub, [], now=NOON)
+    assert health.mood == "happy"
+    assert health.health_score == 94
+    assert not health.needs_attention
+
+
+def test_grace_expires_after_24h() -> None:
+    sub = item(1)
+    sub.created_at = NOON - timedelta(hours=30)
+    health = calculate_health(sub, [], now=NOON)
+    assert health.mood == "sick"  # falls back to the day-based mood
+
+
+def test_unresolved_price_hike_ages_a_far_item() -> None:
+    # 40 days out would normally be "happy"; an unresolved hike floors it.
+    sub = item(40)
+    health = calculate_health(sub, [hike_event(sub, at=NOON)], today=TODAY)
+    assert health.mood == "concerned"
+    assert health.needs_attention
+    assert health.price_hike_detected
+    # A clean item at the same distance stays happy and calm.
+    assert calculate_health(item(40), [], today=TODAY).mood == "happy"
+
+
+def test_price_hike_never_improves_a_near_item() -> None:
+    sub = item(1)  # already "sick"
+    health = calculate_health(sub, [hike_event(sub, at=NOON)], today=TODAY)
+    assert health.mood == "sick"  # not floored up, not pushed to critical
+    assert health.price_hike_detected
+
+
+def test_resolution_after_hike_clears_the_flag() -> None:
+    sub = item(40)
+    events = [
+        hike_event(sub, at=datetime(2026, 7, 17, tzinfo=UTC)),
+        resolve_event(sub, at=datetime(2026, 7, 18, tzinfo=UTC)),
+    ]
+    assert not has_unresolved_price_hike(events, current_status=sub.status)
+    health = calculate_health(sub, events, today=TODAY)
+    assert not health.price_hike_detected
+    assert health.mood == "resolved"  # the keep action supersedes the hike
+
+
+def test_no_renewal_date_with_unresolved_hike_needs_attention() -> None:
+    sub = item(1)
+    sub.renewal_or_expiry_date = None
+    clean = calculate_health(sub, [], today=TODAY)
+    assert clean.mood == "healthy" and not clean.needs_attention
+    hiked = calculate_health(sub, [hike_event(sub, at=NOON)], today=TODAY)
+    assert hiked.mood == "concerned" and hiked.needs_attention
+
+
+def test_overdue_item_has_no_further_transition() -> None:
+    health = calculate_health(item(-2), [], today=TODAY)
+    assert health.mood == "critical"
+    assert health.next_transition_at is None
+
+
+def test_next_transition_marks_the_next_boundary() -> None:
+    # 26 days out is "happy"; it becomes "healthy" the day it hits 25 remaining.
+    health = calculate_health(item(26), [], today=TODAY)
+    assert health.mood == "happy"
+    renewal = TODAY + timedelta(days=26)
+    assert health.next_transition_at == datetime.combine(
+        renewal - timedelta(days=25), datetime.min.time(), tzinfo=UTC
+    )
+
+
+def test_next_transition_skips_collapsed_states_under_a_hike() -> None:
+    # With a hike, happy/healthy collapse to concerned; the next real change is
+    # to "sick" when 3 days remain.
+    sub = item(40)
+    health = calculate_health(sub, [hike_event(sub, at=NOON)], today=TODAY)
+    assert health.mood == "concerned"
+    renewal = TODAY + timedelta(days=40)
+    assert health.next_transition_at == datetime.combine(
+        renewal - timedelta(days=3), datetime.min.time(), tzinfo=UTC
+    )
