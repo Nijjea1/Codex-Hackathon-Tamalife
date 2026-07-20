@@ -20,7 +20,14 @@ export type CreatureSpecies =
   | "benny"
   | "tilly"
   | "rory"
-  | "pip";
+  | "pip"
+  | "delivery"
+  | "fitness"
+  | "music"
+  | "news"
+  | "phone"
+  | "video"
+  | "weather";
 
 export type BillingInterval = "monthly" | "yearly" | "weekly" | "trial";
 

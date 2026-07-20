@@ -15,6 +15,7 @@ import { useApiClient } from "../../lib/api";
 import { mapSubscription } from "../../lib/mappers";
 import { BillingCycleDto } from "../../types/api";
 import { useUIStore } from "../../store/useUIStore";
+import { assignCreature } from "../../lib/creatureAssign";
 
 const evidence = [
   { label: "Renewal date", snippet: "“will renew on August 12, 2026”" },
@@ -78,7 +79,8 @@ export default function ReviewScreen() {
     setSubmitting(true);
     try {
       setExtracted(edited);
-      const response = await api.confirmParse(parseId, edited, "Nova", "gem");
+      const assignment = assignCreature(edited.category, edited.vendor_name, edited.display_name);
+      const response = await api.confirmParse(parseId, edited, assignment.name, assignment.species);
       setSubscription(mapSubscription(response.subscription));
       router.push("/add/success");
     } catch (e) {
