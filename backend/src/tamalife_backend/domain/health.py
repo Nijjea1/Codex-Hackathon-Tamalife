@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
-from datetime import UTC, date, datetime, tzinfo
+from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from decimal import Decimal
 
 from tamalife_backend.db.models import (
@@ -27,6 +27,25 @@ RESOLUTION_STATUSES = {
     EventType.resolved_keep: SubscriptionStatus.active,
 }
 
+# --- Decay engine tuning ---------------------------------------------------
+# A freshly added item is thriving for this long regardless of its renewal
+# date, so we never punish the user for something they just told us about.
+GRACE_PERIOD = timedelta(hours=24)
+# Ordering of the five moods from best to worst, used to take the "worse of"
+# two signals (day-based decay vs. an unresolved risk flag).
+_MOOD_SEVERITY = {"happy": 0, "healthy": 1, "concerned": 2, "sick": 3, "critical": 4}
+# Days-remaining values at which the day-based mood worsens by one step.
+_MOOD_THRESHOLDS = (25, 12, 3, 0)
+# An unresolved price hike can never leave an item better than "concerned":
+# a far-from-renewal item with a hike therefore decays faster than a clean one,
+# while an item that is already sick/critical is left untouched.
+PRICE_HIKE_FLOOR_MOOD = "concerned"
+PRICE_HIKE_FLOOR_SCORE = 51
+
+
+def _worse_mood(left: str, right: str) -> str:
+    return left if _MOOD_SEVERITY[left] >= _MOOD_SEVERITY[right] else right
+
 
 @dataclass(frozen=True)
 class HealthState:
@@ -35,6 +54,13 @@ class HealthState:
     mood: str
     needs_attention: bool
     reason: str
+    # Exact instant the mood will next cross a state boundary with no user
+    # action. Drives the iOS widget's timeline reloads. None if nothing will
+    # change (resolved, no date, or already critical).
+    next_transition_at: datetime | None = None
+    # A price increase that has not yet been resolved is currently degrading
+    # this item's health.
+    price_hike_detected: bool = False
 
 
 @dataclass(frozen=True)
@@ -161,29 +187,123 @@ def matching_reminder_threshold(
     return remaining if remaining in valid_thresholds else None
 
 
+def has_unresolved_price_hike(
+    events: Iterable[SubscriptionEvent],
+    *,
+    current_status: SubscriptionStatus,
+) -> bool:
+    """A recorded price hike that no later resolution (or terminal status) clears."""
+    if current_status in {SubscriptionStatus.canceled, SubscriptionStatus.disputed}:
+        return False
+    latest_risk: datetime | None = None
+    latest_resolution: datetime | None = None
+    for event in events:
+        if event.occurred_at is None:
+            continue
+        occurred_at = _as_utc(event.occurred_at)
+        if event.event_type == EventType.price_hike_detected:
+            if latest_risk is None or occurred_at > latest_risk:
+                latest_risk = occurred_at
+        elif event.event_type in RESOLUTION_EVENTS:
+            if latest_resolution is None or occurred_at > latest_resolution:
+                latest_resolution = occurred_at
+    if latest_risk is None:
+        return False
+    return latest_resolution is None or latest_resolution < latest_risk
+
+
+def _midnight(target_date: date, offset_days: int, timezone: tzinfo) -> datetime:
+    """Start of the day the item will have ``offset_days`` remaining."""
+    return datetime.combine(target_date - timedelta(days=offset_days), time.min, tzinfo=timezone)
+
+
+def _next_transition_at(
+    target_date: date,
+    remaining: int,
+    *,
+    current_mood: str,
+    floor_mood: str | None,
+    timezone: tzinfo,
+) -> datetime | None:
+    """The next instant the mood changes as ``remaining`` decreases, or None."""
+    for threshold in _MOOD_THRESHOLDS:
+        if threshold >= remaining:
+            continue
+        mood_at = creature_mood(threshold)
+        if floor_mood is not None:
+            mood_at = _worse_mood(mood_at, floor_mood)
+        if mood_at != current_mood:
+            return _midnight(target_date, threshold, timezone)
+    return None
+
+
 def calculate_health(
     subscription: Subscription,
     events: list[SubscriptionEvent] | None = None,
     *,
     today: date | None = None,
     now: datetime | None = None,
+    timezone: tzinfo = UTC,
 ) -> HealthState:
     reference: date | datetime = today or now or datetime.now(UTC)
-    stored_events = events if events is not None else list(subscription.events)
-    effect = resolution_event_effects(
-        stored_events,
-        current_status=subscription.status or SubscriptionStatus.active,
+    reference_now: datetime = now or (
+        datetime.combine(today, time.min, tzinfo=UTC) if today else datetime.now(UTC)
     )
+    stored_events = events if events is not None else list(subscription.events)
+    status = subscription.status or SubscriptionStatus.active
+    effect = resolution_event_effects(stored_events, current_status=status)
     if effect.resolved:
-        return HealthState(None, 100, "resolved", False, "The latest action resolved this item.")
+        return HealthState(
+            None, 100, "resolved", False, "The latest action resolved this item.",
+            next_transition_at=None, price_hike_detected=False,
+        )
+
+    hike = has_unresolved_price_hike(stored_events, current_status=status)
+    floor_mood = PRICE_HIKE_FLOOR_MOOD if hike else None
 
     target_date = subscription.renewal_or_expiry_date
     if target_date is None:
-        return HealthState(None, 70, "healthy", False, "No renewal or expiry date is set.")
+        mood = _worse_mood("healthy", floor_mood) if floor_mood else "healthy"
+        score = min(70, PRICE_HIKE_FLOOR_SCORE) if hike else 70
+        needs_attention = _MOOD_SEVERITY[mood] >= _MOOD_SEVERITY["concerned"]
+        reason = (
+            "An unresolved price increase needs a look."
+            if hike
+            else "No renewal or expiry date is set."
+        )
+        return HealthState(
+            None, score, mood, needs_attention, reason,
+            next_transition_at=None, price_hike_detected=hike,
+        )
 
-    remaining = days_remaining(target_date, now=reference)
-    score = health_score(remaining)
-    mood = creature_mood(remaining)
+    remaining = days_remaining(target_date, now=reference, timezone=timezone)
+
+    # Grace period: a just-added item is thriving no matter how close renewal is.
+    created_at = getattr(subscription, "created_at", None)
+    if created_at is not None:
+        grace_expiry = _as_utc(created_at) + GRACE_PERIOD
+        if reference_now < grace_expiry:
+            post_grace_mood = creature_mood(remaining)
+            if floor_mood:
+                post_grace_mood = _worse_mood(post_grace_mood, floor_mood)
+            next_at = (
+                grace_expiry
+                if post_grace_mood != "happy"
+                else _next_transition_at(
+                    target_date, remaining, current_mood="happy",
+                    floor_mood=floor_mood, timezone=timezone,
+                )
+            )
+            return HealthState(
+                remaining, 94, "happy", False, "Just added — settling into the garden.",
+                next_transition_at=next_at, price_hike_detected=hike,
+            )
+
+    day_mood = creature_mood(remaining)
+    day_score = health_score(remaining)
+    mood = _worse_mood(day_mood, floor_mood) if floor_mood else day_mood
+    score = min(day_score, PRICE_HIKE_FLOOR_SCORE) if hike else day_score
+    needs_attention = _MOOD_SEVERITY[mood] >= _MOOD_SEVERITY["concerned"]
     reasons = {
         "critical": "The renewal or expiry date is due.",
         "sick": "The renewal or expiry date is imminent.",
@@ -191,7 +311,18 @@ def calculate_health(
         "healthy": "The item is within the next month.",
         "happy": "No action is needed soon.",
     }
-    return HealthState(remaining, score, mood, remaining <= 12, reasons[mood])
+    reason = (
+        "An unresolved price increase is ageing this item."
+        if hike and mood != day_mood
+        else reasons[mood]
+    )
+    next_at = _next_transition_at(
+        target_date, remaining, current_mood=mood, floor_mood=floor_mood, timezone=timezone,
+    )
+    return HealthState(
+        remaining, score, mood, needs_attention, reason,
+        next_transition_at=next_at, price_hike_detected=hike,
+    )
 
 
 def annualized_amount(amount: Decimal, cycle: BillingCycle) -> Decimal:
