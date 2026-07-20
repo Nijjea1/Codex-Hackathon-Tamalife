@@ -18,6 +18,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { colors } from "../constants/theme";
 import { ClerkSync } from "../components/ClerkSync";
+import { PushNotificationSync } from "../components/PushNotificationSync";
 import { GardenAmbienceProvider } from "../components/onboarding/GardenAmbience";
 import { ToastHost } from "../components/ui/Toast";
 import { useUIStore } from "../store/useUIStore";
@@ -75,6 +76,7 @@ function AuthenticatedNavigation() {
         <SafeAreaProvider>
           <StatusBar style="light" />
           <ClerkSync />
+          <PushNotificationSync />
           <GardenAmbienceProvider>
             <Stack
               screenOptions={{
