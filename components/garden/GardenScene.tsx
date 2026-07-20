@@ -6,7 +6,6 @@ import { GARDEN_BACKGROUNDS } from "./gardenBackgrounds";
 import {
   findOpenGardenPoint,
   GardenPoint,
-  getGardenImageDepth,
   getGardenMovementBounds,
 } from "./gardenMovement";
 import { RandomMovingCreature } from "./RandomMovingCreature";
@@ -25,12 +24,12 @@ const CREATURE_SIZE = 72;
 const GARDEN_PADDING = 16;
 const MINIMUM_CREATURE_DISTANCE = 92;
 const DEFAULT_GARDEN_BACKGROUND =
-  GARDEN_BACKGROUNDS.find(({ id }) => id === "cottage-light") ?? GARDEN_BACKGROUNDS[0];
+  GARDEN_BACKGROUNDS.find(({ id }) => id === "cottage-dark") ?? GARDEN_BACKGROUNDS[0];
 
 export function GardenScene({ subscriptions, onCreatureOpen }: Props) {
   const [gardenSize, setGardenSize] = useState<GardenSize>({ width: 0, height: 0 });
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [gardenBackground] = useState(DEFAULT_GARDEN_BACKGROUND);
+  const gardenBackground = DEFAULT_GARDEN_BACKGROUND;
   const {
     minimumX: minimumCreatureX,
     maximumX: maximumCreatureX,
@@ -46,16 +45,8 @@ export function GardenScene({ subscriptions, onCreatureOpen }: Props) {
     groundRightRatio: gardenBackground.walkableArea.maximumXRatio,
     groundTopRatio: gardenBackground.walkableArea.minimumYRatio,
     groundBottomRatio: gardenBackground.walkableArea.maximumYRatio,
+    actorTopMinimumRatio: gardenBackground.walkableArea.actorTopMinimumRatio,
   });
-  const foregroundDepth = gardenBackground.foreground
-    ? getGardenImageDepth({
-        sceneWidth: gardenSize.width,
-        sceneHeight: gardenSize.height,
-        imageWidth: gardenBackground.imageSize.width,
-        imageHeight: gardenBackground.imageSize.height,
-        imageYRatio: gardenBackground.foreground.depthRatio,
-      })
-    : 0;
 
   const spawnPositions = useMemo(() => {
     const positions = new Map<string, GardenPoint>();
@@ -114,12 +105,12 @@ export function GardenScene({ subscriptions, onCreatureOpen }: Props) {
       onLayout={handleLayout}
       style={styles.scene}
     >
-      <View pointerEvents="none" style={styles.backgroundLayer}>
+      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
         <Image
           accessible={false}
           source={gardenBackground.source}
           resizeMode="cover"
-          style={styles.layerImage}
+          style={styles.backgroundImage}
         />
       </View>
 
@@ -145,32 +136,12 @@ export function GardenScene({ subscriptions, onCreatureOpen }: Props) {
           />
         );
       })}
-
-      {gardenBackground.foreground ? (
-        <View
-          pointerEvents="none"
-          style={[styles.foregroundLayer, { zIndex: Math.round(foregroundDepth) }]}
-        >
-          <Image
-            accessible={false}
-            source={gardenBackground.foreground.source}
-            resizeMode="cover"
-            style={styles.layerImage}
-          />
-        </View>
-      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  backgroundLayer: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  foregroundLayer: {
-    ...StyleSheet.absoluteFillObject,
-  },
-  layerImage: {
+  backgroundImage: {
     width: "100%",
     height: "100%",
   },

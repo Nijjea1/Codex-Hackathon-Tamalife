@@ -13,52 +13,8 @@ type GardenMovementBoundsOptions = {
   groundRightRatio: number;
   groundTopRatio: number;
   groundBottomRatio: number;
+  actorTopMinimumRatio?: number;
 };
-
-type GardenImageDepthOptions = {
-  sceneWidth: number;
-  sceneHeight: number;
-  imageWidth: number;
-  imageHeight: number;
-  imageYRatio: number;
-};
-
-function getGardenCoverMetrics(
-  sceneWidth: number,
-  sceneHeight: number,
-  imageWidth: number,
-  imageHeight: number
-) {
-  const scale = Math.max(sceneWidth / imageWidth, sceneHeight / imageHeight);
-
-  return {
-    scale,
-    offsetX: (sceneWidth - imageWidth * scale) / 2,
-    offsetY: (sceneHeight - imageHeight * scale) / 2,
-  };
-}
-
-export function getGardenImageDepth({
-  sceneWidth,
-  sceneHeight,
-  imageWidth,
-  imageHeight,
-  imageYRatio,
-}: GardenImageDepthOptions) {
-  const { scale, offsetY } = getGardenCoverMetrics(
-    sceneWidth,
-    sceneHeight,
-    imageWidth,
-    imageHeight
-  );
-
-  return offsetY + imageHeight * imageYRatio * scale;
-}
-
-export function getGardenActorDepth(actorY: number, actorSize: number) {
-  "worklet";
-  return Math.round(actorY + actorSize);
-}
 
 export function getGardenMovementBounds({
   sceneWidth,
@@ -70,17 +26,19 @@ export function getGardenMovementBounds({
   groundRightRatio,
   groundTopRatio,
   groundBottomRatio,
+  actorTopMinimumRatio,
 }: GardenMovementBoundsOptions) {
-  const { scale, offsetX, offsetY } = getGardenCoverMetrics(
-    sceneWidth,
-    sceneHeight,
-    imageWidth,
-    imageHeight
-  );
+  const scale = Math.max(sceneWidth / imageWidth, sceneHeight / imageHeight);
+  const offsetX = (sceneWidth - imageWidth * scale) / 2;
+  const offsetY = (sceneHeight - imageHeight * scale) / 2;
   const minimumGroundX = offsetX + imageWidth * groundLeftRatio * scale;
   const maximumGroundX = offsetX + imageWidth * groundRightRatio * scale;
   const minimumGroundY = offsetY + imageHeight * groundTopRatio * scale;
   const maximumGroundY = offsetY + imageHeight * groundBottomRatio * scale;
+  const minimumActorTopY =
+    actorTopMinimumRatio === undefined
+      ? 0
+      : offsetY + imageHeight * actorTopMinimumRatio * scale;
   const maximumActorX = Math.max(0, sceneWidth - actorSize);
   const maximumActorY = Math.max(0, sceneHeight - actorSize);
   const minimumX = Math.min(
@@ -91,17 +49,16 @@ export function getGardenMovementBounds({
     minimumX,
     Math.min(maximumActorX, maximumGroundX - actorSize / 2)
   );
-  const minimumY = Math.max(0, minimumGroundY - actorSize);
+  const minimumY = Math.min(
+    maximumActorY,
+    Math.max(0, minimumGroundY - actorSize, minimumActorTopY)
+  );
   const maximumY = Math.max(
     minimumY,
     Math.min(maximumActorY, maximumGroundY - actorSize)
   );
 
   return { minimumX, maximumX, minimumY, maximumY };
-}
-
-export function pickRandomGardenIndex(itemCount: number, random = Math.random) {
-  return Math.min(itemCount - 1, Math.floor(random() * itemCount));
 }
 
 type FindOpenGardenPointOptions = {

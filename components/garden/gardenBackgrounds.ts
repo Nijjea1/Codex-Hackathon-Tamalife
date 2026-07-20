@@ -4,10 +4,6 @@ export type GardenBackgroundConfig = {
   id: string;
   colorScheme: "light" | "dark";
   source: ImageSourcePropType;
-  foreground?: {
-    source: ImageSourcePropType;
-    depthRatio: number;
-  };
   imageSize: {
     width: number;
     height: number;
@@ -17,15 +13,17 @@ export type GardenBackgroundConfig = {
     maximumXRatio: number;
     minimumYRatio: number;
     maximumYRatio: number;
+    actorTopMinimumRatio?: number;
   };
 };
 
 const COTTAGE_IMAGE_SIZE = { width: 848, height: 1264 };
 const COTTAGE_WALKABLE_AREA = {
-  minimumXRatio: 0.22,
-  maximumXRatio: 0.5,
-  minimumYRatio: 0.55,
-  maximumYRatio: 0.74,
+  minimumXRatio: 0.08,
+  maximumXRatio: 0.48,
+  minimumYRatio: 0.68,
+  maximumYRatio: 0.78,
+  actorTopMinimumRatio: 740 / 1264,
 };
 
 export const GARDEN_BACKGROUNDS: readonly GardenBackgroundConfig[] = [
@@ -57,10 +55,6 @@ export const GARDEN_BACKGROUNDS: readonly GardenBackgroundConfig[] = [
     id: "cottage-light",
     colorScheme: "light",
     source: require("../../assets/garden-cottage-light.png"),
-    foreground: {
-      source: require("../../assets/garden-cottage-light-foreground.png"),
-      depthRatio: 0.57,
-    },
     imageSize: COTTAGE_IMAGE_SIZE,
     walkableArea: COTTAGE_WALKABLE_AREA,
   },
@@ -68,10 +62,6 @@ export const GARDEN_BACKGROUNDS: readonly GardenBackgroundConfig[] = [
     id: "cottage-dark",
     colorScheme: "dark",
     source: require("../../assets/garden-cottage-dark.png"),
-    foreground: {
-      source: require("../../assets/garden-cottage-dark-foreground.png"),
-      depthRatio: 0.57,
-    },
     imageSize: COTTAGE_IMAGE_SIZE,
     walkableArea: COTTAGE_WALKABLE_AREA,
   },

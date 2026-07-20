@@ -11,11 +11,7 @@ import { useUIStore } from "../../store/useUIStore";
 import { Subscription } from "../../types/subscription";
 import { Creature } from "../creatures/Creature";
 import { CreatureHoverCard } from "./CreatureHoverCard";
-import {
-  findOpenGardenPoint,
-  GardenPoint,
-  getGardenActorDepth,
-} from "./gardenMovement";
+import { findOpenGardenPoint, GardenPoint } from "./gardenMovement";
 
 type Props = {
   subscription: Subscription;
@@ -35,6 +31,7 @@ type Props = {
 type HorizontalPlacement = "left" | "center" | "right";
 
 const CREATURE_SIZE = 72;
+const MOVEMENT_SPEED_MULTIPLIER = 1.2;
 const TOOLTIP_WIDTH = 190;
 const GARDEN_PADDING = 16;
 
@@ -114,7 +111,7 @@ export function RandomMovingCreature({
         minimumY,
         maximumY,
       });
-      const duration = 4200 + Math.random() * 3200;
+      const duration = (4200 + Math.random() * 3200) / MOVEMENT_SPEED_MULTIPLIER;
 
       targetRegistry.set(subscription.id, destination);
       x.value = withTiming(destination.x, {
@@ -157,10 +154,13 @@ export function RandomMovingCreature({
     [subscription.id, targetRegistry]
   );
 
-  const animatedPosition = useAnimatedStyle(() => ({
-    transform: [{ translateX: x.value }, { translateY: y.value }],
-    zIndex: getGardenActorDepth(y.value, CREATURE_SIZE),
-  }));
+  const animatedPosition = useAnimatedStyle(
+    () => ({
+      transform: [{ translateX: x.value }, { translateY: y.value }],
+      zIndex: detailsVisible ? 1000 : Math.round(y.value + CREATURE_SIZE),
+    }),
+    [detailsVisible]
+  );
 
   const handlePress = () => {
     if (Platform.OS === "web" || selected) {
@@ -170,6 +170,11 @@ export function RandomMovingCreature({
 
     updateTooltipPlacement();
     onSelect();
+  };
+
+  const showDetails = () => {
+    updateTooltipPlacement();
+    setHovered(true);
   };
 
   return (
@@ -184,10 +189,9 @@ export function RandomMovingCreature({
               ? "Tap again to open subscription details"
               : "Tap to show subscription details"
         }
-        onHoverIn={() => {
-          updateTooltipPlacement();
-          setHovered(true);
-        }}
+        onBlur={() => setHovered(false)}
+        onFocus={showDetails}
+        onHoverIn={showDetails}
         onHoverOut={() => setHovered(false)}
         onPress={handlePress}
         style={styles.hitTarget}
@@ -219,7 +223,6 @@ const styles = StyleSheet.create({
     top: 0,
     width: CREATURE_SIZE,
   },
-
   hitTarget: {
     width: CREATURE_SIZE,
     alignItems: "center",

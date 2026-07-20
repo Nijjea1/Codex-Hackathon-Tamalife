@@ -1,9 +1,6 @@
 import {
   findOpenGardenPoint,
-  getGardenActorDepth,
-  getGardenImageDepth,
   getGardenMovementBounds,
-  pickRandomGardenIndex,
 } from "./gardenMovement";
 
 function assert(condition: boolean, message: string) {
@@ -159,52 +156,64 @@ const cottageBounds = getGardenMovementBounds({
   actorSize: 72,
   imageWidth: 848,
   imageHeight: 1264,
-  groundLeftRatio: 0.22,
-  groundRightRatio: 0.5,
-  groundTopRatio: 0.55,
-  groundBottomRatio: 0.74,
+  groundLeftRatio: 0.08,
+  groundRightRatio: 0.48,
+  groundTopRatio: 0.68,
+  groundBottomRatio: 0.78,
+  actorTopMinimumRatio: 740 / 1264,
 });
 assert(
-  Math.abs(cottageBounds.minimumX - 122.18) < 0.01,
-  `expected cottage minimumX≈122.18, received ${cottageBounds.minimumX}`
+  Math.abs(cottageBounds.minimumX - 21.52) < 0.01,
+  `expected cottage minimumX≈21.52, received ${cottageBounds.minimumX}`
 );
 assert(
-  Math.abs(cottageBounds.maximumX - 323.5) < 0.01,
-  `expected cottage maximumX≈323.5, received ${cottageBounds.maximumX}`
+  Math.abs(cottageBounds.maximumX - 309.12) < 0.01,
+  `expected cottage maximumX≈309.12, received ${cottageBounds.maximumX}`
 );
 assert(
-  Math.abs(cottageBounds.minimumY - 473.09) < 0.01,
-  `expected cottage minimumY≈473.09, received ${cottageBounds.minimumY}`
+  Math.abs(cottageBounds.minimumY - 612.41) < 0.01,
+  `expected cottage minimumY≈612.41, received ${cottageBounds.minimumY}`
 );
 assert(
-  Math.abs(cottageBounds.maximumY - 676.71) < 0.01,
-  `expected cottage maximumY≈676.71, received ${cottageBounds.maximumY}`
+  Math.abs(cottageBounds.maximumY - 719.58) < 0.01,
+  `expected cottage maximumY≈719.58, received ${cottageBounds.maximumY}`
+);
+assert(
+  cottageBounds.maximumX - cottageBounds.minimumX > 280,
+  "expected the cottage lane to span the open left and center paths"
+);
+assert(
+  cottageBounds.maximumY - cottageBounds.minimumY > 100,
+  "expected meaningful vertical movement in the cottage yard"
 );
 
-const cottageForegroundDepth = getGardenImageDepth({
-  sceneWidth: 719,
-  sceneHeight: 983,
+const smallCottageBounds = getGardenMovementBounds({
+  sceneWidth: 320,
+  sceneHeight: 500,
+  actorSize: 72,
   imageWidth: 848,
   imageHeight: 1264,
-  imageYRatio: 0.57,
+  groundLeftRatio: 0.08,
+  groundRightRatio: 0.48,
+  groundTopRatio: 0.68,
+  groundBottomRatio: 0.78,
+  actorTopMinimumRatio: 740 / 1264,
 });
 assert(
-  Math.abs(cottageForegroundDepth - 566.52) < 0.01,
-  `expected cottage foreground depth≈566.52, received ${cottageForegroundDepth}`
-);
-assert(
-  getGardenActorDepth(cottageForegroundDepth - 73, 72) < cottageForegroundDepth,
-  "expected a creature whose feet are above the cottage depth line to render behind it"
-);
-assert(
-  getGardenActorDepth(cottageForegroundDepth - 71, 72) > cottageForegroundDepth,
-  "expected a creature whose feet are below the cottage depth line to render in front of it"
+  Math.abs(smallCottageBounds.minimumY - 292.72) < 0.01 &&
+    Math.abs(smallCottageBounds.maximumY - 318) < 0.01,
+  "expected the small portrait cottage lane to stay below the house and above the pond"
 );
 
-assert(pickRandomGardenIndex(4, () => 0) === 0, "expected random value 0 to pick first scene");
+const smallCottageHouseBottom = (724 / 1264) * 500;
+const smallCottagePondTop = (1100 / 1264) * 500;
 assert(
-  pickRandomGardenIndex(4, () => 0.999) === 3,
-  "expected random value near 1 to pick last scene"
+  smallCottageBounds.minimumY - smallCottageHouseBottom > 6,
+  "expected visible space between a creature and the cottage"
+);
+assert(
+  smallCottagePondTop - (smallCottageBounds.maximumY + 72) > 45,
+  "expected visible space between creature feet and the pond"
 );
 
 console.log("gardenMovement tests passed");
