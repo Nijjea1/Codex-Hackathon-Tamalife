@@ -13,6 +13,7 @@ from tamalife_backend.db.models import (
     SourceFetchStatus,
     SourceStatus,
 )
+from tamalife_backend.services.plan_diff import publish_source_fetch
 from tamalife_backend.services.pricing_extraction import extract_pricing_catalog
 from tamalife_backend.services.safe_fetch import FetchRejectedError, fetch_url
 
@@ -90,6 +91,8 @@ async def monitor_pricing_source(
             confidence=min((plan.confidence for plan in catalog.plans), default=0.0),
         )
         session.add(fetch)
+        await session.flush()
+        await publish_source_fetch(session, settings, fetch.id)
         source.last_checked_at = now
         source.last_success_at = now
         source.next_check_at = now + timedelta(seconds=source.check_interval_seconds)

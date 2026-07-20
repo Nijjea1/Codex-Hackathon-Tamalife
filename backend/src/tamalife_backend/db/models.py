@@ -545,6 +545,10 @@ class ProviderPlan(TimestampMixin, Base):
     __table_args__ = (
         UniqueConstraint("provider_id", "external_key", "country", "currency", "billing_cycle"),
         CheckConstraint("current_price >= 0", name="provider_plan_price_nonnegative"),
+        CheckConstraint(
+            "missing_observation_count >= 0",
+            name="missing_observation_count_nonnegative",
+        ),
     )
 
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
@@ -567,6 +571,7 @@ class ProviderPlan(TimestampMixin, Base):
     trial_days: Mapped[int | None] = mapped_column(Integer)
     features: Mapped[list[dict[str, Any]]] = mapped_column(JSON, nullable=False, default=list)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
+    missing_observation_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     confidence: Mapped[float] = mapped_column(Float, nullable=False, default=1.0)
     first_observed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
@@ -803,6 +808,7 @@ class SourceFetch(TimestampMixin, Base):
     extraction_strategy: Mapped[str | None] = mapped_column(String(80))
     extraction_version: Mapped[str | None] = mapped_column(String(80))
     extracted_data: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    publication_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     confidence: Mapped[float | None] = mapped_column(Float)
     raw_storage_path: Mapped[str | None] = mapped_column(String(1000))
     retry_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

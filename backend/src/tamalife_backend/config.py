@@ -49,6 +49,7 @@ class Settings(BaseSettings):
             "TAMALIFE_CLERK_AUTHORIZED_PARTIES", "CLERK_AUTHORIZED_PARTIES"
         ),
     )
+    clerk_admin_user_ids: Annotated[list[str], NoDecode] = Field(default_factory=list)
     clerk_webhook_signing_secret: str | None = Field(
         default=None,
         validation_alias=AliasChoices(
@@ -133,7 +134,13 @@ class Settings(BaseSettings):
     sentry_traces_sample_rate: float = 0.0
     log_level: str = "INFO"
 
-    @field_validator("cors_origins", "trusted_hosts", "clerk_authorized_parties", mode="before")
+    @field_validator(
+        "cors_origins",
+        "trusted_hosts",
+        "clerk_authorized_parties",
+        "clerk_admin_user_ids",
+        mode="before",
+    )
     @classmethod
     def parse_origins(cls, value: object) -> object:
         if isinstance(value, str):
