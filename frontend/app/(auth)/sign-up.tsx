@@ -16,17 +16,14 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, fonts, radius, spacing, type } from "../../constants/theme";
-import { Creature } from "../../components/creatures/Creature";
-import { Button } from "../../components/ui/Button";
+import { colors, fonts, spacing } from "../../constants/theme";
+import { GardenBackdrop } from "../../components/onboarding/GardenBackdrop";
+import { GardenButton } from "../../components/onboarding/GardenButton";
+import { MascotPortrait } from "../../components/onboarding/MascotPortrait";
+import { demoModeAvailable } from "../../lib/config";
 import { useAuthStore } from "../../store/useAuthStore";
-import { CreatureSpecies } from "../../types/subscription";
-
-const starterSpecies: Record<string, CreatureSpecies> = {
-  sprout: "sprout",
-  glint: "gem",
-  puff: "cloud",
-};
+import { useDemoModeStore } from "../../store/useDemoModeStore";
+import { useUIStore } from "../../store/useUIStore";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -39,6 +36,8 @@ export default function SignUpScreen() {
   const insets = useSafeAreaInsets();
   const selectedStarter = useAuthStore((s) => s.selectedStarter);
   const completeOnboarding = useAuthStore((s) => s.completeOnboarding);
+  const enterDemo = useDemoModeStore((s) => s.enter);
+  const isDay = useUIStore((s) => s.onboardingTheme === "day");
 
   const { isLoaded: signUpLoaded, signUp, setActive: setActiveSignUp } = useSignUp();
   const { isLoaded: signInLoaded, signIn, setActive: setActiveSignIn } = useSignIn();
@@ -55,11 +54,16 @@ export default function SignUpScreen() {
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const species = starterSpecies[selectedStarter ?? "sprout"] ?? "sprout";
+  const mascotId = selectedStarter ?? "penny";
 
   const finish = () => {
     completeOnboarding();
     router.replace("/(auth)/reveal");
+  };
+
+  const readableError = (e: unknown): string => {
+    const msg = (e as { errors?: { message?: string }[] })?.errors?.[0]?.message;
+    return msg ?? "Something went wrong. Please try again.";
   };
 
   const submitSocial = async (strategy: "oauth_google" | "oauth_apple") => {
@@ -81,11 +85,6 @@ export default function SignUpScreen() {
     } finally {
       setLoading(null);
     }
-  };
-
-  const readableError = (e: unknown): string => {
-    const msg = (e as { errors?: { message?: string }[] })?.errors?.[0]?.message;
-    return msg ?? "Something went wrong. Please try again.";
   };
 
   const submitForm = async () => {
@@ -140,11 +139,28 @@ export default function SignUpScreen() {
     }
   };
 
+  const enterDemoGarden = () => {
+    setLoading("demo");
+    enterDemo();
+    router.replace("/(tabs)/home");
+  };
+
+  const kicker = step === "verify" ? "VERIFY" : mode === "signUp" ? "SAVE POINT" : "WELCOME BACK";
+  const heading =
+    step === "verify" ? "Check your email" : mode === "signUp" ? "Save your garden" : "Welcome back";
+  const supporting =
+    step === "verify"
+      ? `We sent a 6-digit code to ${email}.`
+      : mode === "signUp"
+      ? "Create an account so your creatures and expenses stay with you."
+      : "Sign in to get back to your garden.";
+
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.background }}
+      style={[styles.root, !isDay && styles.rootNight]}
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
+      <GardenBackdrop strongerShade hideSky />
       <ScrollView
         contentContainerStyle={{
           paddingTop: insets.top + spacing.xl,
@@ -154,47 +170,38 @@ export default function SignUpScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.peek}>
-          <Creature species={species} mood="happy" size="medium" />
+          <View style={styles.peekFrame}>
+            <MascotPortrait id={mascotId} size={118} />
+          </View>
         </View>
 
-        <View style={styles.formCard}>
-          <Text style={[type.title, { textAlign: "center" }]}>
-            {step === "verify"
-              ? "Check your email"
-              : mode === "signUp"
-              ? "Save your garden"
-              : "Welcome back"}
-          </Text>
-          <Text style={[type.body, { textAlign: "center", marginTop: 6, marginBottom: spacing.lg }]}>
-            {step === "verify"
-              ? `We sent a 6-digit code to ${email}.`
-              : mode === "signUp"
-              ? "Create an account so your creatures and expenses stay with you."
-              : "Sign in to get back to your garden."}
-          </Text>
+        <View style={[styles.formCard, !isDay && styles.formCardNight]}>
+          <Text style={[styles.kicker, !isDay && styles.kickerNight]}>{kicker}</Text>
+          <Text style={[styles.heading, !isDay && styles.headingNight]}>{heading}</Text>
+          <Text style={[styles.supporting, !isDay && styles.supportingNight]}>{supporting}</Text>
 
           {step === "choose" && (
             <View style={{ gap: spacing.sm + 2 }}>
-              <Button
+              <GardenButton
                 label="Continue with Apple"
                 onPress={() => submitSocial("oauth_apple")}
                 loading={loading === "oauth_apple"}
                 variant="secondary"
               />
-              <Button
+              <GardenButton
                 label="Continue with Google"
                 onPress={() => submitSocial("oauth_google")}
                 loading={loading === "oauth_google"}
                 variant="secondary"
               />
-              <Button
+              <GardenButton
                 label="Continue with email"
                 onPress={() => {
                   setMode("signUp");
                   setStep("form");
                 }}
                 variant="secondary"
-                icon={<Mail size={18} color={colors.primaryLight} />}
+                icon={<Mail size={18} color="#31543c" />}
               />
             </View>
           )}
@@ -203,7 +210,7 @@ export default function SignUpScreen() {
             <View style={{ gap: spacing.sm + 2 }}>
               {mode === "signUp" && (
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, !isDay && styles.inputNight]}
                   placeholder="First name"
                   placeholderTextColor={colors.textMuted}
                   autoCapitalize="words"
@@ -213,7 +220,7 @@ export default function SignUpScreen() {
                 />
               )}
               <TextInput
-                style={styles.input}
+                style={[styles.input, !isDay && styles.inputNight]}
                 placeholder="Email"
                 placeholderTextColor={colors.textMuted}
                 keyboardType="email-address"
@@ -225,7 +232,7 @@ export default function SignUpScreen() {
               />
               <View>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, !isDay && styles.inputNight]}
                   placeholder="Password"
                   placeholderTextColor={colors.textMuted}
                   secureTextEntry={!showPassword}
@@ -250,7 +257,7 @@ export default function SignUpScreen() {
 
               {error && <Text style={styles.error}>{error}</Text>}
 
-              <Button
+              <GardenButton
                 label={mode === "signUp" ? "Create account" : "Sign in"}
                 onPress={submitForm}
                 loading={loading === "form"}
@@ -270,7 +277,7 @@ export default function SignUpScreen() {
                 hitSlop={6}
                 style={{ alignSelf: "center", marginTop: 2 }}
               >
-                <Text style={styles.toggle}>
+                <Text style={[styles.toggle, !isDay && styles.toggleNight]}>
                   {mode === "signUp"
                     ? "Already have an account? Sign in"
                     : "New here? Create an account"}
@@ -278,9 +285,9 @@ export default function SignUpScreen() {
               </Pressable>
 
               {mode === "signUp" && (
-                <Text style={styles.terms}>
+                <Text style={[styles.terms, !isDay && styles.termsNight]}>
                   Passwords need at least 8 characters. By continuing you agree to the Terms and
-                  Privacy Policy.
+                  acknowledge the Privacy Policy.
                 </Text>
               )}
             </View>
@@ -289,7 +296,7 @@ export default function SignUpScreen() {
           {step === "verify" && (
             <View style={{ gap: spacing.sm + 2 }}>
               <TextInput
-                style={[styles.input, styles.codeInput]}
+                style={[styles.input, styles.codeInput, !isDay && styles.inputNight]}
                 placeholder="123456"
                 placeholderTextColor={colors.textMuted}
                 keyboardType="number-pad"
@@ -299,7 +306,7 @@ export default function SignUpScreen() {
                 accessibilityLabel="Verification code"
               />
               {error && <Text style={styles.error}>{error}</Text>}
-              <Button
+              <GardenButton
                 label="Verify & enter"
                 onPress={submitCode}
                 loading={loading === "verify"}
@@ -315,38 +322,65 @@ export default function SignUpScreen() {
                 hitSlop={6}
                 style={{ alignSelf: "center" }}
               >
-                <Text style={styles.toggle}>Use a different email</Text>
+                <Text style={[styles.toggle, !isDay && styles.toggleNight]}>Use a different email</Text>
               </Pressable>
             </View>
           )}
         </View>
 
+        {demoModeAvailable && (
+          <Pressable
+            accessibilityRole="button"
+            onPress={enterDemoGarden}
+            style={{ marginTop: spacing.lg, alignSelf: "center" }}
+            hitSlop={8}
+          >
+            <Text style={[styles.demoLink, !isDay && styles.demoLinkNight]}>
+              {loading === "demo" ? "Opening the garden..." : "Explore demo first"}
+            </Text>
+          </Pressable>
+        )}
       </ScrollView>
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: "#e4efb7" },
+  rootNight: { backgroundColor: "#151132" },
   peek: { alignItems: "center", marginBottom: -34, zIndex: 2 },
+  peekFrame: { borderRadius: 59, overflow: "hidden", borderWidth: 4, borderColor: "#fff1aa" },
   formCard: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.xl,
+    backgroundColor: "rgba(255,247,210,0.96)",
+    borderWidth: 3,
+    borderColor: "#4f7b55",
+    borderRadius: 10,
     padding: spacing.lg,
     paddingTop: spacing.xl + 8,
+    shadowColor: "#587245",
+    shadowOffset: { width: 5, height: 6 },
+    shadowOpacity: 0.58,
+    shadowRadius: 0,
   },
+  formCardNight: { backgroundColor: "rgba(43,31,76,0.96)", borderColor: "#9b8ad6", shadowColor: "#120d27" },
+  kicker: { color: "#b06a43", fontFamily: "monospace", fontWeight: "900", fontSize: 10, letterSpacing: 1, textAlign: "center" },
+  kickerNight: { color: "#ffd66e" },
+  heading: { color: "#234f3a", fontFamily: "monospace", fontWeight: "900", fontSize: 24, textAlign: "center", marginTop: 6 },
+  headingNight: { color: "#fff5d6" },
+  supporting: { color: "#526348", fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, textAlign: "center", marginTop: 6, marginBottom: spacing.lg },
+  supportingNight: { color: "#d6cdea" },
   input: {
-    backgroundColor: colors.backgroundRaised,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
+    backgroundColor: "#fffbed",
+    borderWidth: 2,
+    borderColor: "#789263",
+    borderRadius: 7,
     paddingHorizontal: spacing.md,
     minHeight: 52,
     fontFamily: fonts.medium,
     fontSize: 15,
-    color: colors.text,
+    color: "#294d38",
   },
+  inputNight: { backgroundColor: "#241b43", borderColor: "#806fb2", color: "#fff5e6" },
   codeInput: {
     textAlign: "center",
     fontSize: 24,
@@ -360,12 +394,16 @@ const styles = StyleSheet.create({
     color: colors.danger,
     textAlign: "center",
   },
-  toggle: { fontFamily: fonts.semiBold, fontSize: 13, color: colors.primaryLight },
+  toggle: { fontFamily: "monospace", fontWeight: "900", fontSize: 12, color: "#31543c", textAlign: "center" },
+  toggleNight: { color: "#eee8ff" },
   terms: {
     fontFamily: fonts.regular,
     fontSize: 11,
-    color: colors.textMuted,
+    color: "#66725b",
     textAlign: "center",
     marginTop: 4,
   },
+  termsNight: { color: "#b9aecf" },
+  demoLink: { fontFamily: "monospace", fontWeight: "900", fontSize: 12, color: "#31543c", backgroundColor: "rgba(255,244,200,0.88)", paddingHorizontal: 12, paddingVertical: 7, borderRadius: 5 },
+  demoLinkNight: { color: "#eee8ff", backgroundColor: "rgba(50,38,83,0.9)" },
 });
