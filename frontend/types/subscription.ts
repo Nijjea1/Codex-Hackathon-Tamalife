@@ -7,7 +7,20 @@ export type CreatureMood =
   | "reviving"
   | "resolved";
 
-export type CreatureSpecies = "cloud" | "sprout" | "blob" | "ember" | "egg" | "gem";
+export type CreatureSpecies =
+  | "cloud"
+  | "sprout"
+  | "blob"
+  | "ember"
+  | "egg"
+  | "gem"
+  | "penny"
+  | "milo"
+  | "nori"
+  | "benny"
+  | "tilly"
+  | "rory"
+  | "pip";
 
 export type BillingInterval = "monthly" | "yearly" | "weekly" | "trial";
 

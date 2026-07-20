@@ -111,6 +111,45 @@ export function GemBody({ size, palette, id }: BodyProps) {
   );
 }
 
+function AnimalBase({ size, palette, id, children }: BodyProps & { children: React.ReactNode }) {
+  return <Svg width={size} height={size} viewBox="0 0 120 120"><Grad id={id} palette={palette} />{children}</Svg>;
+}
+
+export function PennyBody(props: BodyProps) {
+  const { palette, id } = props;
+  return <AnimalBase {...props}><Circle cx="38" cy="35" r="15" fill={`url(#${id}-g)`} /><Circle cx="82" cy="35" r="15" fill={`url(#${id}-g)`} /><Ellipse cx="60" cy="69" rx="42" ry="38" fill={`url(#${id}-g)`} /><Ellipse cx="60" cy="78" rx="22" ry="15" fill={palette.bodyLight} /><Circle cx="52" cy="78" r="3" fill={palette.bodyDark} /><Circle cx="68" cy="78" r="3" fill={palette.bodyDark} /><Circle cx="91" cy="72" r="7" fill={palette.accent} /><Circle cx="91" cy="72" r="3" fill="#F6C453" /></AnimalBase>;
+}
+
+export function MiloBody(props: BodyProps) {
+  const { palette, id } = props;
+  return <AnimalBase {...props}><Circle cx="35" cy="31" r="12" fill={`url(#${id}-g)`} /><Circle cx="85" cy="31" r="12" fill={`url(#${id}-g)`} /><Ellipse cx="60" cy="69" rx="39" ry="42" fill={`url(#${id}-g)`} /><Ellipse cx="60" cy="78" rx="25" ry="25" fill={palette.bodyLight} /><Path d="M20 94 C8 102 14 114 31 106" stroke={palette.bodyDark} strokeWidth="9" fill="none" strokeLinecap="round" /><Circle cx="60" cy="72" r="8" fill={palette.bodyDark} /></AnimalBase>;
+}
+
+export function NoriBody(props: BodyProps) {
+  const { palette, id } = props;
+  return <AnimalBase {...props}><Path d="M25 42 L27 12 L47 29 L73 29 L93 12 L95 42" fill={`url(#${id}-g)`} stroke={palette.bodyDark} strokeWidth="2" strokeLinejoin="round" /><Circle cx="60" cy="68" r="42" fill={`url(#${id}-g)`} /><Path d="M60 36 L60 100" stroke={palette.bodyLight} strokeWidth="5" opacity=".45" /><Path d="M27 74 L43 78 M93 74 L77 78" stroke={palette.bodyDark} strokeWidth="2" strokeLinecap="round" /><Circle cx="60" cy="73" r="5" fill={palette.bodyDark} /></AnimalBase>;
+}
+
+export function BennyBody(props: BodyProps) {
+  const { palette, id } = props;
+  return <AnimalBase {...props}><Circle cx="34" cy="33" r="13" fill={`url(#${id}-g)`} /><Circle cx="86" cy="33" r="13" fill={`url(#${id}-g)`} /><Ellipse cx="60" cy="69" rx="41" ry="40" fill={`url(#${id}-g)`} /><Ellipse cx="60" cy="84" rx="23" ry="18" fill={palette.bodyLight} /><Path d="M48 84 L48 100 M56 84 L56 100 M64 84 L64 100 M72 84 L72 100" stroke="#F7F2DE" strokeWidth="3" /><Path d="M25 94 L12 110 L34 108" fill={palette.bodyDark} /></AnimalBase>;
+}
+
+export function TillyBody(props: BodyProps) {
+  const { palette, id } = props;
+  return <AnimalBase {...props}><Ellipse cx="60" cy="68" rx="43" ry="38" fill={`url(#${id}-g)`} /><Ellipse cx="60" cy="68" rx="30" ry="27" fill={palette.bodyDark} /><Path d="M60 44 L60 92 M36 68 L84 68 M43 51 L77 85 M77 51 L43 85" stroke={palette.accent} strokeWidth="3" opacity=".9" /><Circle cx="60" cy="39" r="20" fill={`url(#${id}-g)`} /><Circle cx="23" cy="83" r="10" fill={`url(#${id}-g)`} /><Circle cx="97" cy="83" r="10" fill={`url(#${id}-g)`} /></AnimalBase>;
+}
+
+export function RoryBody(props: BodyProps) {
+  const { palette, id } = props;
+  return <AnimalBase {...props}><Circle cx="35" cy="31" r="14" fill={`url(#${id}-g)`} /><Circle cx="85" cy="31" r="14" fill={`url(#${id}-g)`} /><Circle cx="60" cy="68" r="42" fill={`url(#${id}-g)`} /><Path d="M21 59 C40 45 80 45 99 59 L94 78 C78 69 42 69 26 78 Z" fill={palette.bodyDark} opacity=".85" /><Ellipse cx="60" cy="82" rx="18" ry="13" fill={palette.bodyLight} /><Circle cx="60" cy="80" r="5" fill={palette.bodyDark} /></AnimalBase>;
+}
+
+export function PipBody(props: BodyProps) {
+  const { palette, id } = props;
+  return <AnimalBase {...props}><Ellipse cx="60" cy="68" rx="40" ry="45" fill={`url(#${id}-g)`} /><Ellipse cx="60" cy="78" rx="27" ry="30" fill={palette.bodyLight} /><Path d="M54 48 L66 48 L60 58 Z" fill={palette.accent} /><Path d="M20 67 L5 84 L29 83 M100 67 L115 84 L91 83" fill={palette.bodyDark} /><Ellipse cx="60" cy="111" rx="22" ry="5" fill={palette.accent} /></AnimalBase>;
+}
+
 export const bodyBySpecies: Record<
   CreatureSpecies,
   (props: BodyProps) => React.JSX.Element
@@ -121,4 +160,11 @@ export const bodyBySpecies: Record<
   ember: EmberBody,
   egg: EggBody,
   gem: GemBody,
+  penny: PennyBody,
+  milo: MiloBody,
+  nori: NoriBody,
+  benny: BennyBody,
+  tilly: TillyBody,
+  rory: RoryBody,
+  pip: PipBody,
 };

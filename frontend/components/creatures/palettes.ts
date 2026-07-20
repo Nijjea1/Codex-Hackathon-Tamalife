@@ -15,6 +15,13 @@ const basePalettes: Record<CreatureSpecies, CreaturePalette> = {
   ember: { body: "#FFA36B", bodyDark: "#D9704A", bodyLight: "#FFD1AE", accent: "#F6C453", cheek: "#F08080" },
   egg: { body: "#F2E4C4", bodyDark: "#CBB78E", bodyLight: "#FCF6E5", accent: "#F6C453", cheek: "#F3B6A6" },
   gem: { body: "#7CD4E8", bodyDark: "#4E9FBF", bodyLight: "#C8F0FA", accent: "#B8AEFF", cheek: "#F3A6C0" },
+  penny: { body: "#F3A6C0", bodyDark: "#D9789B", bodyLight: "#FFD5E1", accent: "#55D6BE", cheek: "#F7BBCB" },
+  milo: { body: "#B9825C", bodyDark: "#815139", bodyLight: "#EBC29E", accent: "#F6C453", cheek: "#EAA28B" },
+  nori: { body: "#F2C879", bodyDark: "#C58D45", bodyLight: "#FFE9B9", accent: "#55D6BE", cheek: "#F0A18C" },
+  benny: { body: "#A87557", bodyDark: "#724631", bodyLight: "#E0AE84", accent: "#55D6BE", cheek: "#E79D87" },
+  tilly: { body: "#86CFA0", bodyDark: "#4C9B6D", bodyLight: "#C7F1CF", accent: "#F6C453", cheek: "#F3A6A6" },
+  rory: { body: "#9DA3B7", bodyDark: "#656B82", bodyLight: "#D9DDEA", accent: "#B8AEFF", cheek: "#F2A5B9" },
+  pip: { body: "#7184AF", bodyDark: "#3E4F7B", bodyLight: "#DCE7FF", accent: "#F6C453", cheek: "#F3A6A6" },
 };
 
 function mix(hex: string, target: string, amount: number): string {
