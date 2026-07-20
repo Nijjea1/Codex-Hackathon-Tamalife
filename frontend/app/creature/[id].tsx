@@ -5,7 +5,8 @@ import React, { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { FadeIn, FadeInDown, ZoomIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, fonts, radius, spacing, type } from "../../constants/theme";
+import { fonts, radius, spacing } from "../../constants/theme";
+import { useGardenPalette } from "../../constants/garden";
 import { Creature } from "../../components/creatures/Creature";
 import { CreatureHabitat } from "../../components/creatures/CreatureHabitat";
 import { HealthMeter } from "../../components/subscription/HealthMeter";
@@ -38,6 +39,7 @@ type Phase = "normal" | "reviving" | "celebrated";
 export default function CreatureDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const p = useGardenPalette();
   const insets = useSafeAreaInsets();
   const { subscriptions, loading, resolve: resolveSubscription } = useSubscriptionData(id);
   const subscription = subscriptions.find((sub) => sub.id === id);
@@ -50,7 +52,7 @@ export default function CreatureDetailScreen() {
   if (!subscription) {
     return (
       <Screen scroll={false} contentStyle={{ alignItems: "center", justifyContent: "center" }}>
-        <Text style={type.heading}>{loading ? "Loading creatureâ€¦" : "Creature not found"}</Text>
+        <Text style={[styles.notFound, { color: p.ink }]}>{loading ? "Loading creature…" : "Creature not found"}</Text>
         <Button label="Back to garden" onPress={() => router.back()} style={{ marginTop: spacing.md }} />
       </Screen>
     );
@@ -76,7 +78,7 @@ export default function CreatureDetailScreen() {
       return;
     }
     // cancel / renew / acceptPrice → the revive sequence
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     setPhase("reviving");
     setTimeout(() => {
       const apiAction = action === "acceptPrice" ? "keep" : action;
@@ -89,12 +91,12 @@ export default function CreatureDetailScreen() {
   };
 
   return (
-    <Screen edges={{ top: false }} contentStyle={{ paddingHorizontal: 0, paddingTop: 0 }}>
+    <Screen edges={{ top: false }} contentStyle={{ paddingHorizontal: 0, paddingTop: 0 }} strongerShade={false}>
       <CreatureHabitat mood={displayMood} style={styles.habitat}>
         <View style={[styles.habitatTop, { paddingTop: insets.top + spacing.sm }]}>
           <IconButton
             accessibilityLabel="Go back"
-            icon={<ChevronLeft size={22} color={colors.text} />}
+            icon={<ChevronLeft size={22} color={p.pillInk} strokeWidth={2.5} />}
             onPress={() => router.back()}
           />
           <MoodBadge mood={displayMood} />
@@ -103,7 +105,7 @@ export default function CreatureDetailScreen() {
         <View style={styles.stage}>
           {phase === "reviving" && (
             <Animated.View entering={FadeIn} style={styles.burst}>
-              {["#B8AEFF", "#55D6BE", "#F6C453", "#62D98B", "#8B7CFF", "#B8AEFF"].map((c, i) => (
+              {["#FFDD73", "#55D6BE", "#F6C453", "#62D98B", "#FFB4A2", "#FFDD73"].map((c, i) => (
                 <Animated.View
                   key={i}
                   entering={ZoomIn.delay(i * 120).springify().damping(7)}
@@ -141,10 +143,10 @@ export default function CreatureDetailScreen() {
 
       {phase === "celebrated" ? (
         <Animated.View entering={FadeInDown.springify()} style={styles.celebrated}>
-          <Text style={[type.title, { textAlign: "center" }]}>
+          <Text style={[styles.celebTitle, { color: p.ink }]}>
             {s.creatureName} can rest now.
           </Text>
-          <Text style={[type.body, { textAlign: "center", marginTop: spacing.sm }]}>
+          <Text style={[styles.celebBody, { color: p.body }]}>
             {s.status === "cancelled"
               ? `You'll save ${formatMoney(s.annualCost)} per year.`
               : "The renewal has been taken care of."}
@@ -158,16 +160,16 @@ export default function CreatureDetailScreen() {
       ) : (
         <View style={styles.body}>
           <Card style={{ gap: 4 }}>
-            <Text style={styles.merchant}>{s.merchant}</Text>
-            <Text style={styles.priceLine}>
+            <Text style={[styles.merchant, { color: p.inkStrong }]}>{s.merchant}</Text>
+            <Text style={[styles.priceLine, { color: p.ink }]}>
               {formatMoney(s.price)} {s.billingInterval === "trial" ? "after trial" : s.billingInterval}
             </Text>
             {s.previousPrice != null && (
-              <Text style={styles.priceIncrease}>
+              <Text style={[styles.priceIncrease, { color: p.warning }]}>
                 Price increased from {formatMoney(s.previousPrice)}
               </Text>
             )}
-            <Text style={type.body}>
+            <Text style={[styles.bodyText, { color: p.body }]}>
               {s.billingInterval === "trial" ? "Ends" : "Renews"} {formatDate(s.nextActionDate)} ·{" "}
               {daysLabel(s.daysRemaining)}{" "}
               {s.daysRemaining > 1 ? "remaining" : ""}
@@ -175,9 +177,9 @@ export default function CreatureDetailScreen() {
           </Card>
 
           <Card style={{ marginTop: spacing.sm + 2, gap: spacing.sm }}>
-            <Text style={type.subheading}>Health</Text>
+            <Text style={[styles.cardTitle, { color: p.ink }]}>Health</Text>
             <HealthMeter mood={displayMood} />
-            <Text style={type.bodySmall}>{healthExplanation(s)}</Text>
+            <Text style={[styles.bodyText, { color: p.body }]}>{healthExplanation(s)}</Text>
           </Card>
 
           <View style={styles.actions}>
@@ -226,19 +228,19 @@ export default function CreatureDetailScreen() {
                 accessibilityRole="button"
                 accessibilityState={{ expanded: open }}
                 onPress={() => setOpenSection(open ? null : title)}
-                style={styles.accordion}
+                style={[styles.accordion, { backgroundColor: p.cardBg, borderColor: p.cardBorder }]}
               >
                 <View style={styles.accordionHeader}>
-                  <Text style={type.subheading}>{title}</Text>
+                  <Text style={[styles.cardTitle, { color: p.ink }]}>{title}</Text>
                   {open ? (
-                    <ChevronUp size={18} color={colors.textMuted} />
+                    <ChevronUp size={18} color={p.muted} />
                   ) : (
-                    <ChevronDown size={18} color={colors.textMuted} />
+                    <ChevronDown size={18} color={p.muted} />
                   )}
                 </View>
                 {open && (
                   <Animated.View entering={FadeIn.duration(200)}>
-                    <Text style={[type.bodySmall, { marginTop: spacing.sm }]}>{content}</Text>
+                    <Text style={[styles.bodyText, { marginTop: spacing.sm, color: p.body }]}>{content}</Text>
                   </Animated.View>
                 )}
               </Pressable>
@@ -258,7 +260,8 @@ export default function CreatureDetailScreen() {
 }
 
 const styles = StyleSheet.create({
-  habitat: { borderRadius: 0, borderTopLeftRadius: 0, borderTopRightRadius: 0, borderBottomLeftRadius: radius.xl, borderBottomRightRadius: radius.xl, paddingBottom: spacing.md },
+  notFound: { fontFamily: fonts.pixelBold, fontSize: 19 },
+  habitat: { borderRadius: 0, borderBottomLeftRadius: radius.xl, borderBottomRightRadius: radius.xl, paddingBottom: spacing.md },
   habitatTop: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -269,24 +272,19 @@ const styles = StyleSheet.create({
   burst: { position: "absolute", top: "40%", zIndex: 3 },
   burstDot: { position: "absolute", width: 12, height: 12, borderRadius: 12 },
   habitatInfo: { alignItems: "center", marginTop: spacing.sm },
-  creatureName: { fontFamily: fonts.extraBold, fontSize: 26, color: colors.text },
-  speciesLabel: { fontFamily: fonts.medium, fontSize: 13, color: colors.textSecondary, marginTop: 2 },
+  creatureName: { fontFamily: fonts.pixelBold, fontSize: 26, color: "#fff7d8", textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 },
+  speciesLabel: { fontFamily: fonts.medium, fontSize: 13, color: "#e4e1f2", marginTop: 2 },
   body: { paddingHorizontal: spacing.md, paddingTop: spacing.md },
-  merchant: { fontFamily: fonts.extraBold, fontSize: 20, color: colors.text },
-  priceLine: {
-    fontFamily: fonts.bold,
-    fontSize: 16,
-    color: colors.text,
-    fontVariant: ["tabular-nums"],
-  },
-  priceIncrease: { fontFamily: fonts.semiBold, fontSize: 13, color: colors.warning },
+  merchant: { fontFamily: fonts.pixelBold, fontSize: 20 },
+  priceLine: { fontFamily: fonts.pixelBold, fontSize: 16, fontVariant: ["tabular-nums"] },
+  priceIncrease: { fontFamily: "monospace", fontWeight: "900", fontSize: 12 },
+  bodyText: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 20 },
+  cardTitle: { fontFamily: fonts.pixelBold, fontSize: 15 },
   actions: { gap: spacing.sm + 2, marginTop: spacing.md },
   actionRow: { flexDirection: "row", gap: spacing.sm + 2 },
   accordion: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
+    borderWidth: 2,
+    borderRadius: 12,
     padding: spacing.md,
     marginTop: spacing.sm + 2,
   },
@@ -295,5 +293,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  celebrated: { padding: spacing.lg, paddingTop: spacing.xl },
+  celebrated: { padding: spacing.lg, paddingTop: spacing.xl, alignItems: "center" },
+  celebTitle: { fontFamily: fonts.pixelBold, fontSize: 24, textAlign: "center" },
+  celebBody: { fontFamily: fonts.medium, fontSize: 15, lineHeight: 21, textAlign: "center", marginTop: spacing.sm },
 });
