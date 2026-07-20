@@ -163,6 +163,51 @@ on conflict (slug) do update set
 Do not seed aggregators, search result pages, shortened URLs, login pages, or domains without a
 documented right to fetch. Set `active=false` to exclude a provider from discovery.
 
+## One-shot demo without Redis or Celery
+
+The one-shot runner executes the same database-backed services directly in one terminal process.
+It needs neither Redis nor a Celery worker/Beat, and the three scheduler flags may remain false.
+
+Monitor every due approved source, then refresh user matches and recommendations:
+
+```powershell
+uv run tamalife-scrape-once
+```
+
+For a demo, force an immediate check even when a source is not due:
+
+```powershell
+uv run tamalife-scrape-once --force
+```
+
+Run bounded OpenAI discovery for active providers without monitoring or refreshing users:
+
+```powershell
+uv run tamalife-scrape-once --seed-providers-from-subscriptions --discover --skip-monitor --skip-refresh
+```
+
+The seed option creates provider records from distinct existing subscription vendor names. It
+does not guess official domains, approve candidates, or expose subscription data externally
+except for the provider name supplied to the explicitly requested OpenAI discovery.
+
+Discovery persists candidates but intentionally does not approve them. Review the candidates
+through the admin API below. An operator may explicitly approve one reviewed candidate and
+immediately monitor the resulting source:
+
+```powershell
+uv run tamalife-scrape-once --approve-candidate <candidate-uuid> --force --skip-refresh
+```
+
+Then generate matches, recommendations, and durable alerts from the stored catalog:
+
+```powershell
+uv run tamalife-scrape-once --skip-monitor
+```
+
+Optional scoping arguments are `--provider-id`, `--source-id`, and `--user-id`. The command
+prints a JSON report with counts and sanitized error types. It continues past an individual
+provider/source/user failure and never prints secrets or upstream response bodies.
+
 ## Candidate review and source lifecycle
 
 Set `TAMALIFE_CLERK_ADMIN_USER_IDS` to exact Clerk development IDs in staging and exact
