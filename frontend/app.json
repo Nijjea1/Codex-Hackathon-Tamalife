@@ -6,10 +6,18 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.tamalife.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "entitlements": {
+        "aps-environment": "development"
+      }
     },
     "android": {
-      "backgroundColor": "#0B0D17"
+      "backgroundColor": "#0B0D17",
+      "package": "com.tamalife.app",
+      "googleServicesFile": "./google-services.json",
+      "permissions": ["POST_NOTIFICATIONS"]
     },
     "web": {
       "bundler": "metro"
@@ -27,6 +35,16 @@
           "photosPermission": "Allow Tamalife to choose receipt screenshots for private parsing.",
           "cameraPermission": false,
           "microphonePermission": false
+        }
+      ],
+      "@react-native-firebase/app",
+      "@react-native-firebase/messaging",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "useFrameworks": "static"
+          }
         }
       ]
     ],
