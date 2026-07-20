@@ -83,6 +83,11 @@ class NotificationChannel(str, enum.Enum):
     email = "email"
 
 
+class DevicePlatform(str, enum.Enum):
+    ios = "ios"
+    android = "android"
+
+
 class ReminderDeliveryStatus(str, enum.Enum):
     pending = "pending"
     processing = "processing"
@@ -258,6 +263,20 @@ class WidgetToken(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class DevicePushToken(TimestampMixin, Base):
+    __tablename__ = "device_push_tokens"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    token: Mapped[str] = mapped_column(String(512), unique=True, nullable=False)
+    platform: Mapped[DevicePlatform] = mapped_column(
+        Enum(DevicePlatform, name="device_platform"), nullable=False
+    )
+    last_seen_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class IdempotencyKey(TimestampMixin, Base):
