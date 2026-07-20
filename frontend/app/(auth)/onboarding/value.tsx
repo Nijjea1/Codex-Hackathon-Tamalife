@@ -1,7 +1,6 @@
 import { useRouter } from "expo-router";
 import { AlertCircle, Clock, ShieldCheck, Sparkles, TrendingUp } from "lucide-react-native";
 import React from "react";
-import { colors } from "../../../constants/theme";
 import { OnboardingShell } from "../../../components/onboarding/OnboardingShell";
 import { OptionCard } from "../../../components/onboarding/OptionCard";
 import { useAuthStore } from "../../../store/useAuthStore";
@@ -46,7 +45,7 @@ export default function ValueScreen() {
           key={id}
           title={title}
           description={description}
-          icon={<Icon size={20} color={colors.primaryLight} />}
+          icon={<Icon size={20} color="#3b7d58" />}
           selected={protections.includes(id)}
           onPress={() => toggle(id)}
         />

@@ -4,18 +4,14 @@ import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Animated, { FadeIn, FadeInDown, ZoomIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, spacing, type } from "../../constants/theme";
+import { spacing } from "../../constants/theme";
 import { Creature } from "../../components/creatures/Creature";
-import { Button } from "../../components/ui/Button";
+import { GardenBackdrop } from "../../components/onboarding/GardenBackdrop";
+import { GardenButton } from "../../components/onboarding/GardenButton";
+import { MascotPortrait } from "../../components/onboarding/MascotPortrait";
 import { mockSubscriptions } from "../../data/mockSubscriptions";
 import { useAuthStore } from "../../store/useAuthStore";
-import { CreatureSpecies } from "../../types/subscription";
-
-const starterSpecies: Record<string, CreatureSpecies> = {
-  sprout: "sprout",
-  glint: "gem",
-  puff: "cloud",
-};
+import { useUIStore } from "../../store/useUIStore";
 
 // First garden reveal: the starter appears alone, then the demo creatures
 // emerge one by one around it.
@@ -24,9 +20,10 @@ export default function RevealScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const selectedStarter = useAuthStore((s) => s.selectedStarter);
+  const isDay = useUIStore((s) => s.onboardingTheme === "day");
   const [phase, setPhase] = useState<"starter" | "garden">("starter");
 
-  const species = starterSpecies[selectedStarter ?? "sprout"] ?? "sprout";
+  const mascotId = selectedStarter ?? "penny";
 
   useEffect(() => {
     const t = setTimeout(() => setPhase("garden"), 1600);
@@ -37,10 +34,13 @@ export default function RevealScreen() {
   if (!isSignedIn) return <Redirect href="/(auth)/sign-up" />;
 
   return (
-    <View style={[styles.root, { paddingBottom: insets.bottom + spacing.lg }]}>
+    <View style={[styles.root, !isDay && styles.rootNight, { paddingBottom: insets.bottom + spacing.lg }]}>
+      <GardenBackdrop hideSky />
       <View style={styles.stage}>
         <Animated.View entering={ZoomIn.springify().damping(12)}>
-          <Creature species={species} mood="happy" size="large" />
+          <View style={styles.starterFrame}>
+            <MascotPortrait id={mascotId} size={210} />
+          </View>
         </Animated.View>
 
         {phase === "garden" && (
@@ -58,13 +58,14 @@ export default function RevealScreen() {
       </View>
 
       {phase === "garden" && (
-        <Animated.View entering={FadeInDown.delay(1100).springify()} style={styles.bottom}>
-          <Text style={[type.display, { textAlign: "center" }]}>Your garden is ready.</Text>
-          <Text style={[type.body, { textAlign: "center", marginTop: spacing.sm }]}>
+        <Animated.View entering={FadeInDown.delay(1100).springify()} style={[styles.bottom, !isDay && styles.bottomNight]}>
+          <Text style={[styles.kicker, !isDay && styles.kickerNight]}>QUEST COMPLETE!</Text>
+          <Text style={[styles.heading, !isDay && styles.headingNight]}>Your garden is ready.</Text>
+          <Text style={[styles.supporting, !isDay && styles.supportingNight]}>
             We added a few examples so you can see how Tamalife works.
           </Text>
-          <Button
-            label="Meet my creatures"
+          <GardenButton
+            label="MEET MY CREATURES"
             onPress={() => router.replace("/(tabs)/home")}
             style={{ marginTop: spacing.lg, alignSelf: "stretch" }}
           />
@@ -72,8 +73,8 @@ export default function RevealScreen() {
       )}
 
       {phase === "starter" && (
-        <Animated.View entering={FadeIn.delay(400)} style={styles.bottom}>
-          <Text style={[type.body, { textAlign: "center" }]}>A seed of light lands nearby…</Text>
+        <Animated.View entering={FadeIn.delay(400)} style={[styles.bottom, !isDay && styles.bottomNight]}>
+          <Text style={[styles.seedText, !isDay && styles.seedTextNight]}>A seed of light lands nearby…</Text>
         </Animated.View>
       )}
     </View>
@@ -81,8 +82,10 @@ export default function RevealScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background, paddingHorizontal: spacing.md },
+  root: { flex: 1, backgroundColor: "#e4efb7", paddingHorizontal: spacing.md },
+  rootNight: { backgroundColor: "#151132" },
   stage: { flex: 1, alignItems: "center", justifyContent: "center" },
+  starterFrame: { borderRadius: 14, overflow: "hidden", borderWidth: 5, borderColor: "#fff0a6", shadowColor: "#405f3b", shadowOffset: { width: 5, height: 6 }, shadowOpacity: 0.6, shadowRadius: 0 },
   gardenRow: {
     flexDirection: "row",
     gap: spacing.md,
@@ -90,5 +93,14 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     justifyContent: "center",
   },
-  bottom: { paddingBottom: spacing.lg },
+  bottom: { padding: spacing.md, paddingBottom: spacing.lg, backgroundColor: "rgba(255,247,210,0.95)", borderWidth: 3, borderColor: "#4f7b55", shadowColor: "#587245", shadowOffset: { width: 4, height: 5 }, shadowOpacity: 0.55, shadowRadius: 0 },
+  bottomNight: { backgroundColor: "rgba(43,31,76,0.96)", borderColor: "#9b8ad6", shadowColor: "#120d27" },
+  kicker: { color: "#b06a43", fontFamily: "monospace", fontWeight: "900", fontSize: 10, letterSpacing: 1, textAlign: "center" },
+  kickerNight: { color: "#ffd66e" },
+  heading: { color: "#234f3a", fontFamily: "monospace", fontWeight: "900", fontSize: 25, textAlign: "center", marginTop: 6 },
+  headingNight: { color: "#fff5d6" },
+  supporting: { color: "#526348", fontFamily: "monospace", fontWeight: "700", fontSize: 12, lineHeight: 17, textAlign: "center", marginTop: spacing.sm },
+  supportingNight: { color: "#d6cdea" },
+  seedText: { color: "#31543c", fontFamily: "monospace", fontWeight: "900", fontSize: 12, textAlign: "center" },
+  seedTextNight: { color: "#eee8ff" },
 });

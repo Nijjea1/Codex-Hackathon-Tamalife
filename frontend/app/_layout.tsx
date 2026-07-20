@@ -6,6 +6,7 @@ import {
   PlusJakartaSans_800ExtraBold,
   useFonts,
 } from "@expo-google-fonts/plus-jakarta-sans";
+import { PixelifySans_500Medium, PixelifySans_700Bold } from "@expo-google-fonts/pixelify-sans";
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { Stack } from "expo-router";
@@ -33,6 +34,8 @@ export default function RootLayout() {
     PlusJakartaSans_600SemiBold,
     PlusJakartaSans_700Bold,
     PlusJakartaSans_800ExtraBold,
+    PixelifySans_500Medium,
+    PixelifySans_700Bold,
   });
 
   useEffect(() => {
