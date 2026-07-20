@@ -81,6 +81,17 @@ export type NotificationPreferencesDto = {
   push_enabled: boolean;
   email_enabled: boolean;
 };
+export type DevicePlatformDto = "ios" | "android";
+export type DevicePushTokenRegisterDto = {
+  token: string;
+  platform: DevicePlatformDto;
+};
+export type DevicePushTokenDto = {
+  id: string;
+  platform: DevicePlatformDto;
+  created_at: string;
+  last_seen_at: string | null;
+};
 export type DashboardSummaryDto = {
   active_count: number;
   needs_attention_count: number;

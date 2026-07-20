@@ -5,6 +5,8 @@ import { apiBaseUrl } from "./config";
 import {
   ConfirmParseResponseDto,
   DashboardSummaryDto,
+  DevicePushTokenDto,
+  DevicePushTokenRegisterDto,
   ExtractedReceiptDto,
   MeDto,
   NotificationPreferencesDto,
@@ -154,6 +156,10 @@ export function useApiClient() {
       notificationPreferences: () => raw<NotificationPreferencesDto>("/v1/notification-preferences"),
       updateNotificationPreferences: (body: Partial<NotificationPreferencesDto>) =>
         raw<NotificationPreferencesDto>("/v1/notification-preferences", { method: "PATCH", body: JSON.stringify(body) }),
+      registerPushToken: (body: DevicePushTokenRegisterDto) =>
+        raw<DevicePushTokenDto>("/v1/notifications/push-tokens", { method: "POST", body: JSON.stringify(body) }),
+      unregisterPushToken: (token: string) =>
+        raw<void>("/v1/notifications/push-tokens", { method: "DELETE", body: JSON.stringify({ token }) }),
       parseText: (text: string) => {
         const form = new FormData();
         form.append("text", text);
