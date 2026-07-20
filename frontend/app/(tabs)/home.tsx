@@ -2,16 +2,22 @@ import { useRouter } from "expo-router";
 import { Bell } from "lucide-react-native";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { colors, fonts, radius, spacing, type } from "../../constants/theme";
+import Animated, { FadeInDown } from "react-native-reanimated";
+import { fonts, spacing } from "../../constants/theme";
+import { useGardenPalette } from "../../constants/garden";
 import { FinancialSummary } from "../../components/dashboard/FinancialSummary";
 import { GardenHero } from "../../components/dashboard/GardenHero";
 import { QuickActions } from "../../components/dashboard/QuickActions";
 import { RecentWinCard } from "../../components/dashboard/RecentWinCard";
 import { RenewalRow } from "../../components/subscription/RenewalRow";
 import { UrgentSubscriptionCard } from "../../components/subscription/UrgentSubscriptionCard";
+import { AmbienceButton } from "../../components/onboarding/GardenAmbience";
+import { GardenModeButton } from "../../components/onboarding/GardenModeButton";
+import { MascotPortrait } from "../../components/onboarding/MascotPortrait";
 import { IconButton } from "../../components/ui/IconButton";
 import { Screen } from "../../components/ui/Screen";
 import { SectionHeader } from "../../components/ui/SectionHeader";
+import { GardenKicker } from "../../components/ui/GardenKit";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useSubscriptionStore } from "../../store/useSubscriptionStore";
 import { useUIStore } from "../../store/useUIStore";
@@ -28,6 +34,7 @@ function greeting(): string {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const p = useGardenPalette();
   const userName = useAuthStore((s) => s.userName);
   const { subscriptions, loading, error, resolve: resolveSubscription, demo } = useSubscriptionData();
   const lastSaving = useSubscriptionStore((s) => s.lastSaving);
@@ -62,29 +69,43 @@ export default function HomeScreen() {
 
   return (
     <Screen>
-      {loading && <Text style={type.bodySmall}>Loading your gardenâ€¦</Text>}
-      {error && <Text style={[type.bodySmall, { color: colors.warning }]}>{error}</Text>}
       <View style={styles.topBar}>
-        <View>
-          <Text style={type.title}>
-            {greeting()}, {userName}
-          </Text>
-          <View style={styles.levelBadge}>
-            <Text style={styles.levelText}>Garden Lv. 3</Text>
+        <View style={styles.greetingRow}>
+          <View style={[styles.mascotRing, { borderColor: p.pillBorder, backgroundColor: p.pill }]}>
+            <MascotPortrait id="penny" size={46} />
+          </View>
+          <View>
+            <GardenKicker>{greeting().toUpperCase()}</GardenKicker>
+            <Text style={[styles.name, { color: p.ink }]}>{userName}</Text>
+            <View style={[styles.levelBadge, { backgroundColor: p.warningBg, borderColor: p.goldBorder }]}>
+              <Text style={[styles.levelText, { color: p.accent }]}>GARDEN LV. 3</Text>
+            </View>
           </View>
         </View>
-        <IconButton
-          accessibilityLabel="Notifications, 1 unread"
-          icon={<Bell size={20} color={colors.text} />}
-          badge
-          onPress={() => showToast({ message: "Notifications are mocked in this demo", tone: "info" })}
-        />
+        <View style={styles.controls}>
+          <IconButton
+            accessibilityLabel="Notifications, 1 unread"
+            icon={<Bell size={20} color={p.pillInk} strokeWidth={2.4} />}
+            badge
+            onPress={() => showToast({ message: "Notifications are mocked in this demo", tone: "info" })}
+          />
+        </View>
       </View>
 
-      <GardenHero
-        subscriptions={subscriptions}
-        onCreaturePress={(id) => router.push(`/creature/${id}`)}
-      />
+      <View style={styles.miniControls}>
+        <AmbienceButton compact />
+        <GardenModeButton compact />
+      </View>
+
+      {loading && <Text style={[styles.status, { color: p.muted }]}>Loading your garden…</Text>}
+      {error && <Text style={[styles.status, { color: p.danger }]}>{error}</Text>}
+
+      <Animated.View entering={FadeInDown.duration(480)}>
+        <GardenHero
+          subscriptions={subscriptions}
+          onCreaturePress={(id) => router.push(`/creature/${id}`)}
+        />
+      </Animated.View>
 
       <View style={{ marginTop: spacing.md }}>
         <FinancialSummary monthly={monthly} annual={annual} />
@@ -136,16 +157,30 @@ const styles = StyleSheet.create({
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: spacing.sm,
+  },
+  greetingRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 2, flex: 1 },
+  mascotRing: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    borderWidth: 2.5,
     alignItems: "center",
-    marginBottom: spacing.md,
+    justifyContent: "center",
+    overflow: "hidden",
   },
+  name: { fontFamily: fonts.pixelBold, fontSize: 22, letterSpacing: 0.5, marginTop: 1 },
   levelBadge: {
-    backgroundColor: colors.primarySoft,
     alignSelf: "flex-start",
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: radius.pill,
-    marginTop: 6,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    marginTop: 5,
   },
-  levelText: { fontFamily: fonts.bold, fontSize: 11, color: colors.primaryLight },
+  levelText: { fontFamily: "monospace", fontWeight: "900", fontSize: 9, letterSpacing: 0.5 },
+  controls: { flexDirection: "row", alignItems: "center", gap: 7 },
+  miniControls: { flexDirection: "row", justifyContent: "flex-end", gap: 7, marginBottom: spacing.sm },
+  status: { fontFamily: fonts.medium, fontSize: 13, marginBottom: spacing.sm },
 });

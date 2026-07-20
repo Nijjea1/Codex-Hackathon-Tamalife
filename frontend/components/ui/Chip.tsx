@@ -1,6 +1,7 @@
 import React from "react";
 import { Pressable, StyleSheet, Text } from "react-native";
-import { colors, fonts, radius } from "../../constants/theme";
+import { fonts } from "../../constants/theme";
+import { useGardenPalette } from "../../constants/garden";
 
 type Props = {
   label: string;
@@ -9,7 +10,10 @@ type Props = {
   color?: string;
 };
 
-export function Chip({ label, selected, onPress, color = colors.primary }: Props) {
+/** Legacy Chip, garden-themed pill that fills gold-ish when selected. */
+export function Chip({ label, selected, onPress, color }: Props) {
+  const p = useGardenPalette();
+  const activeBg = color ?? p.gold;
   return (
     <Pressable
       accessibilityRole="button"
@@ -17,22 +21,21 @@ export function Chip({ label, selected, onPress, color = colors.primary }: Props
       onPress={onPress}
       style={[
         styles.chip,
-        selected && { backgroundColor: color, borderColor: color },
+        { backgroundColor: p.pill, borderColor: p.pillBorder },
+        selected && { backgroundColor: activeBg, borderColor: p.goldBorder },
       ]}
     >
-      <Text style={[styles.label, selected && { color: "#0D0F1C" }]}>{label}</Text>
+      <Text style={[styles.label, { color: p.pillInk }, selected && { color: p.onGold }]}>{label}</Text>
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   chip: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 15,
     paddingVertical: 9,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: 999,
+    borderWidth: 2,
   },
-  label: { fontFamily: fonts.semiBold, fontSize: 13, color: colors.textSecondary },
+  label: { fontFamily: fonts.pixel, fontSize: 13, letterSpacing: 0.3 },
 });

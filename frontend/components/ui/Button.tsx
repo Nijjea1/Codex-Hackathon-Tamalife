@@ -3,7 +3,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, ViewStyle } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
-import { colors, fonts, radius } from "../../constants/theme";
+import { fonts } from "../../constants/theme";
+import { useGardenPalette } from "../../constants/garden";
+import { useGardenContinueSound } from "../onboarding/GardenAmbience";
 
 type Props = {
   label: string;
@@ -15,27 +17,33 @@ type Props = {
   icon?: React.ReactNode;
 };
 
+/**
+ * Legacy Button, garden-themed: gold "sticker" gradient for primary, cream/plum
+ * pill for secondary, matching the onboarding GardenButton language.
+ */
 export function Button({ label, onPress, variant = "primary", disabled, loading, style, icon }: Props) {
+  const p = useGardenPalette();
+  const playContinue = useGardenContinueSound();
   const scale = useSharedValue(1);
   const animated = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
+
+  const labelColor =
+    variant === "primary"
+      ? p.onGold
+      : variant === "danger"
+      ? p.danger
+      : variant === "ghost"
+      ? p.body
+      : p.pillInk;
 
   const inner = (
     <>
       {loading ? (
-        <ActivityIndicator color={variant === "primary" ? "#fff" : colors.primaryLight} />
+        <ActivityIndicator color={variant === "primary" ? p.onGold : p.pillInk} />
       ) : (
         <>
           {icon}
-          <Text
-            style={[
-              styles.label,
-              variant === "ghost" && { color: colors.textSecondary },
-              variant === "secondary" && { color: colors.primaryLight },
-              variant === "danger" && { color: colors.danger },
-            ]}
-          >
-            {label}
-          </Text>
+          <Text style={[styles.label, { color: labelColor }]}>{label}</Text>
         </>
       )}
     </>
@@ -51,16 +59,17 @@ export function Button({ label, onPress, variant = "primary", disabled, loading,
         onPressIn={() => (scale.value = withSpring(0.96, { damping: 15 }))}
         onPressOut={() => (scale.value = withSpring(1, { damping: 15 }))}
         onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+          playContinue();
           onPress();
         }}
       >
         {variant === "primary" ? (
           <LinearGradient
-            colors={disabled ? [colors.surfaceRaised, colors.surfaceRaised] : [colors.primary, colors.primaryDark]}
+            colors={disabled ? [p.pill, p.pill] : [p.goldLight, p.gold]}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
-            style={[styles.base, disabled && { opacity: 0.6 }]}
+            style={[styles.base, styles.primary, { borderColor: p.goldBorder }, disabled && { opacity: 0.6 }]}
           >
             {inner}
           </LinearGradient>
@@ -68,9 +77,9 @@ export function Button({ label, onPress, variant = "primary", disabled, loading,
           <Animated.View
             style={[
               styles.base,
-              variant === "secondary" && styles.secondary,
-              variant === "ghost" && styles.ghost,
-              variant === "danger" && styles.dangerBtn,
+              variant === "secondary" && { backgroundColor: p.pill, borderWidth: 2, borderColor: p.pillBorder },
+              variant === "ghost" && { backgroundColor: "transparent" },
+              variant === "danger" && { backgroundColor: p.dangerBg, borderWidth: 2, borderColor: p.danger },
               disabled && { opacity: 0.5 },
             ]}
           >
@@ -85,23 +94,20 @@ export function Button({ label, onPress, variant = "primary", disabled, loading,
 const styles = StyleSheet.create({
   base: {
     minHeight: 54,
-    borderRadius: radius.md,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     gap: 8,
     paddingHorizontal: 22,
   },
-  secondary: {
-    backgroundColor: colors.primarySoft,
-    borderWidth: 1,
-    borderColor: "rgba(139,124,255,0.35)",
+  primary: {
+    borderWidth: 2,
+    shadowColor: "#F4B942",
+    shadowOpacity: 0.35,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 4,
   },
-  ghost: { backgroundColor: "transparent" },
-  dangerBtn: {
-    backgroundColor: colors.dangerSoft,
-    borderWidth: 1,
-    borderColor: "rgba(240,106,120,0.35)",
-  },
-  label: { fontFamily: fonts.bold, fontSize: 16, color: colors.text },
+  label: { fontFamily: fonts.pixelBold, fontSize: 15, letterSpacing: 1 },
 });

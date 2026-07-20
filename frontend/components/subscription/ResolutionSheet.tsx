@@ -7,7 +7,8 @@ import {
   ScissorsLineDashed,
   ShieldQuestion,
 } from "lucide-react-native";
-import { colors, fonts, radius, spacing, type } from "../../constants/theme";
+import { fonts, spacing } from "../../constants/theme";
+import { useGardenPalette } from "../../constants/garden";
 import { ResolutionAction, Subscription } from "../../types/subscription";
 import { formatMoney } from "../../utils/creatureMood";
 import { BottomSheet } from "../ui/BottomSheet";
@@ -59,6 +60,7 @@ const options: {
 ];
 
 export function ResolutionSheet({ visible, subscription, onClose, onResolve }: Props) {
+  const p = useGardenPalette();
   const [confirmingCancel, setConfirmingCancel] = useState(false);
 
   const close = () => {
@@ -70,12 +72,12 @@ export function ResolutionSheet({ visible, subscription, onClose, onResolve }: P
     <BottomSheet visible={visible} onClose={close}>
       {confirmingCancel ? (
         <View>
-          <Text style={[type.title, { textAlign: "center" }]}>Cancel {subscription.merchant}?</Text>
-          <View style={styles.savings}>
-            <Text style={styles.savingsAmount}>
+          <Text style={[styles.title, { color: p.ink, textAlign: "center" }]}>Cancel {subscription.merchant}?</Text>
+          <View style={[styles.savings, { backgroundColor: p.successBg }]}>
+            <Text style={[styles.savingsAmount, { color: p.success }]}>
               You'll save {formatMoney(subscription.annualCost)} per year.
             </Text>
-            <Text style={[type.bodySmall, { textAlign: "center" }]}>
+            <Text style={[styles.body, { color: p.body, textAlign: "center" }]}>
               {subscription.creatureName} will finally get to rest.
             </Text>
           </View>
@@ -90,10 +92,10 @@ export function ResolutionSheet({ visible, subscription, onClose, onResolve }: P
         </View>
       ) : (
         <View>
-          <Text style={[type.title, { textAlign: "center", marginBottom: spacing.xs }]}>
+          <Text style={[styles.title, { color: p.ink, textAlign: "center", marginBottom: spacing.xs }]}>
             What did you decide?
           </Text>
-          <Text style={[type.bodySmall, { textAlign: "center", marginBottom: spacing.md }]}>
+          <Text style={[styles.body, { color: p.body, textAlign: "center", marginBottom: spacing.md }]}>
             {subscription.merchant} · {formatMoney(subscription.price)}/month
           </Text>
           {options.map(({ action, label, description, icon: Icon }) => (
@@ -101,7 +103,7 @@ export function ResolutionSheet({ visible, subscription, onClose, onResolve }: P
               key={action}
               accessibilityRole="button"
               accessibilityLabel={label}
-              style={({ pressed }) => [styles.option, pressed && { backgroundColor: colors.surfaceRaised }]}
+              style={({ pressed }) => [styles.option, pressed && { backgroundColor: p.warningBg }]}
               onPress={() => {
                 if (action === "cancel") {
                   setConfirmingCancel(true);
@@ -110,12 +112,12 @@ export function ResolutionSheet({ visible, subscription, onClose, onResolve }: P
                 }
               }}
             >
-              <View style={styles.iconWrap}>
-                <Icon size={20} color={action === "cancel" ? colors.danger : colors.primaryLight} />
+              <View style={[styles.iconWrap, { backgroundColor: p.cardBg, borderColor: p.cardBorder }]}>
+                <Icon size={20} color={action === "cancel" ? p.danger : p.accent} strokeWidth={2.4} />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.optionLabel}>{label}</Text>
-                <Text style={type.bodySmall}>{description}</Text>
+                <Text style={[styles.optionLabel, { color: p.ink }]}>{label}</Text>
+                <Text style={[styles.body, { color: p.body }]}>{description}</Text>
               </View>
             </Pressable>
           ))}
@@ -126,36 +128,30 @@ export function ResolutionSheet({ visible, subscription, onClose, onResolve }: P
 }
 
 const styles = StyleSheet.create({
+  title: { fontFamily: fonts.pixelBold, fontSize: 20 },
+  body: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18 },
   option: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm + 4,
     padding: spacing.sm + 4,
-    borderRadius: radius.md,
+    borderRadius: 12,
     marginBottom: 4,
   },
   iconWrap: {
     width: 42,
     height: 42,
-    borderRadius: radius.sm,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
+    borderRadius: 12,
+    borderWidth: 2,
     alignItems: "center",
     justifyContent: "center",
   },
-  optionLabel: { fontFamily: fonts.bold, fontSize: 15, color: colors.text, marginBottom: 1 },
+  optionLabel: { fontFamily: fonts.pixelBold, fontSize: 15, marginBottom: 1 },
   savings: {
-    backgroundColor: colors.successSoft,
-    borderRadius: radius.md,
+    borderRadius: 12,
     padding: spacing.md,
     marginVertical: spacing.md,
     gap: 6,
   },
-  savingsAmount: {
-    fontFamily: fonts.extraBold,
-    fontSize: 18,
-    color: colors.success,
-    textAlign: "center",
-  },
+  savingsAmount: { fontFamily: fonts.pixelBold, fontSize: 18, textAlign: "center" },
 });
