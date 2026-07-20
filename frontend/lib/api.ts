@@ -13,6 +13,17 @@ import {
   SubscriptionListDto,
   SubscriptionWriteDto,
 } from "../types/api";
+import {
+  AlternativesResponseDto,
+  DealsResponseDto,
+  MatchConfirmationRequestDto,
+  MatchConfirmationResponseDto,
+  PriceHistoryResponseDto,
+  PriceIntelligenceSummaryDto,
+  RecommendationDto,
+  RecommendationFeedbackRequestDto,
+  SubscriptionIntelligenceDto,
+} from "../types/priceIntelligence";
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 const RETRYABLE_STATUS = new Set([408, 429, 502, 503, 504]);
@@ -151,6 +162,28 @@ export function useApiClient() {
       archiveSubscription: (id: string) =>
         raw<void>(`/v1/subscriptions/${encodeURIComponent(id)}`, { method: "DELETE" }),
       dashboardSummary: () => raw<DashboardSummaryDto>("/v1/dashboard/summary"),
+      priceIntelligenceSummary: () =>
+        raw<PriceIntelligenceSummaryDto>("/v1/price-intelligence/summary"),
+      subscriptionIntelligence: (id: string) =>
+        raw<SubscriptionIntelligenceDto>(`/v1/subscriptions/${encodeURIComponent(id)}/intelligence`),
+      priceHistory: (id: string) =>
+        raw<PriceHistoryResponseDto>(`/v1/subscriptions/${encodeURIComponent(id)}/price-history`),
+      subscriptionDeals: (id: string) =>
+        raw<DealsResponseDto>(`/v1/subscriptions/${encodeURIComponent(id)}/deals`),
+      subscriptionAlternatives: (id: string) =>
+        raw<AlternativesResponseDto>(`/v1/subscriptions/${encodeURIComponent(id)}/alternatives`),
+      confirmSubscriptionMatch: (id: string, body: MatchConfirmationRequestDto, idempotencyKey: string) =>
+        raw<MatchConfirmationResponseDto>(`/v1/subscriptions/${encodeURIComponent(id)}/match-confirmation`, {
+          method: "POST",
+          idempotencyKey,
+          body: JSON.stringify(body),
+        }),
+      recommendationFeedback: (id: string, body: RecommendationFeedbackRequestDto, idempotencyKey: string) =>
+        raw<RecommendationDto>(`/v1/recommendations/${encodeURIComponent(id)}/feedback`, {
+          method: "POST",
+          idempotencyKey,
+          body: JSON.stringify(body),
+        }),
       notificationPreferences: () => raw<NotificationPreferencesDto>("/v1/notification-preferences"),
       updateNotificationPreferences: (body: Partial<NotificationPreferencesDto>) =>
         raw<NotificationPreferencesDto>("/v1/notification-preferences", { method: "PATCH", body: JSON.stringify(body) }),

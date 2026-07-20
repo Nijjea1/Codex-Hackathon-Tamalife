@@ -24,10 +24,20 @@ export function useSubscriptionData(subscriptionId?: string) {
       } else {
         const items = [];
         let cursor: string | undefined;
+        const cursors = new Set<string>();
+        let pages = 0;
         do {
           const response = await api.listSubscriptions(cursor);
           items.push(...response.items);
           cursor = response.next_cursor ?? undefined;
+          pages += 1;
+          if (cursor && cursors.has(cursor)) {
+            throw new ApiError("invalid_pagination", "The server returned a repeated page cursor.", 0);
+          }
+          if (cursor) cursors.add(cursor);
+          if (pages >= 100 && cursor) {
+            throw new ApiError("pagination_limit", "Too many subscription pages were returned.", 0);
+          }
         } while (cursor);
         setRemote(items.map(mapSubscription));
       }
