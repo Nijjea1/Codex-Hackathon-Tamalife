@@ -8,7 +8,7 @@ from uuid import UUID
 
 import httpx
 import structlog
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from tamalife_backend.config import Settings
 from tamalife_backend.db.models import (
@@ -91,14 +91,19 @@ class WebhookReminderSender:
         return str(value)[:300] if value is not None else None
 
 
+FIREBASE_APP_NAME = "tamalife-reminders"
+# Firebase error codes meaning the token will never work again, so the row is
+# pruned instead of retried.
+PERMANENT_FCM_ERRORS = frozenset({"UNREGISTERED", "INVALID_ARGUMENT", "NOT_FOUND"})
+
+
 class FcmReminderSender:
     """Delivers push reminders through Firebase Cloud Messaging.
 
-    Looks up the target user's registered device tokens and sends one FCM
-    message per device. Tokens that Firebase reports as permanently invalid
-    (unregistered / malformed) are deleted so the table self-prunes. Only the
-    push channel is delivered here; email deliveries are a no-op because FCM
-    has no email transport.
+    Fans a reminder out to every device the user has registered in one batched
+    FCM request, pruning tokens Firebase reports as permanently dead. Only the
+    push channel is handled; FCM has no email transport, so email deliveries
+    fall through as a no-op rather than failing the delivery.
     """
 
     def __init__(self, settings: Settings) -> None:
@@ -106,60 +111,69 @@ class FcmReminderSender:
         self._app: Any = None
 
     def _ensure_app(self) -> Any:
+        if self._app is not None:
+            return self._app
+
         import firebase_admin
         from firebase_admin import credentials
 
-        if self._app is not None:
-            return self._app
-        raw = self.settings.firebase_credentials_json
-        if not raw:
-            raise RuntimeError("Firebase credentials are not configured")
-        cred = credentials.Certificate(json.loads(raw))
         try:
-            self._app = firebase_admin.get_app("tamalife-reminders")
+            self._app = firebase_admin.get_app(FIREBASE_APP_NAME)
         except ValueError:
-            self._app = firebase_admin.initialize_app(cred, name="tamalife-reminders")
+            raw = self.settings.firebase_credentials_json
+            if not raw:
+                raise RuntimeError("Firebase credentials are not configured") from None
+            cred = credentials.Certificate(json.loads(raw))
+            try:
+                self._app = firebase_admin.initialize_app(cred, name=FIREBASE_APP_NAME)
+            except ValueError:
+                # Another worker thread initialised it between our two calls.
+                self._app = firebase_admin.get_app(FIREBASE_APP_NAME)
         return self._app
 
     def _send_sync(
         self, tokens: list[str], payload: ReminderPayload
     ) -> tuple[str | None, list[str]]:
+        """Send to every token in one batch. Returns (message id, dead tokens)."""
         from firebase_admin import messaging
-        from firebase_admin.exceptions import FirebaseError
 
         app = self._ensure_app()
-        title = "Renewal coming up"
-        body = (
-            f"{payload.display_name} renews on {payload.renewal_or_expiry_date} "
-            f"({payload.days_before} days away)."
+        notification = messaging.Notification(
+            title="Renewal coming up",
+            body=(
+                f"{payload.display_name} renews on {payload.renewal_or_expiry_date} "
+                f"({payload.days_before} days away)."
+            ),
         )
-        first_message_id: str | None = None
+        data = {
+            "delivery_id": str(payload.delivery_id),
+            "subscription_id": str(payload.subscription_id),
+            "days_before": str(payload.days_before),
+        }
+        batch = messaging.send_each(
+            [messaging.Message(token=t, notification=notification, data=data) for t in tokens],
+            app=app,
+        )
+
+        message_id: str | None = None
         invalid: list[str] = []
         errors: list[str] = []
-        for token in tokens:
-            message = messaging.Message(
-                token=token,
-                notification=messaging.Notification(title=title, body=body),
-                data={
-                    "delivery_id": str(payload.delivery_id),
-                    "subscription_id": str(payload.subscription_id),
-                    "days_before": str(payload.days_before),
-                },
-            )
-            try:
-                message_id = messaging.send(message, app=app)
-                first_message_id = first_message_id or message_id
-            except messaging.UnregisteredError:
+        for token, result in zip(tokens, batch.responses, strict=True):
+            if result.success:
+                message_id = message_id or result.message_id
+                continue
+            exc = result.exception
+            code = getattr(exc, "code", "") or type(exc).__name__
+            if code in PERMANENT_FCM_ERRORS:
                 invalid.append(token)
-            except FirebaseError as exc:
-                code = getattr(exc, "code", "")
-                if code in {"INVALID_ARGUMENT", "NOT_FOUND", "UNREGISTERED"}:
-                    invalid.append(token)
-                else:
-                    errors.append(f"{code or type(exc).__name__}: {exc}")
-        if errors and first_message_id is None and not invalid:
+            else:
+                errors.append(f"{code}: {exc}")
+
+        # Retry only when a live token failed for a transient reason; dead
+        # tokens alone are terminal and would just burn the retry budget.
+        if errors and message_id is None:
             raise RuntimeError("; ".join(errors))
-        return first_message_id, invalid
+        return message_id, invalid
 
     async def send(
         self, payload: ReminderPayload, *, idempotency_key: str, request_id: str
@@ -172,20 +186,20 @@ class FcmReminderSender:
             )
             return f"fcm-skip:{idempotency_key}"
 
+        # A fresh engine per delivery: each Celery task runs its own event
+        # loop, so an engine cached on this instance would outlive its loop.
         engine = create_engine(self.settings)
         factory = create_session_factory(engine)
         try:
             async with factory() as session:
                 tokens = list(
                     (
-                        await session.execute(
+                        await session.scalars(
                             select(DevicePushToken.token).where(
                                 DevicePushToken.user_id == payload.user_id
                             )
                         )
-                    )
-                    .scalars()
-                    .all()
+                    ).all()
                 )
             if not tokens:
                 await logger.ainfo(
@@ -199,12 +213,9 @@ class FcmReminderSender:
 
             if invalid:
                 async with factory() as session:
-                    for token in invalid:
-                        record = await session.scalar(
-                            select(DevicePushToken).where(DevicePushToken.token == token)
-                        )
-                        if record is not None:
-                            await session.delete(record)
+                    await session.execute(
+                        delete(DevicePushToken).where(DevicePushToken.token.in_(invalid))
+                    )
                     await session.commit()
             return message_id
         finally:
