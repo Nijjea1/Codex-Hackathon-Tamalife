@@ -12,12 +12,14 @@ type Props = { subscription: Subscription; onPress: () => void };
 export function RenewalRow({ subscription: s, onPress }: Props) {
   const p = useGardenPalette();
   const meta = moodMeta[s.mood];
+  const date = formatDate(s.nextActionDate);
+  const renewalLabel = date === "Date not set" ? date : `${date} · ${daysLabel(s.daysRemaining)}`;
   return (
     <GardenCard
       onPress={onPress}
       compact
       style={styles.card}
-      accessibilityLabel={`${s.displayName}, ${formatDate(s.nextActionDate)}, ${formatMoney(s.price)}, ${meta.label}`}
+      accessibilityLabel={`${s.displayName}, ${renewalLabel}, ${formatMoney(s.price, s.currency)}, ${meta.label}`}
     >
       <View style={styles.row}>
         <View style={{ transform: [{ scale: 0.75 }], width: 58, alignItems: "center" }}>
@@ -26,11 +28,11 @@ export function RenewalRow({ subscription: s, onPress }: Props) {
         <View style={{ flex: 1 }}>
           <Text style={[styles.name, { color: p.ink }]}>{s.displayName}</Text>
           <Text style={[styles.sub, { color: p.body }]}>
-            {formatDate(s.nextActionDate)} · {daysLabel(s.daysRemaining)}
+            {renewalLabel}
           </Text>
         </View>
         <View style={{ alignItems: "flex-end" }}>
-          <Text style={[styles.price, { color: p.inkStrong }]}>{formatMoney(s.price)}</Text>
+          <Text style={[styles.price, { color: p.inkStrong }]}>{formatMoney(s.price, s.currency)}</Text>
           <Text style={[styles.state, { color: meta.color }]}>{meta.label}</Text>
         </View>
       </View>

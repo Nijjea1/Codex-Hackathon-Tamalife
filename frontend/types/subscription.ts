@@ -20,15 +20,27 @@ export type CreatureSpecies =
   | "benny"
   | "tilly"
   | "rory"
-  | "pip";
+  | "pip"
+  | "delivery"
+  | "fitness"
+  | "music"
+  | "news"
+  | "phone"
+  | "video"
+  | "weather";
 
 export type BillingInterval = "monthly" | "yearly" | "weekly" | "trial";
 
 export type SubscriptionCategory =
   | "Entertainment"
+  | "Streaming"
+  | "Music"
   | "Productivity"
   | "Fitness"
   | "Storage"
+  | "Delivery"
+  | "News"
+  | "Mobile"
   | "Other";
 
 export type ResolutionAction = "renew" | "cancel" | "acceptPrice" | "dispute" | "snooze";
@@ -52,11 +64,14 @@ export type Subscription = {
   needsAttention?: boolean;
   attentionState?: "none" | "upcoming" | "urgent" | "overdue" | "resolved";
   healthReason?: string;
+  priceHikeDetected?: boolean;
+  nextTransitionAt?: string | null;
   currency?: string;
   status: "active" | "cancelled" | "renewed" | "snoozed" | "disputed";
   notes?: string;
   receiptText?: string;
   snoozeCount?: number;
+  cancellationDifficulty?: "easy" | "moderate" | "hard" | "unknown";
 };
 
 export type ParsedReceipt = {

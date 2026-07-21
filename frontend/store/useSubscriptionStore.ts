@@ -4,11 +4,17 @@ import { ResolutionAction, Subscription } from "../types/subscription";
 
 type SubscriptionState = {
   subscriptions: Subscription[];
+  remoteSubscriptions: Subscription[];
   selectedSubscriptionId: string | null;
   lastSaving: { merchant: string; annualAmount: number } | null;
   selectSubscription: (id: string | null) => void;
   resolveSubscription: (id: string, action: ResolutionAction) => void;
   addSubscription: (subscription: Subscription) => void;
+  updateSubscription: (id: string, patch: Partial<Subscription>) => void;
+  upsertRemoteSubscription: (subscription: Subscription) => void;
+  removeRemoteSubscription: (id: string) => void;
+  archiveDemoSubscription: (id: string) => void;
+  resetRemoteState: () => void;
   totalMonthly: () => number;
   totalAnnual: () => number;
   needsAttentionCount: () => number;
@@ -16,6 +22,7 @@ type SubscriptionState = {
 
 export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   subscriptions: mockSubscriptions,
+  remoteSubscriptions: [],
   selectedSubscriptionId: null,
   lastSaving: { merchant: "FitBox Annual", annualAmount: 143.88 },
   selectSubscription: (id) => set({ selectedSubscriptionId: id }),
@@ -51,6 +58,31 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     }),
   addSubscription: (subscription) =>
     set((state) => ({ subscriptions: [...state.subscriptions, subscription] })),
+  updateSubscription: (id, patch) =>
+    set((state) => ({
+      subscriptions: state.subscriptions.map((s) => (s.id === id ? { ...s, ...patch } : s)),
+    })),
+  upsertRemoteSubscription: (subscription) =>
+    set((state) => ({
+      remoteSubscriptions: state.remoteSubscriptions.some((item) => item.id === subscription.id)
+        ? state.remoteSubscriptions.map((item) => item.id === subscription.id ? subscription : item)
+        : [...state.remoteSubscriptions, subscription],
+    })),
+  removeRemoteSubscription: (id) =>
+    set((state) => ({
+      remoteSubscriptions: state.remoteSubscriptions.filter((item) => item.id !== id),
+    })),
+  archiveDemoSubscription: (id) =>
+    set((state) => ({
+      subscriptions: state.subscriptions.filter((item) => item.id !== id),
+      selectedSubscriptionId: state.selectedSubscriptionId === id ? null : state.selectedSubscriptionId,
+    })),
+  resetRemoteState: () =>
+    set({
+      remoteSubscriptions: [],
+      selectedSubscriptionId: null,
+      lastSaving: null,
+    }),
   totalMonthly: () =>
     get()
       .subscriptions.filter((s) => s.status !== "cancelled")

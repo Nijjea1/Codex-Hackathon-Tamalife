@@ -10,7 +10,7 @@ import {
 import { fonts, spacing } from "../../constants/theme";
 import { useGardenPalette } from "../../constants/garden";
 import { ResolutionAction, Subscription } from "../../types/subscription";
-import { formatMoney } from "../../utils/creatureMood";
+import { billingSuffix, formatMoney } from "../../utils/creatureMood";
 import { BottomSheet } from "../ui/BottomSheet";
 import { Button } from "../ui/Button";
 
@@ -96,7 +96,7 @@ export function ResolutionSheet({ visible, subscription, onClose, onResolve }: P
             What did you decide?
           </Text>
           <Text style={[styles.body, { color: p.body, textAlign: "center", marginBottom: spacing.md }]}>
-            {subscription.merchant} · {formatMoney(subscription.price)}/month
+            {subscription.merchant} · {formatMoney(subscription.price, subscription.currency)}{billingSuffix(subscription.billingInterval)}
           </Text>
           {options.map(({ action, label, description, icon: Icon }) => (
             <Pressable

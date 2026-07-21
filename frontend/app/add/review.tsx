@@ -15,6 +15,8 @@ import { useApiClient } from "../../lib/api";
 import { mapSubscription } from "../../lib/mappers";
 import { BillingCycleDto } from "../../types/api";
 import { useUIStore } from "../../store/useUIStore";
+import { assignCreature } from "../../lib/creatureAssign";
+import { useSubscriptionStore } from "../../store/useSubscriptionStore";
 
 const evidence = [
   { label: "Renewal date", snippet: "“will renew on August 12, 2026”" },
@@ -29,6 +31,7 @@ export default function ReviewScreen() {
   const extracted = useReceiptDraftStore((s) => s.extracted);
   const setExtracted = useReceiptDraftStore((s) => s.setExtracted);
   const setSubscription = useReceiptDraftStore((s) => s.setSubscription);
+  const upsertRemoteSubscription = useSubscriptionStore((s) => s.upsertRemoteSubscription);
   const demoMode = useDemoModeStore((s) => s.active);
   const api = useApiClient();
   const showToast = useUIStore((s) => s.showToast);
@@ -47,6 +50,10 @@ export default function ReviewScreen() {
 
   const set = (key: keyof typeof fields) => (value: string) =>
     setFields((f) => ({ ...f, [key]: value }));
+
+  const prevPrice = Number(fields.previousPrice) || 0;
+  const curPrice = Number(fields.price) || 0;
+  const priceIncrease = prevPrice > 0 && curPrice > prevPrice ? curPrice - prevPrice : 0;
 
   const rows: { key: keyof typeof fields; label: string }[] = [
     { key: "name", label: "Name" },
@@ -78,8 +85,11 @@ export default function ReviewScreen() {
     setSubmitting(true);
     try {
       setExtracted(edited);
-      const response = await api.confirmParse(parseId, edited, "Nova", "gem");
-      setSubscription(mapSubscription(response.subscription));
+      const assignment = assignCreature(edited.category, edited.vendor_name, edited.display_name);
+      const response = await api.confirmParse(parseId, edited, assignment.name, assignment.species);
+      const subscription = mapSubscription(response.subscription);
+      setSubscription(subscription);
+      upsertRemoteSubscription(subscription);
       router.push("/add/success");
     } catch (e) {
       showToast({ message: (e as Error).message, tone: "warning" });
@@ -95,13 +105,17 @@ export default function ReviewScreen() {
           tone="success"
           label={extracted ? `${Math.round(extracted.confidence * 100)}% CONFIDENCE` : "HIGH CONFIDENCE"}
         />
-        <GardenPill tone="warning" label="PRICE +$2.00 / MO" />
+        {priceIncrease > 0 && <GardenPill tone="warning" label={`PRICE +$${priceIncrease.toFixed(2)}`} />}
       </View>
 
-      <View style={[styles.increase, { backgroundColor: p.warningBg }]}>
-        <TrendingUp size={16} color={p.accent} strokeWidth={2.4} />
-        <Text style={[styles.increaseText, { color: p.body }]}>Price increased by $2.00 per month.</Text>
-      </View>
+      {priceIncrease > 0 && (
+        <View style={[styles.increase, { backgroundColor: p.warningBg }]}>
+          <TrendingUp size={16} color={p.accent} strokeWidth={2.4} />
+          <Text style={[styles.increaseText, { color: p.body }]}>
+            Price went up ${priceIncrease.toFixed(2)} — from ${prevPrice.toFixed(2)} to ${curPrice.toFixed(2)}.
+          </Text>
+        </View>
+      )}
 
       <Card style={{ paddingVertical: spacing.xs }}>
         {rows.map(({ key, label }, i) => (

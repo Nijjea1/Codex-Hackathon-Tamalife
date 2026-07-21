@@ -1,7 +1,7 @@
 import { useRouter } from "expo-router";
-import { Search, SlidersHorizontal } from "lucide-react-native";
+import { Search } from "lucide-react-native";
 import React, { useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { fonts, spacing } from "../../constants/theme";
 import { useGardenPalette } from "../../constants/garden";
 import { SubscriptionCard } from "../../components/subscription/SubscriptionCard";
@@ -32,11 +32,17 @@ export default function GardenScreen() {
   const { subscriptions, loading, error, resolve: resolveSubscription } = useSubscriptionData();
   const showToast = useUIStore((s) => s.showToast);
   const [filter, setFilter] = useState<Filter>("All");
+  const [showSearch, setShowSearch] = useState(false);
+  const [query, setQuery] = useState("");
 
-  const filtered =
-    filter === "All"
-      ? subscriptions
-      : subscriptions.filter((s) => filterMoods[filter].includes(s.mood));
+  const q = query.trim().toLowerCase();
+  const filtered = subscriptions
+    .filter((s) => (filter === "All" ? true : filterMoods[filter].includes(s.mood)))
+    .filter((s) =>
+      q === ""
+        ? true
+        : `${s.displayName} ${s.merchant} ${s.creatureName}`.toLowerCase().includes(q)
+    );
 
   // Two-column layout
   const left = filtered.filter((_, i) => i % 2 === 0);
@@ -48,7 +54,7 @@ export default function GardenScreen() {
         <View>
           <GardenKicker>TODAY'S GARDEN</GardenKicker>
           <Text style={[styles.title, { color: p.ink }]}>My Garden</Text>
-          <Text style={[styles.sub, { color: p.body }]}>{subscriptions.length} creatures growing</Text>
+          <Text style={[styles.sub, { color: p.body }]}>{loading && subscriptions.length === 0 ? "Loading creatures…" : `${subscriptions.length} creatures growing`}</Text>
         </View>
         <View style={{ flexDirection: "row", gap: spacing.sm, alignItems: "center" }}>
           <AmbienceButton compact />
@@ -57,16 +63,25 @@ export default function GardenScreen() {
       </View>
       <View style={styles.toolRow}>
         <IconButton
-          accessibilityLabel="Filter creatures"
-          icon={<SlidersHorizontal size={18} color={p.pillInk} strokeWidth={2.4} />}
-          onPress={() => showToast({ message: "Use the chips below to filter", tone: "info" })}
-        />
-        <IconButton
-          accessibilityLabel="Search creatures"
+          accessibilityLabel={showSearch ? "Hide search" : "Search creatures"}
           icon={<Search size={18} color={p.pillInk} strokeWidth={2.4} />}
-          onPress={() => showToast({ message: "Search is coming soon", tone: "info" })}
+          onPress={() => {
+            setShowSearch((v) => !v);
+            if (showSearch) setQuery("");
+          }}
         />
       </View>
+      {showSearch && (
+        <TextInput
+          style={[styles.search, { backgroundColor: p.inputBg, borderColor: p.inputBorder, color: p.inputInk }]}
+          placeholder="Search by name or merchant…"
+          placeholderTextColor={p.muted}
+          value={query}
+          onChangeText={setQuery}
+          autoFocus
+          accessibilityLabel="Search creatures"
+        />
+      )}
       {loading && <Text style={[styles.status, { color: p.muted }]}>Loading subscriptions…</Text>}
       {error && <Text style={[styles.status, { color: p.danger }]}>{error}</Text>}
 
@@ -81,12 +96,15 @@ export default function GardenScreen() {
         ))}
       </ScrollView>
 
-      {filtered.length === 0 ? (
+      {!loading && filtered.length === 0 ? (
         <EmptyState
           title="No creatures here"
           message="Nothing matches this filter right now — which is usually good news."
           actionLabel="Show all creatures"
-          onAction={() => setFilter("All")}
+          onAction={() => {
+            setFilter("All");
+            setQuery("");
+          }}
         />
       ) : (
         <View style={styles.columns}>
@@ -154,6 +172,15 @@ const styles = StyleSheet.create({
   title: { fontFamily: fonts.pixelBold, fontSize: 24, letterSpacing: 0.5, marginTop: 2 },
   sub: { fontFamily: fonts.medium, fontSize: 13, marginTop: 2 },
   toolRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
+  search: {
+    borderWidth: 2,
+    borderRadius: 12,
+    paddingHorizontal: spacing.md,
+    minHeight: 46,
+    fontFamily: fonts.medium,
+    fontSize: 15,
+    marginBottom: spacing.md,
+  },
   status: { fontFamily: fonts.medium, fontSize: 13, marginBottom: spacing.sm },
   chips: { gap: spacing.sm, paddingRight: spacing.md },
   columns: { flexDirection: "row", gap: spacing.sm + 2 },

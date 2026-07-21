@@ -12,7 +12,7 @@ import Animated, {
 import { fonts, spacing } from "../../constants/theme";
 import { useGardenPalette } from "../../constants/garden";
 import { Subscription } from "../../types/subscription";
-import { daysLabel, formatMoney, moodMeta } from "../../utils/creatureMood";
+import { billingSuffix, daysLabel, formatMoney, moodMeta } from "../../utils/creatureMood";
 import { Creature } from "../creatures/Creature";
 import { MoodBadge } from "./MoodBadge";
 
@@ -77,8 +77,9 @@ export function SubscriptionCard({ subscription: s, onPress, onQuickAction }: Pr
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${s.creatureName}, ${s.displayName}, ${meta.label}, ${formatMoney(
-          s.price
-        )} monthly, next event ${daysLabel(s.daysRemaining)}`}
+          s.price,
+          s.currency,
+        )}${billingSuffix(s.billingInterval)}, next event ${daysLabel(s.daysRemaining)}`}
         onPress={onPress}
         onLongPress={handleLongPress}
         onPressIn={() => (scale.value = withSpring(0.97, { damping: 16 }))}
@@ -90,6 +91,13 @@ export function SubscriptionCard({ subscription: s, onPress, onQuickAction }: Pr
           end={{ x: 0.9, y: 1 }}
           style={[styles.habitat, { borderBottomColor: p.cardBorder }]}
         >
+          {s.priceHikeDetected && (
+            <View
+              accessibilityRole="image"
+              accessibilityLabel="Price increase detected"
+              style={[styles.hikeDot, { backgroundColor: p.danger, borderColor: p.cardBgSolid }]}
+            />
+          )}
           <Creature species={s.species} mood={s.mood} size="small" />
         </LinearGradient>
         <View style={styles.info}>
@@ -101,7 +109,7 @@ export function SubscriptionCard({ subscription: s, onPress, onQuickAction }: Pr
             {s.displayName}
           </Text>
           <View style={styles.metaRow}>
-            <Text style={[styles.price, { color: p.inkStrong }]}>{formatMoney(s.price)}/mo</Text>
+            <Text style={[styles.price, { color: p.inkStrong }]}>{formatMoney(s.price, s.currency)}{billingSuffix(s.billingInterval)}</Text>
             <Text style={[styles.days, { color: meta.color }]}>
               {s.status === "cancelled"
                 ? "Cancelled"
@@ -153,6 +161,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: spacing.md,
     borderBottomWidth: 2,
+  },
+  hikeDot: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    width: 13,
+    height: 13,
+    borderRadius: 13,
+    borderWidth: 2,
+    zIndex: 2,
   },
   info: { padding: spacing.sm + 4 },
   nameRow: {

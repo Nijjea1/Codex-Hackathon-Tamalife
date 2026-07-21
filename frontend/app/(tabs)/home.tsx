@@ -11,6 +11,7 @@ import { QuickActions } from "../../components/dashboard/QuickActions";
 import { RecentWinCard } from "../../components/dashboard/RecentWinCard";
 import { RenewalRow } from "../../components/subscription/RenewalRow";
 import { UrgentSubscriptionCard } from "../../components/subscription/UrgentSubscriptionCard";
+import { PriceHikeNotice } from "../../components/subscription/PriceHikeNotice";
 import { AmbienceButton } from "../../components/onboarding/GardenAmbience";
 import { GardenModeButton } from "../../components/onboarding/GardenModeButton";
 import { MascotPortrait } from "../../components/onboarding/MascotPortrait";
@@ -18,11 +19,14 @@ import { IconButton } from "../../components/ui/IconButton";
 import { Screen } from "../../components/ui/Screen";
 import { SectionHeader } from "../../components/ui/SectionHeader";
 import { GardenKicker } from "../../components/ui/GardenKit";
+import { Card } from "../../components/ui/Card";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useSubscriptionStore } from "../../store/useSubscriptionStore";
 import { useUIStore } from "../../store/useUIStore";
 import { useSubscriptionData } from "../../lib/useSubscriptionData";
 import { useApiClient } from "../../lib/api";
+import { portfolioStats } from "../../lib/portfolio";
+import { PortfolioHealthBar } from "../../components/dashboard/PortfolioHealthBar";
 import { DashboardSummaryDto } from "../../types/api";
 
 function greeting(): string {
@@ -39,6 +43,7 @@ export default function HomeScreen() {
   const { subscriptions, loading, error, resolve: resolveSubscription, demo } = useSubscriptionData();
   const lastSaving = useSubscriptionStore((s) => s.lastSaving);
   const showToast = useUIStore((s) => s.showToast);
+  const reducedMotion = useUIStore((s) => s.reducedMotion);
   const api = useApiClient();
   const [summary, setSummary] = React.useState<DashboardSummaryDto | null>(null);
 
@@ -51,7 +56,7 @@ export default function HomeScreen() {
 
   const active = subscriptions.filter((s) => s.status !== "cancelled");
   const localMonthly = active.reduce(
-    (sum, s) => sum + (s.billingInterval === "yearly" ? s.price / 12 : s.price),
+    (sum, s) => sum + (s.monthlyCost ?? (s.billingInterval === "yearly" ? s.price / 12 : s.billingInterval === "weekly" ? s.price * 52 / 12 : s.price)),
     0
   );
   const localAnnual = active.reduce((sum, s) => sum + s.annualCost, 0);
@@ -66,6 +71,21 @@ export default function HomeScreen() {
     .filter((s) => s.status === "active")
     .sort((a, b) => a.daysRemaining - b.daysRemaining)
     .slice(0, 3);
+  const priceHikes = subscriptions.filter(
+    (s) => s.status === "active" && s.priceHikeDetected
+  );
+
+  const stats = portfolioStats(subscriptions);
+
+  if (loading && subscriptions.length === 0) {
+    return (
+      <Screen contentStyle={styles.loadingScreen}>
+        <GardenKicker>{greeting().toUpperCase()}</GardenKicker>
+        <Text style={[styles.name, { color: p.ink }]}>Restoring your garden</Text>
+        <Card><Text style={[styles.status, { color: p.body }]}>Loading your subscriptions and totals…</Text></Card>
+      </Screen>
+    );
+  }
 
   return (
     <Screen>
@@ -78,29 +98,35 @@ export default function HomeScreen() {
             <GardenKicker>{greeting().toUpperCase()}</GardenKicker>
             <Text style={[styles.name, { color: p.ink }]}>{userName}</Text>
             <View style={[styles.levelBadge, { backgroundColor: p.warningBg, borderColor: p.goldBorder }]}>
-              <Text style={[styles.levelText, { color: p.accent }]}>GARDEN LV. 3</Text>
+              <Text style={[styles.levelText, { color: p.accent }]}>
+                LV. {stats.level} · {stats.levelLabel.toUpperCase()}
+              </Text>
             </View>
           </View>
         </View>
         <View style={styles.controls}>
+          <AmbienceButton compact />
+          <GardenModeButton compact />
           <IconButton
-            accessibilityLabel="Notifications, 1 unread"
+            accessibilityLabel={stats.needsAttention > 0 ? `${stats.needsAttention} items need attention` : "Reminders"}
             icon={<Bell size={20} color={p.pillInk} strokeWidth={2.4} />}
-            badge
-            onPress={() => showToast({ message: "Notifications are mocked in this demo", tone: "info" })}
+            badge={stats.needsAttention > 0}
+            onPress={() => router.push("/notification-preferences")}
           />
         </View>
       </View>
 
-      <View style={styles.miniControls}>
-        <AmbienceButton compact />
-        <GardenModeButton compact />
-      </View>
+      <PortfolioHealthBar
+        health={stats.health}
+        thriving={stats.thriving}
+        needsAttention={stats.needsAttention}
+        priceHikes={stats.priceHikes.length}
+      />
 
       {loading && <Text style={[styles.status, { color: p.muted }]}>Loading your garden…</Text>}
       {error && <Text style={[styles.status, { color: p.danger }]}>{error}</Text>}
 
-      <Animated.View entering={FadeInDown.duration(480)}>
+      <Animated.View entering={reducedMotion ? undefined : FadeInDown.duration(480)}>
         <GardenHero
           subscriptions={subscriptions}
           onCreaturePress={(id) => router.push(`/creature/${id}`)}
@@ -108,8 +134,22 @@ export default function HomeScreen() {
       </Animated.View>
 
       <View style={{ marginTop: spacing.md }}>
-        <FinancialSummary monthly={monthly} annual={annual} />
+        <FinancialSummary
+          monthly={monthly}
+          annual={annual}
+          savedPerYear={stats.savedPerYear}
+          activeCount={stats.count}
+        />
       </View>
+
+      {priceHikes.length > 0 && (
+        <>
+          <SectionHeader title="Price changes" />
+          {priceHikes.slice(0, 2).map((s) => (
+            <PriceHikeNotice key={s.id} subscription={s} />
+          ))}
+        </>
+      )}
 
       {urgent && (
         <>
@@ -183,4 +223,5 @@ const styles = StyleSheet.create({
   controls: { flexDirection: "row", alignItems: "center", gap: 7 },
   miniControls: { flexDirection: "row", justifyContent: "flex-end", gap: 7, marginBottom: spacing.sm },
   status: { fontFamily: fonts.medium, fontSize: 13, marginBottom: spacing.sm },
+  loadingScreen: { gap: spacing.sm, justifyContent: "center" },
 });

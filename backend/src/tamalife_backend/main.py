@@ -78,9 +78,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.engine = engine
     app.state.session_factory = session_factory
     app.state.metrics = Metrics()
+    # In local development a physical device reaches the API over the machine's
+    # LAN IP, so its Host/Origin won't match the localhost allowlist. Relax both
+    # checks for `local` only; production still requires explicit values (see
+    # Settings.validate_runtime).
+    local_dev = settings.environment == "local"
+    cors_origins = ["*"] if local_dev else settings.cors_origins
+    trusted_hosts = ["*"] if local_dev else settings.trusted_hosts
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.cors_origins,
+        allow_origins=cors_origins,
         allow_credentials=False,
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=[
@@ -92,7 +99,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ],
         expose_headers=["X-Request-ID"],
     )
-    app.add_middleware(TrustedHostMiddleware, allowed_hosts=settings.trusted_hosts)
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=trusted_hosts)
     app.add_middleware(
         SecurityMiddleware,
         max_body_bytes=settings.max_request_body_bytes,

@@ -10,7 +10,6 @@ import { PixelifySans_500Medium, PixelifySans_700Bold } from "@expo-google-fonts
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { Stack } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
 import { AccessibilityInfo, View } from "react-native";
@@ -24,8 +23,6 @@ import { useUIStore } from "../store/useUIStore";
 import { useDemoModeStore } from "../store/useDemoModeStore";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
-
-SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const setReducedMotion = useUIStore((s) => s.setReducedMotion);
@@ -47,10 +44,6 @@ export default function RootLayout() {
     return () => sub.remove();
   }, [setReducedMotion]);
 
-  useEffect(() => {
-    if (fontsLoaded) SplashScreen.hideAsync().catch(() => {});
-  }, [fontsLoaded]);
-
   if (!fontsLoaded) {
     return <View style={{ flex: 1, backgroundColor: colors.background }} />;
   }
@@ -65,6 +58,7 @@ export default function RootLayout() {
 function AuthenticatedNavigation() {
   const { isLoaded, isSignedIn } = useAuth();
   const demoMode = useDemoModeStore((s) => s.active);
+  const reducedMotion = useUIStore((s) => s.reducedMotion);
 
   if (!isLoaded) {
     return <View style={{ flex: 1, backgroundColor: colors.background }} />;
@@ -80,7 +74,7 @@ function AuthenticatedNavigation() {
               screenOptions={{
                 headerShown: false,
                 contentStyle: { backgroundColor: colors.background },
-                animation: "fade_from_bottom",
+                animation: reducedMotion ? "none" : "fade_from_bottom",
               }}
             >
               <Stack.Screen name="index" />
@@ -90,7 +84,9 @@ function AuthenticatedNavigation() {
                 <Stack.Screen name="add" options={{ presentation: "modal" }} />
                 <Stack.Screen name="creature/[id]" />
                 <Stack.Screen name="subscription/[id]" />
+                <Stack.Screen name="edit/[id]" />
                 <Stack.Screen name="notification-preferences" />
+                <Stack.Screen name="help" />
               </Stack.Protected>
             </Stack>
             <ToastHost />

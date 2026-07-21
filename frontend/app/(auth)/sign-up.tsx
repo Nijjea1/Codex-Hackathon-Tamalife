@@ -63,7 +63,7 @@ export default function SignUpScreen() {
 
   const readableError = (e: unknown): string => {
     const msg = (e as { errors?: { message?: string }[] })?.errors?.[0]?.message;
-    return msg ?? "Something went wrong. Please try again.";
+    return msg ?? "We couldn't complete that sign-in. Check your details and try again.";
   };
 
   const submitSocial = async (strategy: "oauth_google" | "oauth_apple") => {

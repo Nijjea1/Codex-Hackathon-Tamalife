@@ -1,6 +1,7 @@
 import { useAuth } from "@clerk/expo";
 import * as Crypto from "expo-crypto";
 import { useMemo, useRef } from "react";
+import { Platform } from "react-native";
 import { apiBaseUrl } from "./config";
 import {
   ConfirmParseResponseDto,
@@ -13,9 +14,23 @@ import {
   SubscriptionListDto,
   SubscriptionWriteDto,
 } from "../types/api";
+import {
+  AlternativesResponseDto,
+  DealsResponseDto,
+  MatchConfirmationRequestDto,
+  MatchConfirmationResponseDto,
+  PriceHistoryResponseDto,
+  PriceIntelligenceDashboardDto,
+  PriceIntelligenceSummaryDto,
+  RecommendationDto,
+  RecommendationFeedbackRequestDto,
+  SubscriptionIntelligenceDto,
+} from "../types/priceIntelligence";
 
 const DEFAULT_TIMEOUT_MS = 15_000;
 const RETRYABLE_STATUS = new Set([408, 429, 502, 503, 504]);
+const MIN_RETRY_DELAY_MS = 100;
+const MAX_RETRY_DELAY_MS = 10_000;
 
 export type MeResponse = MeDto;
 export type ApiRequestOptions = RequestInit & {
@@ -38,7 +53,40 @@ export class ApiError extends Error {
   }
 }
 
-const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+function wait(ms: number, signal?: AbortSignal | null): Promise<boolean> {
+  return new Promise((resolve) => {
+    if (signal?.aborted) {
+      resolve(false);
+      return;
+    }
+    const finish = (completed: boolean) => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", onAbort);
+      resolve(completed);
+    };
+    const onAbort = () => finish(false);
+    const timer = setTimeout(() => finish(true), ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
+function retryDelay(response: Response | null, attempt: number): number {
+  const header = response?.headers.get("Retry-After")?.trim();
+  let delay = 250 * 2 ** attempt;
+  if (header) {
+    const seconds = Number(header);
+    if (Number.isFinite(seconds) && seconds >= 0) {
+      delay = seconds * 1000;
+    } else {
+      const date = Date.parse(header);
+      if (Number.isFinite(date)) delay = Math.max(0, date - Date.now());
+    }
+  }
+  const clamped = Math.min(MAX_RETRY_DELAY_MS, Math.max(MIN_RETRY_DELAY_MS, delay));
+  return Math.round(
+    Math.min(MAX_RETRY_DELAY_MS, Math.max(MIN_RETRY_DELAY_MS, clamped * (0.85 + Math.random() * 0.3))),
+  );
+}
 
 async function request<T>(
   path: string,
@@ -54,8 +102,9 @@ async function request<T>(
   } = options;
   const method = (requestInit.method ?? "GET").toUpperCase();
   const safe = method === "GET" || method === "HEAD";
-  const maxRetries = retries ?? (safe ? 2 : 0);
+  const maxRetries = safe ? (retries ?? 2) : 0;
   const requestId = Crypto.randomUUID();
+  const callerSignal = requestInit.signal;
 
   for (let attempt = 0; ; attempt += 1) {
     const headers = new Headers(requestInit.headers);
@@ -71,7 +120,14 @@ async function request<T>(
     }
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    let timedOut = false;
+    const abortFromCaller = () => controller.abort();
+    if (callerSignal?.aborted) controller.abort();
+    else callerSignal?.addEventListener("abort", abortFromCaller, { once: true });
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeoutMs);
     try {
       const response = await fetch(`${apiBaseUrl}${path.startsWith("/") ? path : `/${path}`}`, {
         ...requestInit,
@@ -81,8 +137,9 @@ async function request<T>(
       const responseRequestId = response.headers.get("X-Request-ID") ?? requestId;
       if (!response.ok) {
         if (safe && attempt < maxRetries && RETRYABLE_STATUS.has(response.status)) {
-          const retryAfter = Number(response.headers.get("Retry-After"));
-          await wait(Number.isFinite(retryAfter) ? retryAfter * 1000 : 250 * 2 ** attempt);
+          if (!(await wait(retryDelay(response, attempt), callerSignal))) {
+            throw new ApiError("request_cancelled", "The request was cancelled.", 0, undefined, requestId);
+          }
           continue;
         }
         let error = { code: `http_${response.status}`, message: `Request failed (${response.status}).`, detail: undefined as unknown };
@@ -99,23 +156,38 @@ async function request<T>(
         throw new ApiError(error.code, error.message, response.status, error.detail, responseRequestId);
       }
       if (response.status === 204) return undefined as T;
-      return (await response.json()) as T;
+      try {
+        return (await response.json()) as T;
+      } catch {
+        throw new ApiError(
+          "invalid_response",
+          "The server returned an invalid response.",
+          response.status,
+          undefined,
+          responseRequestId,
+        );
+      }
     } catch (error) {
       if (error instanceof ApiError) throw error;
+      if (callerSignal?.aborted) {
+        throw new ApiError("request_cancelled", "The request was cancelled.", 0, undefined, requestId);
+      }
       if (safe && attempt < maxRetries) {
-        await wait(250 * 2 ** attempt);
+        if (!(await wait(retryDelay(null, attempt), callerSignal))) {
+          throw new ApiError("request_cancelled", "The request was cancelled.", 0, undefined, requestId);
+        }
         continue;
       }
-      const timedOut = error instanceof Error && error.name === "AbortError";
       throw new ApiError(
         timedOut ? "request_timeout" : "network_error",
-        timedOut ? "The request timed out. Please try again." : "Unable to reach the server.",
+        "",
         0,
         undefined,
         requestId,
       );
     } finally {
       clearTimeout(timeout);
+      callerSignal?.removeEventListener("abort", abortFromCaller);
     }
   }
 }
@@ -135,22 +207,51 @@ export function useApiClient() {
     return {
       request: raw,
       me: () => raw<MeDto>("/v1/me"),
-      listSubscriptions: (cursor?: string) =>
-        raw<SubscriptionListDto>(`/v1/subscriptions${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`),
-      getSubscription: (id: string) => raw<SubscriptionDto>(`/v1/subscriptions/${encodeURIComponent(id)}`),
+      exportMyData: () => raw<Record<string, unknown>>("/v1/me/export"),
+      listSubscriptions: (cursor?: string, signal?: AbortSignal) =>
+        raw<SubscriptionListDto>(`/v1/subscriptions${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`, { signal }),
+      getSubscription: (id: string, signal?: AbortSignal) =>
+        raw<SubscriptionDto>(`/v1/subscriptions/${encodeURIComponent(id)}`, { signal }),
       createSubscription: (body: SubscriptionWriteDto) =>
         raw<SubscriptionDto>("/v1/subscriptions", { method: "POST", body: JSON.stringify(body) }),
       updateSubscription: (id: string, body: Partial<SubscriptionWriteDto>) =>
         raw<SubscriptionDto>(`/v1/subscriptions/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify(body) }),
-      resolveSubscription: (id: string, action: "renew" | "cancel" | "dispute" | "keep", idempotencyKey: string) =>
+      resolveSubscription: (id: string, action: "renew" | "cancel" | "dispute" | "keep", idempotencyKey: string, signal?: AbortSignal) =>
         raw<SubscriptionDto>(`/v1/subscriptions/${encodeURIComponent(id)}/resolve`, {
           method: "PATCH",
           idempotencyKey,
+          signal,
           body: JSON.stringify({ action, idempotency_key: idempotencyKey }),
         }),
       archiveSubscription: (id: string) =>
         raw<void>(`/v1/subscriptions/${encodeURIComponent(id)}`, { method: "DELETE" }),
       dashboardSummary: () => raw<DashboardSummaryDto>("/v1/dashboard/summary"),
+      priceIntelligenceSummary: (signal?: AbortSignal) =>
+        raw<PriceIntelligenceSummaryDto>("/v1/price-intelligence/summary", { signal }),
+      priceIntelligenceDashboard: (signal?: AbortSignal) =>
+        raw<PriceIntelligenceDashboardDto>("/v1/price-intelligence/dashboard", { signal }),
+      subscriptionIntelligence: (id: string, signal?: AbortSignal) =>
+        raw<SubscriptionIntelligenceDto>(`/v1/subscriptions/${encodeURIComponent(id)}/intelligence`, { signal }),
+      priceHistory: (id: string, signal?: AbortSignal) =>
+        raw<PriceHistoryResponseDto>(`/v1/subscriptions/${encodeURIComponent(id)}/price-history`, { signal }),
+      subscriptionDeals: (id: string, signal?: AbortSignal) =>
+        raw<DealsResponseDto>(`/v1/subscriptions/${encodeURIComponent(id)}/deals`, { signal }),
+      subscriptionAlternatives: (id: string, signal?: AbortSignal) =>
+        raw<AlternativesResponseDto>(`/v1/subscriptions/${encodeURIComponent(id)}/alternatives`, { signal }),
+      confirmSubscriptionMatch: (id: string, body: MatchConfirmationRequestDto, idempotencyKey: string, signal?: AbortSignal) =>
+        raw<MatchConfirmationResponseDto>(`/v1/subscriptions/${encodeURIComponent(id)}/match-confirmation`, {
+          method: "POST",
+          idempotencyKey,
+          signal,
+          body: JSON.stringify(body),
+        }),
+      recommendationFeedback: (id: string, body: RecommendationFeedbackRequestDto, idempotencyKey: string, signal?: AbortSignal) =>
+        raw<RecommendationDto>(`/v1/recommendations/${encodeURIComponent(id)}/feedback`, {
+          method: "POST",
+          idempotencyKey,
+          signal,
+          body: JSON.stringify(body),
+        }),
       notificationPreferences: () => raw<NotificationPreferencesDto>("/v1/notification-preferences"),
       updateNotificationPreferences: (body: Partial<NotificationPreferencesDto>) =>
         raw<NotificationPreferencesDto>("/v1/notification-preferences", { method: "PATCH", body: JSON.stringify(body) }),
@@ -159,9 +260,16 @@ export function useApiClient() {
         form.append("text", text);
         return raw<ParseResponseDto>("/v1/parse", { method: "POST", body: form, timeoutMs: 45_000 });
       },
-      parseImage: (uri: string, name: string, type: string) => {
+      parseImage: async (uri: string, name: string, type: string) => {
         const form = new FormData();
-        form.append("image", { uri, name, type } as unknown as Blob);
+        if (Platform.OS === "web") {
+          // On web the {uri,name,type} shape is not a real file, so fetch the
+          // blob and attach it as an actual File instead.
+          const blob = await (await fetch(uri)).blob();
+          form.append("image", new File([blob], name, { type: type || blob.type }));
+        } else {
+          form.append("image", { uri, name, type } as unknown as Blob);
+        }
         return raw<ParseResponseDto>("/v1/parse", { method: "POST", body: form, timeoutMs: 45_000 });
       },
       getParse: (id: string) => raw<ParseResponseDto>(`/v1/parse/${encodeURIComponent(id)}`),

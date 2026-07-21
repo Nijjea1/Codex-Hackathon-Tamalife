@@ -167,4 +167,11 @@ export const bodyBySpecies: Record<
   tilly: TillyBody,
   rory: RoryBody,
   pip: PipBody,
+  delivery: BlobBody,
+  fitness: BlobBody,
+  music: BlobBody,
+  news: BlobBody,
+  phone: BlobBody,
+  video: BlobBody,
+  weather: BlobBody,
 };

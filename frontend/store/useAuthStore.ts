@@ -33,6 +33,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     set({
       isOnboarded: false,
       selectedStarter: null,
+      userName: "Friend",
       answers: { protections: [], goal: null, expenseCount: null, reminderDays: [] },
     }),
 }));
