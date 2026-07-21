@@ -1,3 +1,4 @@
+import { LinearGradient } from "expo-linear-gradient";
 import { ArrowLeft } from "lucide-react-native";
 import React from "react";
 import {
@@ -105,9 +106,18 @@ export function GardenScreen({
     paddingHorizontal: spacing.md,
   };
 
+  const scrim: readonly [string, string, string] = p.isDay
+    ? ["rgba(247,245,220,0.94)", "rgba(247,245,220,0.55)", "rgba(247,245,220,0)"]
+    : ["rgba(13,12,36,0.94)", "rgba(13,12,36,0.55)", "rgba(13,12,36,0)"];
+
   return (
     <View style={[styles.root, { backgroundColor: p.bgDeep }, style]}>
       <GardenBackdrop strongerShade={strongerShade} hideSky={hideSky} />
+      <LinearGradient
+        pointerEvents="none"
+        colors={scrim}
+        style={[styles.scrim, { height: insets.top + 108 }]}
+      />
       {header}
       {scroll ? (
         <ScrollView
@@ -127,6 +137,7 @@ export function GardenScreen({
 const styles = StyleSheet.create({
   root: { flex: 1, overflow: "hidden" },
   flex: { flex: 1 },
+  scrim: { position: "absolute", top: 0, left: 0, right: 0 },
   header: {
     flexDirection: "row",
     alignItems: "center",

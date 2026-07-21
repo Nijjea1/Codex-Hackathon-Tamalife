@@ -1,5 +1,7 @@
 import { useClerk } from "@clerk/expo";
 import { useRouter } from "expo-router";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
 import {
   Bell,
   ChevronRight,
@@ -10,8 +12,8 @@ import {
   LogOut,
   Palette,
 } from "lucide-react-native";
-import React from "react";
-import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
+import React, { useState } from "react";
+import { Modal, Platform, Pressable, StyleSheet, Switch, Text, View } from "react-native";
 import { fonts, spacing } from "../../constants/theme";
 import { useGardenPalette } from "../../constants/garden";
 import { AccountCard } from "../../components/AccountCard";
@@ -24,6 +26,8 @@ import { SectionHeader } from "../../components/ui/SectionHeader";
 import { GardenKicker } from "../../components/ui/GardenKit";
 import { useApiClient } from "../../lib/api";
 import { unregisterCurrentPushToken } from "../../lib/pushNotifications";
+import { portfolioStats } from "../../lib/portfolio";
+import { useSubscriptionData } from "../../lib/useSubscriptionData";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useDemoModeStore } from "../../store/useDemoModeStore";
 import { useUIStore } from "../../store/useUIStore";
@@ -33,6 +37,17 @@ const lockedMascots: { name: string; id: string }[] = [
   { name: "???", id: "twinkle" },
   { name: "???", id: "bucky" },
 ];
+
+const currencyOptions = [
+  { code: "USD", label: "US Dollar", symbol: "$" },
+  { code: "CAD", label: "Canadian Dollar", symbol: "CA$" },
+  { code: "EUR", label: "Euro", symbol: "€" },
+  { code: "GBP", label: "British Pound", symbol: "£" },
+] as const;
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>\"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[character] ?? character);
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -44,9 +59,17 @@ export default function ProfileScreen() {
   const resetLocalState = useAuthStore((s) => s.resetLocalState);
   const reducedMotion = useUIStore((s) => s.reducedMotion);
   const setReducedMotion = useUIStore((s) => s.setReducedMotion);
+  const currency = useUIStore((s) => s.currency);
+  const setCurrency = useUIStore((s) => s.setCurrency);
+  const onboardingTheme = useUIStore((s) => s.onboardingTheme);
+  const setOnboardingTheme = useUIStore((s) => s.setOnboardingTheme);
   const showToast = useUIStore((s) => s.showToast);
   const demoMode = useDemoModeStore((s) => s.active);
   const leaveDemo = useDemoModeStore((s) => s.leave);
+  const { subscriptions } = useSubscriptionData();
+  const stats = portfolioStats(subscriptions);
+  const [exporting, setExporting] = useState(false);
+  const [currencyPickerVisible, setCurrencyPickerVisible] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -67,12 +90,62 @@ export default function ProfileScreen() {
 
   const rows = [
     { icon: Bell, label: "Notification preferences", note: "14, 7 and 1 day reminders" },
-    { icon: Palette, label: "Appearance", note: "Day & night garden" },
-    { icon: CircleDollarSign, label: "Currency", note: "USD $" },
-    { icon: Lock, label: "Security", note: "Coming soon" },
-    { icon: Download, label: "Export data", note: "Coming soon" },
+    { icon: Palette, label: "Appearance", note: onboardingTheme === "day" ? "Day mode" : "Night mode" },
+    { icon: CircleDollarSign, label: "Currency", note: `${currency} · used for new subscriptions` },
+    { icon: Download, label: "Export data", note: exporting ? "Preparing your PDF…" : "Create a PDF copy of your data" },
     { icon: HelpCircle, label: "Help", note: "FAQs and support" },
   ];
+
+  const onRowPress = async (label: string) => {
+    if (label === "Notification preferences") {
+      router.push("/notification-preferences");
+    } else if (label === "Help") {
+      router.push("/help");
+    } else if (label === "Appearance") {
+      setOnboardingTheme(onboardingTheme === "day" ? "night" : "day");
+    } else if (label === "Currency") {
+      setCurrencyPickerVisible(true);
+    } else if (label === "Export data") {
+      if (demoMode) {
+        showToast({ message: "Sign in to export your personal data", tone: "info" });
+        return;
+      }
+      setExporting(true);
+      try {
+        const data = await api.exportMyData();
+        const exportedAt = new Date().toLocaleString();
+        const html = `<!doctype html><html><head><meta charset="utf-8" /><style>
+          body { font-family: Arial, sans-serif; color: #1f2937; padding: 28px; }
+          h1 { color: #31543c; margin-bottom: 4px; } p { color: #4b5563; }
+          pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f8fafc; border: 1px solid #d1d5db; border-radius: 8px; padding: 14px; font-size: 9px; }
+        </style></head><body><h1>Tamalife data export</h1><p>Created ${escapeHtml(exportedAt)}</p><pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre></body></html>`;
+        if (Platform.OS === "web") {
+          await Print.printAsync({ html });
+        } else {
+          const { uri } = await Print.printToFileAsync({ html });
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "Save Tamalife data export" });
+          }
+        }
+        showToast({ message: "Your PDF export is ready", tone: "success" });
+      } catch (error) {
+        showToast({ message: (error as Error).message, tone: "warning" });
+      } finally {
+        setExporting(false);
+      }
+    } else {
+      showToast({ message: `${label} is not available yet`, tone: "info" });
+    }
+  };
+
+  // Creature friends unlock as the garden grows — all derived from real data.
+  const resolvedCount = subscriptions.filter((s) => s.status === "cancelled" || s.status === "renewed").length;
+  const friends = [
+    { id: "rolo", name: "Rolo", requirement: "Track 3 subscriptions", current: Math.min(stats.count, 3), goal: 3, unlocked: stats.count >= 3 },
+    { id: "twinkle", name: "Twinkle", requirement: "Reach Level 3", current: Math.min(stats.level, 3), goal: 3, unlocked: stats.level >= 3 },
+    { id: "bucky", name: "Bucky", requirement: "Resolve 3 renewals", current: Math.min(resolvedCount, 3), goal: 3, unlocked: resolvedCount >= 3 },
+  ];
+  const unlockedCount = friends.filter((f) => f.unlocked).length;
 
   return (
     <Screen>
@@ -93,9 +166,48 @@ export default function ProfileScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.profileName, { color: p.ink }]}>{userName}</Text>
-          <Text style={[styles.profileSub, { color: p.body }]}>Garden Lv. 3 · 5 creatures</Text>
+          <Text style={[styles.profileSub, { color: p.body }]}>
+            Lv. {stats.level} {stats.levelLabel} · {stats.count} creature{stats.count === 1 ? "" : "s"}
+          </Text>
         </View>
       </Card>
+
+      <Modal
+        transparent
+        visible={currencyPickerVisible}
+        animationType={reducedMotion ? "none" : "fade"}
+        onRequestClose={() => setCurrencyPickerVisible(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setCurrencyPickerVisible(false)}>
+          <Pressable
+            style={[styles.currencyPicker, { backgroundColor: p.cardBgSolid, borderColor: p.cardBorder }]}
+            onPress={(event) => event.stopPropagation()}
+          >
+            <Text style={[styles.currencyTitle, { color: p.ink }]}>Choose currency</Text>
+            <Text style={[styles.rowNote, { color: p.body }]}>Used when you add a new subscription.</Text>
+            {currencyOptions.map((option) => (
+              <Pressable
+                key={option.code}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: currency === option.code }}
+                onPress={() => {
+                  setCurrency(option.code);
+                  setCurrencyPickerVisible(false);
+                  showToast({ message: `Currency set to ${option.code}`, tone: "success" });
+                }}
+                style={[
+                  styles.currencyOption,
+                  { borderColor: p.cardBorder },
+                  currency === option.code && { backgroundColor: p.warningBg, borderColor: p.goldBorder },
+                ]}
+              >
+                <Text style={[styles.currencyCode, { color: p.ink }]}>{option.symbol} {option.code}</Text>
+                <Text style={[styles.rowNote, { color: p.body }]}>{option.label}</Text>
+              </Pressable>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <AccountCard />
 
@@ -119,9 +231,7 @@ export default function ProfileScreen() {
             key={label}
             accessibilityRole="button"
             accessibilityLabel={label}
-            onPress={() => label === "Notification preferences"
-              ? router.push("/notification-preferences")
-              : showToast({ message: `${label} is not available yet`, tone: "info" })}
+            onPress={() => void onRowPress(label)}
             style={({ pressed }) => [styles.row, { borderTopWidth: 1.5, borderTopColor: p.cardBorder }, pressed && { opacity: 0.7 }]}
           >
             <View style={[styles.rowIcon, { backgroundColor: p.warningBg, borderColor: p.goldBorder }]}>
@@ -136,22 +246,42 @@ export default function ProfileScreen() {
         ))}
       </Card>
 
-      <SectionHeader title="Creature collection" />
-      <Card>
-        <Text style={[styles.rowNote, { color: p.body, marginBottom: spacing.sm, fontSize: 13 }]}>
-          Future friends you haven't met yet.
+      <SectionHeader title="Creature friends" />
+      <Card style={{ gap: spacing.sm }}>
+        <Text style={[styles.collectionLead, { color: p.body }]}>
+          Grow your garden to unlock new friends — you've unlocked {unlockedCount}/{friends.length}.
+          Here's how to meet the rest:
         </Text>
-        <View style={styles.lockedRow}>
-          {lockedMascots.map((l, i) => (
-            <View key={i} style={styles.lockedSlot}>
-              <View style={styles.silhouette}>
-                <MascotPortrait id={l.id} size={64} />
-                <View style={[styles.silhouetteCover, { backgroundColor: p.cardBgSolid }]} />
-              </View>
-              <Text style={[styles.rowNote, { color: p.muted }]}>{l.name}</Text>
+        {friends.map((f) => (
+          <View key={f.id} style={[styles.friendRow, { borderTopWidth: 1.5, borderTopColor: p.cardBorder }]}>
+            <View style={[styles.friendPortrait, { opacity: f.unlocked ? 1 : 0.9 }]}>
+              <MascotPortrait id={f.id} size={56} />
+              {!f.unlocked && <View style={[styles.friendCover, { backgroundColor: p.cardBgSolid }]} />}
+              {!f.unlocked && (
+                <View style={styles.lockBadge}>
+                  <Lock size={14} color={p.muted} strokeWidth={2.6} />
+                </View>
+              )}
             </View>
-          ))}
-        </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.friendName, { color: f.unlocked ? p.ink : p.muted }]}>
+                {f.unlocked ? f.name : "???"}
+              </Text>
+              {f.unlocked ? (
+                <Text style={[styles.friendReq, { color: p.success }]}>Unlocked!</Text>
+              ) : (
+                <>
+                  <Text style={[styles.friendReq, { color: p.body }]}>
+                    {f.requirement} · {f.current}/{f.goal}
+                  </Text>
+                  <View style={[styles.progressTrack, { backgroundColor: p.warningBg }]}>
+                    <View style={[styles.progressFill, { backgroundColor: p.gold, width: `${(f.current / f.goal) * 100}%` }]} />
+                  </View>
+                </>
+              )}
+            </View>
+          </View>
+        ))}
       </Card>
 
       <Pressable
@@ -208,14 +338,15 @@ const styles = StyleSheet.create({
   },
   rowLabel: { fontFamily: fonts.pixelBold, fontSize: 14 },
   rowNote: { fontFamily: fonts.medium, fontSize: 11 },
-  lockedRow: { flexDirection: "row", gap: spacing.md },
-  lockedSlot: { alignItems: "center", gap: 4 },
-  silhouette: { position: "relative", borderRadius: 12, overflow: "hidden" },
-  silhouetteCover: {
-    position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-    opacity: 0.8,
-    borderRadius: 12,
-  },
+  collectionLead: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 19 },
+  friendRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingTop: spacing.sm },
+  friendPortrait: { width: 56, height: 56, borderRadius: 12, overflow: "hidden", justifyContent: "center", alignItems: "center" },
+  friendCover: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.82, borderRadius: 12 },
+  lockBadge: { position: "absolute" },
+  friendName: { fontFamily: fonts.pixelBold, fontSize: 15 },
+  friendReq: { fontFamily: fonts.medium, fontSize: 12, marginTop: 2 },
+  progressTrack: { height: 8, borderRadius: 6, overflow: "hidden", marginTop: 6 },
+  progressFill: { height: "100%", borderRadius: 6 },
   signOut: {
     flexDirection: "row",
     alignItems: "center",
@@ -227,4 +358,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   signOutText: { fontFamily: fonts.pixelBold, fontSize: 15 },
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(12, 9, 34, 0.55)", alignItems: "center", justifyContent: "center", padding: spacing.lg },
+  currencyPicker: { width: "100%", maxWidth: 420, borderWidth: 2, borderRadius: 18, padding: spacing.lg, gap: spacing.sm },
+  currencyTitle: { fontFamily: fonts.pixelBold, fontSize: 18 },
+  currencyOption: { borderWidth: 1.5, borderRadius: 12, padding: spacing.sm + 2, gap: 2 },
+  currencyCode: { fontFamily: fonts.pixelBold, fontSize: 14 },
 });
