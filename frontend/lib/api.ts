@@ -1,6 +1,7 @@
 import { useAuth } from "@clerk/expo";
 import * as Crypto from "expo-crypto";
 import { useMemo, useRef } from "react";
+import { Platform } from "react-native";
 import { apiBaseUrl } from "./config";
 import {
   ConfirmParseResponseDto,
@@ -159,9 +160,16 @@ export function useApiClient() {
         form.append("text", text);
         return raw<ParseResponseDto>("/v1/parse", { method: "POST", body: form, timeoutMs: 45_000 });
       },
-      parseImage: (uri: string, name: string, type: string) => {
+      parseImage: async (uri: string, name: string, type: string) => {
         const form = new FormData();
-        form.append("image", { uri, name, type } as unknown as Blob);
+        if (Platform.OS === "web") {
+          // On web the {uri,name,type} shape is not a real file, so fetch the
+          // blob and attach it as an actual File instead.
+          const blob = await (await fetch(uri)).blob();
+          form.append("image", new File([blob], name, { type: type || blob.type }));
+        } else {
+          form.append("image", { uri, name, type } as unknown as Blob);
+        }
         return raw<ParseResponseDto>("/v1/parse", { method: "POST", body: form, timeoutMs: 45_000 });
       },
       getParse: (id: string) => raw<ParseResponseDto>(`/v1/parse/${encodeURIComponent(id)}`),
