@@ -4,6 +4,7 @@ import { useSubscriptionStore } from "../store/useSubscriptionStore";
 import { Subscription } from "../types/subscription";
 import { ApiError, createIdempotencyKey, useApiClient } from "./api";
 import { mapSubscription } from "./mappers";
+import { useForegroundRefresh } from "./useForegroundRefresh";
 
 export function useSubscriptionData(subscriptionId?: string) {
   const demo = useDemoModeStore((s) => s.active);
@@ -78,6 +79,7 @@ export function useSubscriptionData(subscriptionId?: string) {
   }, [api, demo, subscriptionId]);
 
   useEffect(() => { void refresh(); }, [refresh]);
+  useForegroundRefresh(refresh, !demo);
 
   const resolve = useCallback(async (id: string, action: "renew" | "cancel" | "dispute" | "keep" | "snooze") => {
     if (demo) {

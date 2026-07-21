@@ -20,7 +20,8 @@ import { useUIStore } from "../store/useUIStore";
 import { useDemoModeStore } from "../store/useDemoModeStore";
 
 // Launch screen: the same cozy garden scene and Penny that greet you on the
-// welcome screen fade in with the Tamalife wordmark, then auto-advance.
+// welcome screen fade in with the Tamalife wordmark, then auto-advance (to
+// home if already signed in, otherwise to welcome).
 export default function LaunchScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();

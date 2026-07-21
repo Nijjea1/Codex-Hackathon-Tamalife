@@ -20,6 +20,18 @@ config.set_main_option("sqlalchemy.url", settings.effective_migration_url)
 target_metadata = Base.metadata
 
 
+def include_object(object_, name, type_, reflected, compare_to):  # type: ignore[no-untyped-def]
+    """Do not autogenerate destructive drops for database-only tables.
+
+    Some migration-managed tables are intentionally not mapped by this API's
+    SQLAlchemy models. Alembic should still compare every mapped object, but a
+    reflected table absent from ``target_metadata`` is outside that ownership
+    boundary and must never be proposed for deletion.
+    """
+    del object_, name
+    return not (type_ == "table" and reflected and compare_to is None)
+
+
 def run_migrations_offline() -> None:
     context.configure(
         url=config.get_main_option("sqlalchemy.url"),
@@ -27,13 +39,19 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
+        include_object=include_object,
     )
     with context.begin_transaction():
         context.run_migrations()
 
 
 def do_run_migrations(connection) -> None:  # type: ignore[no-untyped-def]
-    context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        compare_type=True,
+        include_object=include_object,
+    )
     with context.begin_transaction():
         context.run_migrations()
 
