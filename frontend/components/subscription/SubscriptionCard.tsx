@@ -15,7 +15,6 @@ import { Subscription } from "../../types/subscription";
 import { daysLabel, formatMoney, moodMeta } from "../../utils/creatureMood";
 import { Creature } from "../creatures/Creature";
 import { MoodBadge } from "./MoodBadge";
-import { PriceHikeNotice } from "./PriceHikeNotice";
 
 type Props = {
   subscription: Subscription;
@@ -91,6 +90,13 @@ export function SubscriptionCard({ subscription: s, onPress, onQuickAction }: Pr
           end={{ x: 0.9, y: 1 }}
           style={[styles.habitat, { borderBottomColor: p.cardBorder }]}
         >
+          {s.priceHikeDetected && (
+            <View
+              accessibilityRole="image"
+              accessibilityLabel="Price increase detected"
+              style={[styles.hikeDot, { backgroundColor: p.danger, borderColor: p.cardBgSolid }]}
+            />
+          )}
           <Creature species={s.species} mood={s.mood} size="small" />
         </LinearGradient>
         <View style={styles.info}>
@@ -113,7 +119,6 @@ export function SubscriptionCard({ subscription: s, onPress, onQuickAction }: Pr
                 : daysLabel(s.daysRemaining)}
             </Text>
           </View>
-          <PriceHikeNotice subscription={s} compact />
         </View>
       </Pressable>
 
@@ -155,6 +160,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     paddingVertical: spacing.md,
     borderBottomWidth: 2,
+  },
+  hikeDot: {
+    position: "absolute",
+    top: 8,
+    left: 8,
+    width: 13,
+    height: 13,
+    borderRadius: 13,
+    borderWidth: 2,
+    zIndex: 2,
   },
   info: { padding: spacing.sm + 4 },
   nameRow: {

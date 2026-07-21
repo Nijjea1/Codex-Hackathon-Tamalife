@@ -59,7 +59,7 @@ export default function SubscriptionDetailScreen() {
           ? { feedback: "helpful", status: "seen" }
           : { feedback: "not_helpful", status: "dismissed", reason: "Not relevant" },
       );
-      showToast({ message: "Thanks â€” your feedback was saved.", tone: "success" });
+      showToast({ message: "Thanks — your feedback was saved.", tone: "success" });
     } catch (error) {
       showToast({ message: (error as Error).message, tone: "warning" });
     }
@@ -68,7 +68,7 @@ export default function SubscriptionDetailScreen() {
   if (!subscription) {
     return (
       <Screen scroll={false} contentStyle={styles.center}>
-        <Text style={[styles.title, { color: p.ink }]}>{subscriptionResource.loading ? "Loading subscriptionâ€¦" : "Subscription not found"}</Text>
+        <Text style={[styles.title, { color: p.ink }]}>{subscriptionResource.loading ? "Loading subscription…" : "Subscription not found"}</Text>
         {subscriptionResource.error && <Text style={[styles.body, { color: p.danger }]}>{subscriptionResource.error}</Text>}
       </Screen>
     );
@@ -89,7 +89,7 @@ export default function SubscriptionDetailScreen() {
       </View>
       <Card style={{ gap: 5 }}>
         <Text style={[styles.price, { color: p.inkStrong }]}>{formatMoney(subscription.price, subscription.currency)} {subscription.billingInterval}</Text>
-        <Text style={[styles.body, { color: p.body }]}>Renews {formatDate(subscription.nextActionDate)} Â· {daysLabel(subscription.daysRemaining)}</Text>
+        <Text style={[styles.body, { color: p.body }]}>Renews {formatDate(subscription.nextActionDate)} · {daysLabel(subscription.daysRemaining)}</Text>
         <Text style={[styles.body, { color: subscription.needsAttention ? p.warning : p.success }]}>{subscription.healthReason ?? `${subscription.healthScore}% healthy`}</Text>
       </Card>
       <PriceHikeNotice subscription={subscription} />

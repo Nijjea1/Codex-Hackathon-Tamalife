@@ -65,7 +65,7 @@ export default function InsightsScreen() {
         createIdempotencyKey(`feedback:${item.id}`),
       );
       await dashboard.refresh();
-      showToast({ message: "Thanks â€” your feedback was saved.", tone: "success" });
+      showToast({ message: "Thanks — your feedback was saved.", tone: "success" });
     } catch (error) {
       showToast({ message: (error as Error).message, tone: "warning" });
     } finally {
@@ -90,7 +90,7 @@ export default function InsightsScreen() {
       />
       {summary.data && !summary.loading && (
         <>
-          {summary.refreshing && <Text style={[styles.status, { color: p.muted }]}>Refreshing verified pricesâ€¦</Text>}
+          {summary.refreshing && <Text style={[styles.status, { color: p.muted }]}>Refreshing verified prices…</Text>}
           <View style={styles.metricGrid}>
             <Metric label="Possible monthly savings" value={formatMoney(Number(summary.data.estimated_monthly_savings))} />
             <Metric label="Possible annual savings" value={formatMoney(Number(summary.data.estimated_annual_savings))} />
