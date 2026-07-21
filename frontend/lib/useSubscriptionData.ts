@@ -9,6 +9,7 @@ export function useSubscriptionData(subscriptionId?: string) {
   const demo = useDemoModeStore((s) => s.active);
   const demoSubscriptions = useSubscriptionStore((s) => s.subscriptions);
   const demoResolve = useSubscriptionStore((s) => s.resolveSubscription);
+  const optimisticSubscriptions = useSubscriptionStore((s) => s.remoteSubscriptions);
   const api = useApiClient();
   const [remote, setRemote] = useState<Subscription[]>([]);
   const [loading, setLoading] = useState(!demo);
@@ -99,5 +100,9 @@ export function useSubscriptionData(subscriptionId?: string) {
     }
   }, [api, demo, demoResolve]);
 
-  return { subscriptions: demo ? demoSubscriptions : remote, loading, error, refresh, resolve, demo };
+  const subscriptions = demo
+    ? demoSubscriptions
+    : [...remote, ...optimisticSubscriptions.filter((item) => !remote.some((remoteItem) => remoteItem.id === item.id))];
+
+  return { subscriptions, loading, error, refresh, resolve, demo };
 }

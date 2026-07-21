@@ -16,6 +16,7 @@ import { mapSubscription } from "../../lib/mappers";
 import { BillingCycleDto } from "../../types/api";
 import { useUIStore } from "../../store/useUIStore";
 import { assignCreature } from "../../lib/creatureAssign";
+import { useSubscriptionStore } from "../../store/useSubscriptionStore";
 
 const evidence = [
   { label: "Renewal date", snippet: "“will renew on August 12, 2026”" },
@@ -30,6 +31,7 @@ export default function ReviewScreen() {
   const extracted = useReceiptDraftStore((s) => s.extracted);
   const setExtracted = useReceiptDraftStore((s) => s.setExtracted);
   const setSubscription = useReceiptDraftStore((s) => s.setSubscription);
+  const upsertRemoteSubscription = useSubscriptionStore((s) => s.upsertRemoteSubscription);
   const demoMode = useDemoModeStore((s) => s.active);
   const api = useApiClient();
   const showToast = useUIStore((s) => s.showToast);
@@ -81,7 +83,9 @@ export default function ReviewScreen() {
       setExtracted(edited);
       const assignment = assignCreature(edited.category, edited.vendor_name, edited.display_name);
       const response = await api.confirmParse(parseId, edited, assignment.name, assignment.species);
-      setSubscription(mapSubscription(response.subscription));
+      const subscription = mapSubscription(response.subscription);
+      setSubscription(subscription);
+      upsertRemoteSubscription(subscription);
       router.push("/add/success");
     } catch (e) {
       showToast({ message: (e as Error).message, tone: "warning" });

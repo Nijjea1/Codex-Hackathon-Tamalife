@@ -26,6 +26,7 @@ import { ExtractedReceiptDto, ParseResponseDto } from "../../types/api";
 import { useDemoModeStore } from "../../store/useDemoModeStore";
 import { useReceiptDraftStore } from "../../store/useReceiptDraftStore";
 import { useUIStore } from "../../store/useUIStore";
+import { useSubscriptionStore } from "../../store/useSubscriptionStore";
 
 // Confidence at or above which we skip the review screen and hatch the
 // creature immediately.
@@ -87,6 +88,7 @@ export default function AddScreen() {
   const demoMode = useDemoModeStore((state) => state.active);
   const setDraft = useReceiptDraftStore((state) => state.setDraft);
   const setSubscription = useReceiptDraftStore((state) => state.setSubscription);
+  const upsertRemoteSubscription = useSubscriptionStore((state) => state.upsertRemoteSubscription);
   const showToast = useUIStore((state) => state.showToast);
   const [busy, setBusy] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
@@ -135,7 +137,9 @@ export default function AddScreen() {
       );
 
       const response = await api.confirmParse(parsed.id, extracted, name, species);
-      setSubscription(mapSubscription(response.subscription));
+      const subscription = mapSubscription(response.subscription);
+      setSubscription(subscription);
+      upsertRemoteSubscription(subscription);
       router.push("/add/success");
       return;
     }

@@ -13,6 +13,7 @@ import { useDemoModeStore } from "../../store/useDemoModeStore";
 import { useApiClient } from "../../lib/api";
 import { BillingCycleDto } from "../../types/api";
 import { assignCreature } from "../../lib/creatureAssign";
+import { mapSubscription } from "../../lib/mappers";
 
 const categories: SubscriptionCategory[] = [
   "Entertainment",
@@ -26,6 +27,7 @@ export default function ManualScreen() {
   const router = useRouter();
   const p = useGardenPalette();
   const addSubscription = useSubscriptionStore((s) => s.addSubscription);
+  const upsertRemoteSubscription = useSubscriptionStore((s) => s.upsertRemoteSubscription);
   const showToast = useUIStore((s) => s.showToast);
   const demoMode = useDemoModeStore((s) => s.active);
   const api = useApiClient();
@@ -65,7 +67,7 @@ export default function ManualScreen() {
       if (demoMode) {
         addSubscription(local);
       } else {
-        await api.createSubscription({
+        const created = await api.createSubscription({
           vendor_name: merchant.trim(),
           display_name: name.trim(),
           category,
@@ -76,6 +78,7 @@ export default function ManualScreen() {
           creature_name: creatureName,
           creature_species: assignment.species,
         });
+        upsertRemoteSubscription(mapSubscription(created));
       }
       showToast({ message: `${creatureName} joined your garden!`, tone: "success" });
       router.dismissTo("/(tabs)/garden");
