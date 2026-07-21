@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import unicodedata
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
@@ -32,6 +33,21 @@ def normalize_identity(value: str) -> str:
         character
         for character in decomposed
         if character.isalnum() and not unicodedata.combining(character)
+    )
+
+
+def _identity_tokens(value: str) -> tuple[str, ...]:
+    """Return meaningful, normalized words for a plan-name comparison.
+
+    Subscription names often include the product name (for example, ``Claude
+    Pro``) while an official page calls the tier ``The Pro plan``. Comparing
+    the normalized whole strings misses that real match, so use meaningful
+    shared words in addition to exact whole-name comparisons.
+    """
+    return tuple(
+        token
+        for token in re.findall(r"[a-z0-9]+", unicodedata.normalize("NFKD", value).casefold())
+        if len(token) >= 3 and token not in {"the", "and", "for", "plan", "service", "subscription"}
     )
 
 
@@ -85,10 +101,21 @@ def score_subscription_plan(
         confidence += Decimal("0.35")
         reasons.append("provider_partial")
 
+    display_tokens = _identity_tokens(display_name)
+    plan_tokens = _identity_tokens(plan_name)
     if display and normalized_plan and display == normalized_plan:
         confidence += Decimal("0.20")
         reasons.append("plan_name_exact")
     elif display and normalized_plan and (display in normalized_plan or normalized_plan in display):
+        confidence += Decimal("0.10")
+        reasons.append("plan_name_partial")
+    elif len(display_tokens) > 1 and display_tokens[-1] in plan_tokens:
+        # The final meaningful word is usually the user-selected tier:
+        # "Claude Pro", "Netflix Premium", etc.  It is stronger evidence
+        # than merely sharing a product-family word such as "Claude".
+        confidence += Decimal("0.20")
+        reasons.append("plan_tier_match")
+    elif set(display_tokens) & set(plan_tokens):
         confidence += Decimal("0.10")
         reasons.append("plan_name_partial")
 

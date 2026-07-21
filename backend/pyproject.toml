@@ -31,6 +31,7 @@ dependencies = [
 [project.scripts]
 tamalife-api = "tamalife_backend.cli:run"
 tamalife-seed = "tamalife_backend.cli:seed"
+tamalife-seed-demo-intelligence = "tamalife_backend.cli:seed_demo_intelligence"
 tamalife-scrape-once = "tamalife_backend.cli:scrape_once"
 
 [build-system]

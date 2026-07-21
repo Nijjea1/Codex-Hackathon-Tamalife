@@ -35,7 +35,11 @@ from tamalife_backend.domain.price_intelligence import (
 
 GENERATOR_VERSION = "deterministic-price-intelligence-v1"
 MIN_MATCH_CONFIDENCE = 0.55
-CONFIRMED_MATCH_CONFIDENCE = 0.90
+# A match that has an exact provider identity plus the independent billing
+# signals used by the deterministic scorer can be used without asking the
+# customer to approve it. Lower-confidence candidates remain pending rather
+# than silently attaching unrelated pricing data.
+CONFIRMED_MATCH_CONFIDENCE = 0.60
 PUBLISHABLE_REVIEWS = {ReviewStatus.approved, ReviewStatus.auto_approved}
 
 
@@ -92,13 +96,16 @@ async def match_user_subscriptions(
     created = updated = unmatched = 0
     for subscription in subscriptions:
         confirmed = await session.scalar(
-            select(UserPlanMatch.id).where(
+            select(UserPlanMatch).where(
                 UserPlanMatch.user_id == user_id,
                 UserPlanMatch.subscription_id == subscription.id,
                 UserPlanMatch.status == MatchStatus.confirmed,
             )
         )
-        if confirmed is not None:
+        # Preserve a match the customer explicitly confirmed, but allow the
+        # deterministic system to replace one of its own older matches when a
+        # fresher official source yields a better plan identity.
+        if confirmed is not None and confirmed.method != "deterministic_v1":
             continue
         best: tuple[float, str, ProviderPlan, tuple[str, ...]] | None = None
         for plan in plans:
@@ -170,13 +177,14 @@ async def match_user_subscriptions(
                         UserPlanMatch.user_id == user_id,
                         UserPlanMatch.subscription_id == subscription.id,
                         UserPlanMatch.provider_plan_id != plan.id,
-                        UserPlanMatch.status == MatchStatus.pending,
+                        UserPlanMatch.status.in_((MatchStatus.pending, MatchStatus.confirmed)),
                     )
                 )
             ).all()
         )
         for stale in stale_matches:
-            stale.status = MatchStatus.unmatched
+            if stale.status is MatchStatus.pending or stale.method == "deterministic_v1":
+                stale.status = MatchStatus.unmatched
     await session.flush()
     return MatchGenerationOutcome(user_id, created, updated, unmatched)
 

@@ -1,6 +1,6 @@
-import { ExternalLink, ThumbsDown, ThumbsUp, TrendingDown, TrendingUp } from "lucide-react-native";
+import { ExternalLink, TrendingDown, TrendingUp } from "lucide-react-native";
 import React from "react";
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, StyleSheet, Text, View } from "react-native";
 import { useGardenPalette } from "../../constants/garden";
 import { fonts, spacing } from "../../constants/theme";
 import { mapAlternative, mapDeal, mapPricePoint, safeExternalUrl } from "../../lib/priceIntelligenceMappers";
@@ -45,17 +45,12 @@ export function InlineResourceState({
 
 export function MerchantMatchCard({
   match,
-  pending,
-  onConfirm,
-  onReject,
 }: {
   match: MerchantMatchDto | null;
-  pending: boolean;
-  onConfirm: () => void;
-  onReject: () => void;
 }) {
   const p = useGardenPalette();
   if (!match) return <Card><Text style={[styles.body, { color: p.muted }]}>No verified provider match yet.</Text></Card>;
+  const isDemo = match.method === "demo_fixture" || match.method === "sample_fixture";
   const confidence = `${Math.round(match.confidence * 100)}% match`;
   return (
     <Card style={{ gap: spacing.sm }}>
@@ -65,15 +60,12 @@ export function MerchantMatchCard({
           <Text style={[styles.body, { color: p.body }]}>{match.plan_name} · {confidence}</Text>
         </View>
         <Text style={[styles.badge, { color: match.status === "confirmed" ? p.success : p.warning }]}>
-          {match.status.toUpperCase()}
+          {isDemo ? "SAMPLE DATA" : match.status.toUpperCase()}
         </Text>
       </View>
-      {match.status === "pending" && (
-        <View style={styles.actionRow}>
-          <Button label="Yes, that's it" onPress={onConfirm} loading={pending} style={{ flex: 1 }} />
-          <Button label="Not mine" variant="secondary" onPress={onReject} disabled={pending} style={{ flex: 1 }} />
-        </View>
-      )}
+      <Text style={[styles.caption, { color: p.muted }]}>
+        {isDemo ? "Sample local walkthrough data — not a live provider claim." : "Matched automatically from verified pricing data."}
+      </Text>
     </Card>
   );
 }
@@ -110,18 +102,20 @@ export function DealsCard({ items }: { items: DealDto[] }) {
     <View style={{ gap: spacing.sm }}>
       {items.map((raw) => {
         const item = mapDeal(raw);
+        const isDemo = item.source.source_url.includes("demo.tamalife.local");
         const price = item.promotionalPrice ?? item.regularPrice;
         return (
-          <Card key={item.id} onPress={() => void open(item.source.source_url)} accessibilityLabel={`Open ${item.title} deal`}>
+          <Card key={item.id} onPress={isDemo ? undefined : () => void open(item.source.source_url)} accessibilityLabel={isDemo ? item.title : `Open ${item.title} deal`}>
             <View style={styles.rowBetween}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.title, { color: p.ink }]}>{item.title}</Text>
                 {item.description && <Text style={[styles.body, { color: p.body }]}>{item.description}</Text>}
+                {isDemo && <Text style={[styles.caption, { color: p.warning }]}>SIMULATED LOCAL SAMPLE</Text>}
                 {item.expires_at && <Text style={[styles.caption, { color: p.muted }]}>Ends {new Date(item.expires_at).toLocaleDateString()}</Text>}
               </View>
               <View style={{ alignItems: "flex-end", gap: 4 }}>
                 {price !== null && <Text style={[styles.price, { color: p.success }]}>{formatMoney(price)}</Text>}
-                <ExternalLink size={16} color={p.accent} />
+                {!isDemo && <ExternalLink size={16} color={p.accent} />}
               </View>
             </View>
           </Card>
@@ -152,12 +146,8 @@ export function AlternativesCard({ items }: { items: AlternativeDto[] }) {
 
 export function RecommendationsCard({
   items,
-  pendingId,
-  onFeedback,
 }: {
   items: RecommendationDto[];
-  pendingId: string | null;
-  onFeedback: (item: RecommendationDto, helpful: boolean) => void;
 }) {
   const p = useGardenPalette();
   return <View style={{ gap: spacing.sm }}>{items.map((item) => (
@@ -165,18 +155,7 @@ export function RecommendationsCard({
       <Text style={[styles.title, { color: p.ink }]}>{item.recommendation_type.replace(/_/g, " ")}</Text>
       <Text style={[styles.body, { color: p.body }]}>{item.explanation}</Text>
       {item.estimated_monthly_savings && <Text style={[styles.price, { color: p.success }]}>Potentially save {formatMoney(Number(item.estimated_monthly_savings))}/mo</Text>}
-      {item.feedback ? (
-        <Text style={[styles.caption, { color: p.muted }]}>Thanks for your feedback.</Text>
-      ) : (
-        <View style={styles.feedbackRow}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Helpful recommendation" disabled={pendingId === item.id} onPress={() => onFeedback(item, true)} style={styles.feedbackButton}>
-            <ThumbsUp size={17} color={p.success} /><Text style={[styles.caption, { color: p.body }]}>Helpful</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Not helpful recommendation" disabled={pendingId === item.id} onPress={() => onFeedback(item, false)} style={styles.feedbackButton}>
-            <ThumbsDown size={17} color={p.warning} /><Text style={[styles.caption, { color: p.body }]}>Not for me</Text>
-          </Pressable>
-        </View>
-      )}
+      <Text style={[styles.caption, { color: p.muted }]}>Based on verified pricing and your subscription details.</Text>
     </Card>
   ))}</View>;
 }
@@ -188,9 +167,6 @@ const styles = StyleSheet.create({
   badge: { fontFamily: "monospace", fontWeight: "900", fontSize: 11 },
   price: { fontFamily: fonts.pixelBold, fontSize: 14 },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm },
-  actionRow: { flexDirection: "row", gap: spacing.sm },
   historyRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm },
-  feedbackRow: { flexDirection: "row", gap: spacing.md },
-  feedbackButton: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 5 },
   skeleton: { height: 12, borderRadius: 8, opacity: 0.75 },
 });

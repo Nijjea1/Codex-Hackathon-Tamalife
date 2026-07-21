@@ -7,8 +7,8 @@ does not replace the API design or Alembic migrations.
 ## Architecture and trust boundaries
 
 ```text
-OpenAI web search -> untrusted candidate URLs -> admin review -> active pricing source
-                                                          |
+OpenAI web search -> untrusted candidate URLs -> evidence/confidence gate -> active pricing source
+                                                                  |
 Celery beat -> bounded lease scheduler -> Celery worker -> URL/DNS validation -> remote site
                                                           |
                                               extraction and deterministic diff
@@ -20,8 +20,10 @@ Celery beat -> bounded lease scheduler -> Celery worker -> URL/DNS validation ->
   service key, storage service key, lease token, or raw fetched page.
 - FastAPI authenticates user routes with Clerk. Admin scraper routes additionally compare the
   authoritative Clerk `sub` to `TAMALIFE_CLERK_ADMIN_USER_IDS`; an empty list denies everyone.
-- OpenAI output and every discovered URL are untrusted. Discovery only proposes grounded
-  candidates. It does not activate a source. An administrator must review and approve it.
+- OpenAI output and every discovered URL are untrusted. A candidate is activated automatically
+  only when it is HTTPS, first-party, grounded by its cited URL, on a known provider domain (or
+  establishes a new provider domain at the configured high-confidence threshold). Everything
+  else stays non-user-visible and is retried later.
 - Remote HTTP is hostile input. The fetcher permits HTTP(S), rejects credentials and private or
   non-global addresses, resolves DNS, pins the connection target, revalidates redirects, limits
   redirects and bytes, and enforces connect/read/total timeouts. Do not add a generic proxy or
@@ -45,7 +47,7 @@ staging smoke tests, and a new production deployment until the rollout gates bel
 | `TAMALIFE_DISCOVERY_MAX_PROVIDERS_PER_RUN` | `30` | Maximum providers dispatched by one monthly scan. |
 | `TAMALIFE_DISCOVERY_MAX_SEARCHES_PER_PROVIDER` | `4` | Maximum web-search tool calls per provider. |
 | `TAMALIFE_DISCOVERY_MAX_CANDIDATES_PER_PROVIDER` | `12` | Maximum persisted proposals per provider. |
-| `TAMALIFE_DISCOVERY_MIN_AUTO_ACTIVATE_CONFIDENCE` | `0.92` | Reserved confidence threshold; current operations still require review. |
+| `TAMALIFE_DISCOVERY_MIN_AUTO_ACTIVATE_CONFIDENCE` | `0.92` | Minimum confidence for automatic first-party source activation. |
 | `TAMALIFE_DISCOVERY_MONTHLY_COST_LIMIT_MICROS` | `25000000` | Monthly discovery budget in millionths of a dollar. |
 | `TAMALIFE_DISCOVERY_COUNTRY` | `CA` | Default discovery market. |
 | `TAMALIFE_DISCOVERY_CURRENCY` | `CAD` | Default discovery/extraction currency. |
@@ -190,15 +192,15 @@ The seed option creates provider records from distinct existing subscription ven
 does not guess official domains, approve candidates, or expose subscription data externally
 except for the provider name supplied to the explicitly requested OpenAI discovery.
 
-Discovery persists candidates but intentionally does not approve them. Review the candidates
-through the admin API below. An operator may explicitly approve one reviewed candidate and
-immediately monitor the resulting source:
+Discovery activates qualifying first-party candidates automatically. Low-confidence or unsafe
+candidates stay non-user-visible for a later retry. The admin API remains available only for
+incident response and source maintenance; normal operation needs no approval step.
 
 ```powershell
 uv run tamalife-scrape-once --approve-candidate <candidate-uuid> --force --skip-refresh
 ```
 
-Then generate matches, recommendations, and durable alerts from the stored catalog:
+Then generate automatic matches, recommendations, and durable alerts from the stored catalog:
 
 ```powershell
 uv run tamalife-scrape-once --skip-monitor
@@ -208,7 +210,7 @@ Optional scoping arguments are `--provider-id`, `--source-id`, and `--user-id`. 
 prints a JSON report with counts and sanitized error types. It continues past an individual
 provider/source/user failure and never prints secrets or upstream response bodies.
 
-## Candidate review and source lifecycle
+## Source lifecycle and incident controls
 
 Set `TAMALIFE_CLERK_ADMIN_USER_IDS` to exact Clerk development IDs in staging and exact
 production IDs in production. Never use email addresses, frontend roles, or unverified claims.
@@ -226,10 +228,9 @@ curl -X POST -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/jso
   "https://api.example.com/v1/admin/scraper/candidates/$CANDIDATE_ID/reject"
 ```
 
-Before approval, verify the provider, normalized URL, registrable domain, first-party evidence,
-country/language/currency, page purpose, confidence, and cited search evidence. Approval creates
-or links one active pricing source and is idempotent. Rejected candidates and activated
-candidates cannot cross states silently.
+Automatic activation verifies the provider domain, normalized URL, registrable domain,
+first-party evidence, country/language/currency, page purpose, confidence, and cited search
+evidence. Manual approval is an emergency recovery tool, not a normal operating requirement.
 
 Lifecycle operations:
 
@@ -247,10 +248,10 @@ Pause first during investigation. A replacement must be active, backed by a veri
 candidate, and match provider/country. The service prevents self-reference and cycles. Prefer
 supersession to deletion so fetch evidence, plan history, and auditability remain intact.
 
-Price and deal observations are not user-visible until `approved` or `auto_approved`. Review
-pending queues at `/v1/admin/scraper/price-reviews` and `/deal-reviews`, then POST to the item
-`/approve` or `/reject` endpoint. A finalized review cannot be flipped; generate a corrected
-observation instead.
+High-confidence observations from trusted active sources are automatically `auto_approved` and
+visible to users. Lower-confidence observations remain non-user-visible and are retried. Admin
+review endpoints are reserved for incident recovery; a finalized observation cannot be flipped,
+so generate a corrected observation instead.
 
 ## Run API, worker, and beat
 

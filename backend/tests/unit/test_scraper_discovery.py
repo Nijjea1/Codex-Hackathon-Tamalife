@@ -8,7 +8,9 @@ from sqlalchemy import func, select
 
 from tamalife_backend.config import Settings
 from tamalife_backend.db.models import (
+    CandidateStatus,
     DiscoveryStatus,
+    PricingSource,
     Provider,
     SourceCandidate,
     SourceDiscoveryRun,
@@ -126,6 +128,10 @@ async def test_discovery_persists_only_grounded_candidates_and_is_monthly_idempo
         assert "music" in request_text
         candidates = list((await session.scalars(select(SourceCandidate))).all())
         assert [item.candidate_domain for item in candidates] == ["example.com"]
+        assert candidates[0].status is CandidateStatus.active
+        source = await session.scalar(select(PricingSource))
+        assert source is not None
+        assert source.canonical_url == "https://example.com/pricing"
     await engine.dispose()
 
 
@@ -165,6 +171,34 @@ async def test_discovery_records_sanitized_failure_without_deleting_sources(tmp_
         assert retried.status is DiscoveryStatus.completed
         assert retried.candidate_count == 1
         assert len(retry_client.responses.calls) == 1
+    await engine.dispose()
+
+
+async def test_discovery_keeps_unverified_domains_out_of_the_active_catalog(tmp_path: Path) -> None:
+    settings, engine, factory = await _database(tmp_path)
+    async with factory() as session:
+        provider = Provider(
+            name="Example",
+            slug="example-unverified",
+            official_domain="official.example",
+        )
+        session.add(provider)
+        await session.commit()
+        outcome = await discover_provider_sources(
+            session,
+            settings,
+            provider.id,
+            request_id="req-unverified",
+            client=FakeClient(FakeResponse()),
+            now=datetime(2026, 7, 20, tzinfo=UTC),
+        )
+        await session.commit()
+
+        candidate = await session.scalar(select(SourceCandidate))
+        assert outcome.status is DiscoveryStatus.completed
+        assert candidate is not None
+        assert candidate.status is CandidateStatus.discovered
+        assert await session.scalar(select(PricingSource)) is None
     await engine.dispose()
 
 

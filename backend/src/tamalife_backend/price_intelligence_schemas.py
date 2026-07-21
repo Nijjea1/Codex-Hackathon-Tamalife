@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -133,6 +133,28 @@ class PriceIntelligenceSummary(IntelligenceModel):
     recommendation_count: int
     estimated_monthly_savings: str
     estimated_annual_savings: str
+    generated_at: datetime
+
+
+class DashboardSubscriptionItem(IntelligenceModel):
+    subscription_id: UUID
+    vendor_name: str
+    display_name: str
+    current_amount: str
+    currency: str
+    billing_cycle: BillingCycle
+    renewal_or_expiry_date: date | None
+    creature_name: str
+    creature_species: str
+    match: MerchantMatch | None
+    latest_price: PricePoint | None
+    active_deal_count: int
+    recommendations: list[RecommendationItem]
+
+
+class PriceIntelligenceDashboard(IntelligenceModel):
+    summary: PriceIntelligenceSummary
+    subscriptions: list[DashboardSubscriptionItem]
     generated_at: datetime
 
 

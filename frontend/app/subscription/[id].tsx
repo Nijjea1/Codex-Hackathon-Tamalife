@@ -94,53 +94,74 @@ export default function SubscriptionDetailScreen() {
       </Card>
       <PriceHikeNotice subscription={subscription} />
 
-      <SectionHeader title="Verified provider match" />
+      <SectionHeader title="Provider tracking" />
       <InlineResourceState loading={pricing.intelligence.loading} error={pricing.intelligence.error?.message} onRetry={() => void pricing.intelligence.refresh()} />
       {pricing.intelligence.data && !pricing.intelligence.loading && (
-        <MerchantMatchCard
-          match={pricing.intelligence.data.match}
-          pending={pricing.matchPending}
-          onConfirm={() => void confirm("confirmed")}
-          onReject={() => void confirm("rejected")}
-        />
+        pricing.intelligence.data.match ? <MerchantMatchCard match={pricing.intelligence.data.match} /> : (
+          <Card style={{ gap: 5 }}>
+            <Text style={[styles.price, { color: p.ink }]}>{subscription.merchant}</Text>
+            <Text style={[styles.body, { color: p.body }]}>We are matching this subscription to official pricing pages automatically.</Text>
+            <Text style={[styles.caption, { color: p.muted }]}>Your saved price is {formatMoney(subscription.price, subscription.currency)} {subscription.billingInterval}.</Text>
+          </Card>
+        )
       )}
 
       <SectionHeader title="Price history" />
       <InlineResourceState
         loading={pricing.history.loading}
         error={pricing.history.error?.message}
-        empty={!pricing.history.loading && pricing.history.data?.items.length === 0 ? "No approved price history yet." : undefined}
+        empty={undefined}
         onRetry={() => void pricing.history.refresh()}
       />
-      {!!pricing.history.data?.items.length && <PriceHistoryCard items={pricing.history.data.items} />}
+      {!!pricing.history.data?.items.length ? <PriceHistoryCard items={pricing.history.data.items} /> : !pricing.history.loading && (
+        <Card style={{ gap: 5 }}>
+          <Text style={[styles.price, { color: p.ink }]}>{formatMoney(subscription.price, subscription.currency)}</Text>
+          <Text style={[styles.body, { color: p.body }]}>Your recorded {subscription.billingInterval} price</Text>
+          <Text style={[styles.caption, { color: p.muted }]}>Tamalife will add verified provider history after an official source is available.</Text>
+        </Card>
+      )}
 
       <SectionHeader title="Active deals" />
       <InlineResourceState
         loading={pricing.deals.loading}
         error={pricing.deals.error?.message}
-        empty={!pricing.deals.loading && pricing.deals.data?.items.length === 0 ? "No approved deals for this plan right now." : undefined}
+        empty={undefined}
         onRetry={() => void pricing.deals.refresh()}
       />
-      {!!pricing.deals.data?.items.length && <DealsCard items={pricing.deals.data.items} />}
+      {!!pricing.deals.data?.items.length ? <DealsCard items={pricing.deals.data.items} /> : !pricing.deals.loading && (
+        <Card style={{ gap: 5 }}>
+          <Text style={[styles.price, { color: p.success }]}>No better verified deal found</Text>
+          <Text style={[styles.body, { color: p.body }]}>We checked available official {subscription.merchant} pricing and did not find an eligible deal below your recorded price.</Text>
+          <Text style={[styles.caption, { color: p.muted }]}>Deal watch stays active and will add a verified offer here if one appears.</Text>
+        </Card>
+      )}
 
       <SectionHeader title="Cheaper alternatives" />
       <InlineResourceState
         loading={pricing.alternatives.loading}
         error={pricing.alternatives.error?.message}
-        empty={!pricing.alternatives.loading && pricing.alternatives.data?.items.length === 0 ? "No verified alternatives yet." : undefined}
+        empty={undefined}
         onRetry={() => void pricing.alternatives.refresh()}
       />
-      {!!pricing.alternatives.data?.items.length && <AlternativesCard items={pricing.alternatives.data.items} />}
+      {!!pricing.alternatives.data?.items.length ? <AlternativesCard items={pricing.alternatives.data.items} /> : !pricing.alternatives.loading && (
+        <Card style={{ gap: 5 }}>
+          <Text style={[styles.price, { color: p.success }]}>No better verified plan found</Text>
+          <Text style={[styles.body, { color: p.body }]}>Your current {subscription.merchant} cost is {formatMoney(subscription.annualCost, subscription.currency)} per year, and no lower-cost comparable plan was verified.</Text>
+          <Text style={[styles.caption, { color: p.muted }]}>We will replace this with savings details when a verified alternative appears.</Text>
+        </Card>
+      )}
 
       <SectionHeader title="Recommended actions" />
       {pricing.intelligence.data?.recommendations.length ? (
-        <RecommendationsCard
-          items={pricing.intelligence.data.recommendations}
-          pendingId={pricing.feedbackPending}
-          onFeedback={(item, helpful) => void feedback(item, helpful)}
-        />
+        <RecommendationsCard items={pricing.intelligence.data.recommendations} />
       ) : (
-        !pricing.intelligence.loading && <Card><Text style={[styles.body, { color: p.muted }]}>No recommendations for this subscription.</Text></Card>
+        !pricing.intelligence.loading && (
+          <Card style={{ gap: 5 }}>
+            <Text style={[styles.price, { color: p.ink }]}>Review before renewal</Text>
+            <Text style={[styles.body, { color: p.body }]}>{subscription.merchant} renews {formatDate(subscription.nextActionDate)}.</Text>
+            <Text style={[styles.caption, { color: p.muted }]}>We will add price-change and savings actions when verified intelligence arrives.</Text>
+          </Card>
+        )
       )}
     </Screen>
   );
@@ -151,6 +172,7 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.md },
   title: { fontFamily: fonts.pixelBold, fontSize: 22 },
   price: { fontFamily: fonts.pixelBold, fontSize: 20 },
+  caption: { fontFamily: fonts.medium, fontSize: 11, lineHeight: 16 },
   creaturePreview: { alignItems: "center", marginBottom: spacing.sm },
   body: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 19 },
 });

@@ -128,6 +128,42 @@ async def test_one_shot_can_seed_demo_providers_from_subscriptions(tmp_path: Pat
     await engine.dispose()
 
 
+async def test_one_shot_seeding_deduplicates_provider_slugs_with_mixed_categories(
+    tmp_path: Path,
+) -> None:
+    settings = await _settings(tmp_path)
+    engine = create_engine(settings)
+    factory = create_session_factory(engine)
+    async with factory() as session:
+        user = User(email="demo@example.com")
+        session.add(user)
+        await session.flush()
+        for category in ("Productivity", "Other"):
+            session.add(
+                Subscription(
+                    user_id=user.id,
+                    vendor_name="Anthropic, PBC",
+                    display_name="Claude",
+                    item_type=ItemType.subscription,
+                    category=category,
+                    amount="20.00",
+                    currency="CAD",
+                    billing_cycle=BillingCycle.monthly,
+                )
+            )
+        await session.commit()
+
+    report = await run_manual_scrape(
+        settings,
+        ManualScrapeOptions(seed_providers_from_subscriptions=True, monitor=False, refresh=False),
+    )
+    assert report.providers_seeded == 1
+    async with factory() as session:
+        providers = list((await session.scalars(select(Provider))).all())
+        assert [provider.slug for provider in providers] == ["anthropic-pbc"]
+    await engine.dispose()
+
+
 async def test_one_shot_releases_lease_and_reports_sanitized_error(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

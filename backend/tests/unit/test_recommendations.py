@@ -136,7 +136,7 @@ async def test_matching_recommendations_and_outbox_are_user_scoped_and_idempoten
         assert matched.created == 1
         repeated_match = await match_user_subscriptions(session, user_id, now=now)
         assert repeated_match.created == 0
-        assert repeated_match.updated == 0
+        assert repeated_match.updated == 1
         match = await session.scalar(select(UserPlanMatch).where(UserPlanMatch.user_id == user_id))
         assert match is not None
         assert match.provider_plan_id == current_plan.id

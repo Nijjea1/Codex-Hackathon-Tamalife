@@ -91,8 +91,15 @@ async def run_manual_scrape(
                         .limit(settings.discovery_max_providers_per_run)
                     )
                 ).all()
+                seen_slugs: set[str] = set()
                 for vendor_name, category in rows:
                     slug = _provider_slug(vendor_name)
+                    # The query is distinct by vendor/category. A provider slug is
+                    # distinct only by vendor, so the same merchant can appear more
+                    # than once when subscriptions use different categories.
+                    if slug in seen_slugs:
+                        continue
+                    seen_slugs.add(slug)
                     existing = await session.scalar(
                         select(Provider.id).where(Provider.slug == slug)
                     )
