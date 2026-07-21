@@ -95,7 +95,12 @@ async def test_discovery_persists_only_grounded_candidates_and_is_monthly_idempo
     client = FakeClient(FakeResponse())
     now = datetime(2026, 7, 20, tzinfo=UTC)
     async with factory() as session:
-        provider = Provider(name="Example", slug="example", official_domain="example.com")
+        provider = Provider(
+            name="Example Music",
+            slug="example",
+            official_domain="example.com",
+            category="Entertainment",
+        )
         session.add(provider)
         await session.commit()
 
@@ -116,6 +121,9 @@ async def test_discovery_persists_only_grounded_candidates_and_is_monthly_idempo
         assert call["store"] is False
         assert call["include"] == ["web_search_call.action.sources"]
         assert call["max_tool_calls"] == settings.discovery_max_searches_per_provider
+        request_text = call["input"][1]["content"]
+        assert "Subscription category: Entertainment" in request_text
+        assert "music" in request_text
         candidates = list((await session.scalars(select(SourceCandidate))).all())
         assert [item.candidate_domain for item in candidates] == ["example.com"]
     await engine.dispose()
