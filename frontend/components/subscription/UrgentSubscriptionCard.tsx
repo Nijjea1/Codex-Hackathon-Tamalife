@@ -18,7 +18,7 @@ export function UrgentSubscriptionCard({ subscription: s, onReview, onSnooze }: 
   return (
     <View style={[styles.card, { backgroundColor: p.dangerBg, borderColor: p.danger, shadowColor: p.cardShadow }]}>
       <View style={styles.row}>
-        <View style={[styles.creatureWrap, { backgroundColor: p.overlay }]}>
+        <View style={styles.creatureWrap}>
           <Creature species={s.species} mood={s.mood} size="small" />
         </View>
         <View style={{ flex: 1 }}>
@@ -49,7 +49,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  creatureWrap: { borderRadius: 12, padding: 6 },
+  creatureWrap: { width: 72, alignItems: "center", justifyContent: "center" },
   title: { fontFamily: fonts.pixelBold, fontSize: 15, marginBottom: 2 },
   sub: { fontFamily: fonts.medium, fontSize: 12 },
   price: { fontFamily: fonts.pixelBold, fontSize: 13, marginTop: 4, fontVariant: ["tabular-nums"] },
