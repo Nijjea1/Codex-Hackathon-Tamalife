@@ -38,11 +38,26 @@ Copy-Item .env.example .env
 # Replace the Clerk placeholder and configure the database before continuing.
 uv run alembic upgrade head
 uv run tamalife-seed
-uv run uvicorn tamalife_backend.main:app --reload
+# Bind to 0.0.0.0 so a physical phone on the same Wi-Fi can reach the API.
+# (Without --host, uvicorn listens on 127.0.0.1 only — reachable from this PC only.)
+uv run uvicorn tamalife_backend.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 Open `http://127.0.0.1:8000/docs`. SQLite, local receipt storage, and a deterministic heuristic
 extractor are the local defaults; Clerk requires a backend secret unless explicitly disabled.
+
+### Testing on a physical phone (Expo Go)
+
+The phone and this PC must be on the **same Wi-Fi**. The Expo app auto-targets the
+dev-server host for the API (see `frontend/lib/config.ts`), so no `.env` change is
+needed — just make sure:
+
+1. The backend runs with `--host 0.0.0.0` (above).
+2. Windows Firewall allows inbound TCP on ports **8000** (API) and **8081** (Metro).
+   From an **admin** PowerShell, once:
+   ```powershell
+   New-NetFirewallRule -DisplayName "Tamalife dev" -Direction Inbound -Action Allow -Protocol TCP -LocalPort 8000,8081
+   ```
 
 Run verification:
 

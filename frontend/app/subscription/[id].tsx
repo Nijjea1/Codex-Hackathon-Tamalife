@@ -59,7 +59,7 @@ export default function SubscriptionDetailScreen() {
           ? { feedback: "helpful", status: "seen" }
           : { feedback: "not_helpful", status: "dismissed", reason: "Not relevant" },
       );
-      showToast({ message: "Thanks â€” your feedback was saved.", tone: "success" });
+      showToast({ message: "Thanks — your feedback was saved.", tone: "success" });
     } catch (error) {
       showToast({ message: (error as Error).message, tone: "warning" });
     }
@@ -68,7 +68,7 @@ export default function SubscriptionDetailScreen() {
   if (!subscription) {
     return (
       <Screen scroll={false} contentStyle={styles.center}>
-        <Text style={[styles.title, { color: p.ink }]}>{subscriptionResource.loading ? "Loading subscriptionâ€¦" : "Subscription not found"}</Text>
+        <Text style={[styles.title, { color: p.ink }]}>{subscriptionResource.loading ? "Loading subscription…" : "Subscription not found"}</Text>
         {subscriptionResource.error && <Text style={[styles.body, { color: p.danger }]}>{subscriptionResource.error}</Text>}
       </Screen>
     );
