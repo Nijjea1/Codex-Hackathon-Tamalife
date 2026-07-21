@@ -8,6 +8,7 @@ import {
   CircleDollarSign,
   Download,
   HelpCircle,
+  Lock,
   LogOut,
   Palette,
 } from "lucide-react-native";
