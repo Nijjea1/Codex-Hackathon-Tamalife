@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { BellRing } from "lucide-react-native";
+import { BellRing, Check } from "lucide-react-native";
 import React, { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
 import { GardenScreen } from "../components/ui/GardenScreen";
@@ -116,8 +116,8 @@ export default function NotificationPreferencesScreen() {
           <Text style={[styles.hint, { color: p.muted, marginBottom: spacing.sm }]}>
             Tap to choose your reminder lead times.
           </Text>
-          <View style={styles.chipRow}>
-            {DAY_OPTIONS.map(({ value, label }) => {
+          <Card style={{ paddingVertical: 0 }}>
+            {DAY_OPTIONS.map(({ value, label }, i) => {
               const selected = preferences.reminder_days_before.includes(value);
               return (
                 <Pressable
@@ -125,16 +125,27 @@ export default function NotificationPreferencesScreen() {
                   accessibilityRole="button"
                   accessibilityState={{ selected }}
                   onPress={() => toggleDay(value)}
-                  style={[
-                    styles.chip,
-                    { backgroundColor: selected ? p.gold : p.pill, borderColor: selected ? p.goldBorder : p.pillBorder },
+                  style={({ pressed }) => [
+                    styles.optionRow,
+                    i > 0 && { borderTopWidth: 1.5, borderTopColor: p.cardBorder },
+                    pressed && { opacity: 0.7 },
                   ]}
                 >
-                  <Text style={[styles.chipText, { color: selected ? p.onGold : p.pillInk }]}>{label}</Text>
+                  <Text style={[styles.optionLabel, { color: p.ink }]}>{label}</Text>
+                  <View
+                    style={[
+                      styles.check,
+                      selected
+                        ? { backgroundColor: p.gold, borderColor: p.goldBorder }
+                        : { backgroundColor: "transparent", borderColor: p.pillBorder },
+                    ]}
+                  >
+                    {selected && <Check size={15} color={p.onGold} strokeWidth={3.5} />}
+                  </View>
                 </Pressable>
               );
             })}
-          </View>
+          </Card>
 
           <View style={[styles.summary, { backgroundColor: p.warningBg, borderColor: p.goldBorder }]}>
             <Text style={[styles.summaryText, { color: p.body }]}>
@@ -154,9 +165,9 @@ const styles = StyleSheet.create({
   hint: { fontFamily: fonts.medium, fontSize: 12, marginTop: 2 },
   scheduleHead: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: spacing.lg, marginBottom: 4 },
   scheduleTitle: { fontFamily: fonts.pixelBold, fontSize: 15 },
-  chipRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
-  chip: { paddingHorizontal: 14, paddingVertical: 9, borderRadius: 999, borderWidth: 2 },
-  chipText: { fontFamily: fonts.pixel, fontSize: 13, letterSpacing: 0.3 },
+  optionRow: { minHeight: 54, flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingVertical: spacing.sm },
+  optionLabel: { fontFamily: fonts.pixelBold, fontSize: 14 },
+  check: { width: 26, height: 26, borderRadius: 8, borderWidth: 2, alignItems: "center", justifyContent: "center" },
   summary: { marginTop: spacing.md, borderWidth: 1.5, borderRadius: 12, padding: spacing.md },
   summaryText: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18 },
 });
