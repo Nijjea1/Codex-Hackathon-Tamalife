@@ -195,10 +195,17 @@ async def publish_source_fetch(
             plan.active = False
 
     deals_published = 0
+    seen_deal_fingerprints: set[str] = set()
     for deal_item in catalog.deals:
         fingerprint = hashlib.sha256(
             f"{pricing_source.id}:{deal_item.title.lower()}:{deal_item.promotional_price}".encode()
         ).hexdigest()
+        # A page can repeat the same promotion in its mobile, desktop, and
+        # footer markup. Deduplicate the extracted catalog before the
+        # database flush so one noisy page cannot violate the unique key.
+        if fingerprint in seen_deal_fingerprints:
+            continue
+        seen_deal_fingerprints.add(fingerprint)
         deal = await session.scalar(
             select(Deal).where(
                 Deal.provider_id == pricing_source.provider_id,

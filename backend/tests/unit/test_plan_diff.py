@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 
 from tamalife_backend.config import Settings
 from tamalife_backend.db.models import (
+    Deal,
     PlanPriceHistory,
     PricingSource,
     Provider,
@@ -18,7 +19,11 @@ from tamalife_backend.db.models import (
 )
 from tamalife_backend.db.session import create_engine, create_schema, create_session_factory
 from tamalife_backend.services.plan_diff import publish_source_fetch
-from tamalife_backend.services.pricing_extraction import extract_pricing_catalog
+from tamalife_backend.services.pricing_extraction import (
+    ExtractedDeal,
+    ExtractedPricingCatalog,
+    extract_pricing_catalog,
+)
 
 
 async def test_publication_is_idempotent_and_records_only_real_price_changes(
@@ -198,4 +203,59 @@ async def test_publication_reuses_a_provider_plan_seen_on_another_official_sourc
         plans = list((await session.scalars(select(ProviderPlan))).all())
         assert len(plans) == 1
         assert plans[0].source_id == second_source.id
+    await engine.dispose()
+
+
+async def test_publication_deduplicates_repeated_deals_in_one_source_fetch(
+    tmp_path: Path,
+) -> None:
+    settings = Settings(
+        environment="test",
+        clerk_auth_enabled=False,
+        database_url=f"sqlite+aiosqlite:///{(tmp_path / 'duplicate-deals.db').as_posix()}",
+    )
+    engine = create_engine(settings)
+    await create_schema(engine)
+    factory = create_session_factory(engine)
+    async with factory() as session:
+        provider = Provider(name="Example", slug="example")
+        session.add(provider)
+        await session.flush()
+        source = PricingSource(
+            provider_id=provider.id,
+            canonical_url="https://example.com/pricing",
+            normalized_url_hash="g" * 64,
+            source_type=SourceType.pricing,
+            country="CA",
+            currency="CAD",
+        )
+        session.add(source)
+        await session.flush()
+        repeated_deal = ExtractedDeal(
+            title="Save 50% for your first month",
+            promotional_price="5.00",
+            currency="CAD",
+            evidence="Save 50% for your first month",
+            confidence=0.9,
+        )
+        catalog = ExtractedPricingCatalog(
+            semantic_hash="duplicate-deal-catalog",
+            strategy="test",
+            deals=[repeated_deal, repeated_deal],
+        )
+        fetch = SourceFetch(
+            source_id=source.id,
+            request_id="duplicate-deals",
+            status=SourceFetchStatus.extracted,
+            completed_at=datetime.now(UTC),
+            content_hash="duplicate-deals",
+            extracted_data=catalog.model_dump(mode="json"),
+        )
+        session.add(fetch)
+        await session.flush()
+
+        outcome = await publish_source_fetch(session, settings, fetch.id)
+
+        assert outcome.published_deals == 1
+        assert await session.scalar(select(func.count()).select_from(Deal)) == 1
     await engine.dispose()
