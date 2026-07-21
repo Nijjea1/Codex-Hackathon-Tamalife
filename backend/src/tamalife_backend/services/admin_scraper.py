@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from urllib.parse import urlsplit
 from uuid import UUID
 
 from sqlalchemy import select
@@ -11,6 +12,7 @@ from tamalife_backend.db.models import (
     Deal,
     PlanPriceHistory,
     PricingSource,
+    Provider,
     ReviewStatus,
     SourceCandidate,
     SourceStatus,
@@ -18,6 +20,76 @@ from tamalife_backend.db.models import (
 from tamalife_backend.errors import ApiError
 
 VERIFIED_CANDIDATE_STATUSES = (CandidateStatus.verified, CandidateStatus.active)
+
+
+def _official_domain(value: str | None) -> str | None:
+    """Normalize a provider-owned domain without trusting a candidate URL."""
+    if not value:
+        return None
+    parsed = urlsplit(value if "://" in value else f"//{value}")
+    return parsed.hostname.rstrip(".").lower() if parsed.hostname else None
+
+
+def candidate_is_safe_for_auto_activation(
+    candidate: SourceCandidate,
+    provider: Provider,
+    *,
+    minimum_confidence: float,
+) -> bool:
+    """Return true only for grounded, HTTPS pages on a known official domain.
+
+    Candidates that do not meet every condition intentionally remain discovered so a
+    later discovery run can supply stronger evidence; they never become user-visible.
+    """
+    official_domain = _official_domain(getattr(provider, "official_domain", None))
+    candidate_domain = candidate.candidate_domain.rstrip(".").lower()
+    parsed = urlsplit(candidate.normalized_url)
+    evidence_urls = {
+        str(item.get("url", "")).rstrip("/")
+        for item in candidate.evidence
+        if isinstance(item, dict)
+    }
+    candidate_url = candidate.normalized_url.rstrip("/")
+    return bool(
+        candidate.status
+        in (
+            CandidateStatus.discovered,
+            CandidateStatus.validating,
+            CandidateStatus.verified,
+        )
+        and candidate.first_party
+        and candidate.confidence >= minimum_confidence
+        and parsed.scheme == "https"
+        # A curated provider domain must match exactly. For a newly seeded
+        # provider there is no domain yet, so a grounded, high-confidence,
+        # first-party candidate is allowed to establish it automatically.
+        and (
+            official_domain is None
+            or candidate_domain == official_domain
+            or candidate_domain.endswith(f".{official_domain}")
+        )
+        and candidate_url in evidence_urls
+    )
+
+
+async def auto_activate_candidate(
+    session: AsyncSession,
+    candidate_id: UUID,
+    *,
+    minimum_confidence: float,
+) -> PricingSource | None:
+    """Activate a candidate only after deterministic first-party validation."""
+    candidate = await session.get(SourceCandidate, candidate_id)
+    if candidate is None or candidate.provider_id is None:
+        return None
+    provider = await session.get(Provider, candidate.provider_id)
+    if provider is None or not candidate_is_safe_for_auto_activation(
+        candidate, provider, minimum_confidence=minimum_confidence
+    ):
+        return None
+    if not provider.official_domain:
+        provider.official_domain = candidate.candidate_domain.rstrip(".").lower()
+    return await approve_candidate(session, candidate.id)
 
 
 async def approve_candidate(session: AsyncSession, candidate_id: UUID) -> PricingSource:

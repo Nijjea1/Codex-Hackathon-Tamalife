@@ -97,12 +97,7 @@ export default function SubscriptionDetailScreen() {
       <SectionHeader title="Verified provider match" />
       <InlineResourceState loading={pricing.intelligence.loading} error={pricing.intelligence.error?.message} onRetry={() => void pricing.intelligence.refresh()} />
       {pricing.intelligence.data && !pricing.intelligence.loading && (
-        <MerchantMatchCard
-          match={pricing.intelligence.data.match}
-          pending={pricing.matchPending}
-          onConfirm={() => void confirm("confirmed")}
-          onReject={() => void confirm("rejected")}
-        />
+        <MerchantMatchCard match={pricing.intelligence.data.match} />
       )}
 
       <SectionHeader title="Price history" />
@@ -134,11 +129,7 @@ export default function SubscriptionDetailScreen() {
 
       <SectionHeader title="Recommended actions" />
       {pricing.intelligence.data?.recommendations.length ? (
-        <RecommendationsCard
-          items={pricing.intelligence.data.recommendations}
-          pendingId={pricing.feedbackPending}
-          onFeedback={(item, helpful) => void feedback(item, helpful)}
-        />
+        <RecommendationsCard items={pricing.intelligence.data.recommendations} />
       ) : (
         !pricing.intelligence.loading && <Card><Text style={[styles.body, { color: p.muted }]}>No recommendations for this subscription.</Text></Card>
       )}

@@ -27,12 +27,14 @@ from tamalife_backend.errors import ApiError
 from tamalife_backend.price_intelligence_schemas import (
     AlternativeItem,
     AlternativesResponse,
+    DashboardSubscriptionItem,
     DealItem,
     DealsResponse,
     MatchConfirmationRequest,
     MatchConfirmationResponse,
     MerchantMatch,
     PriceHistoryResponse,
+    PriceIntelligenceDashboard,
     PriceIntelligenceSummary,
     PricePoint,
     RecommendationFeedbackRequest,
@@ -388,6 +390,149 @@ async def summary(session: AsyncSession, user: User) -> PriceIntelligenceSummary
         estimated_monthly_savings=_money(monthly) or "0",
         estimated_annual_savings=_money(annual) or "0",
         generated_at=now,
+    )
+
+
+async def dashboard(session: AsyncSession, user: User) -> PriceIntelligenceDashboard:
+    """Return the Insights payload in a bounded set of batched queries.
+
+    This deliberately avoids making the mobile client issue a request per
+    subscription and gives every card the same freshness timestamp.
+    """
+    generated_at = datetime.now(UTC)
+    subscriptions = list(
+        (
+            await session.scalars(
+                select(Subscription)
+                .where(Subscription.user_id == user.id, Subscription.archived_at.is_(None))
+                .order_by(Subscription.renewal_or_expiry_date, Subscription.id)
+            )
+        ).all()
+    )
+    if not subscriptions:
+        return PriceIntelligenceDashboard(
+            summary=await summary(session, user), subscriptions=[], generated_at=generated_at
+        )
+
+    subscription_ids = [subscription.id for subscription in subscriptions]
+    match_rows = (
+        await session.execute(
+            select(UserPlanMatch, ProviderPlan, Provider)
+            .join(ProviderPlan, ProviderPlan.id == UserPlanMatch.provider_plan_id)
+            .join(Provider, Provider.id == ProviderPlan.provider_id)
+            .where(
+                UserPlanMatch.user_id == user.id,
+                UserPlanMatch.subscription_id.in_(subscription_ids),
+                UserPlanMatch.status.in_((MatchStatus.confirmed, MatchStatus.pending)),
+                ProviderPlan.active.is_(True),
+            )
+            .order_by(
+                UserPlanMatch.subscription_id,
+                (UserPlanMatch.status == MatchStatus.confirmed).desc(),
+                UserPlanMatch.updated_at.desc(),
+            )
+        )
+    ).all()
+    matches: dict[UUID, tuple[UserPlanMatch, ProviderPlan, Provider]] = {}
+    for match, plan, provider in match_rows:
+        matches.setdefault(match.subscription_id, (match, plan, provider))
+
+    confirmed_plan_ids = [
+        plan.id
+        for match, plan, _provider in matches.values()
+        if match.status is MatchStatus.confirmed
+    ]
+    latest_prices: dict[UUID, PricePoint] = {}
+    if confirmed_plan_ids:
+        history_rows = (
+            await session.execute(
+                select(PlanPriceHistory, PricingSource, ProviderPlan)
+                .join(ProviderPlan, ProviderPlan.id == PlanPriceHistory.plan_id)
+                .join(PricingSource, PricingSource.id == ProviderPlan.source_id)
+                .where(
+                    PlanPriceHistory.plan_id.in_(confirmed_plan_ids),
+                    PlanPriceHistory.review_status.in_(PUBLISHED_REVIEWS),
+                )
+                .order_by(
+                    PlanPriceHistory.plan_id,
+                    PlanPriceHistory.observed_at.desc(),
+                    PlanPriceHistory.id.desc(),
+                )
+            )
+        ).all()
+        for history, source, plan in history_rows:
+            latest_prices.setdefault(plan.id, _price_dto(history, source, plan))
+
+    recommendations_by_subscription: dict[UUID, list[RecommendationItem]] = {
+        subscription_id: [] for subscription_id in subscription_ids
+    }
+    recommendations = list(
+        (
+            await session.scalars(
+                select(UserRecommendation)
+                .where(
+                    UserRecommendation.user_id == user.id,
+                    UserRecommendation.subscription_id.in_(subscription_ids),
+                    UserRecommendation.status.in_(
+                        (RecommendationStatus.active, RecommendationStatus.seen)
+                    ),
+                    or_(
+                        UserRecommendation.expires_at.is_(None),
+                        UserRecommendation.expires_at > generated_at,
+                    ),
+                )
+                .order_by(UserRecommendation.subscription_id, UserRecommendation.confidence.desc())
+            )
+        ).all()
+    )
+    for recommendation in recommendations:
+        recommendations_by_subscription[recommendation.subscription_id].append(
+            _recommendation_dto(recommendation)
+        )
+
+    deal_counts: dict[UUID, int] = {}
+    provider_ids = {provider.id for _match, _plan, provider in matches.values()}
+    if provider_ids:
+        deal_rows = (
+            await session.execute(
+                select(Deal.provider_id, func.count(Deal.id))
+                .where(
+                    Deal.provider_id.in_(provider_ids),
+                    Deal.active.is_(True),
+                    Deal.review_status.in_(PUBLISHED_REVIEWS),
+                    or_(Deal.starts_at.is_(None), Deal.starts_at <= generated_at),
+                    or_(Deal.expires_at.is_(None), Deal.expires_at > generated_at),
+                )
+                .group_by(Deal.provider_id)
+            )
+        ).all()
+        deal_counts = {provider_id: int(count) for provider_id, count in deal_rows}
+
+    items: list[DashboardSubscriptionItem] = []
+    for subscription in subscriptions:
+        current = matches.get(subscription.id)
+        match = current[0] if current else None
+        plan = current[1] if current else None
+        provider = current[2] if current else None
+        items.append(
+            DashboardSubscriptionItem(
+                subscription_id=subscription.id,
+                vendor_name=subscription.vendor_name,
+                display_name=subscription.display_name,
+                current_amount=_money(subscription.amount) or "0",
+                currency=subscription.currency,
+                billing_cycle=subscription.billing_cycle,
+                renewal_or_expiry_date=subscription.renewal_or_expiry_date,
+                creature_name=subscription.creature_name,
+                creature_species=subscription.creature_species,
+                match=_match_dto(match, plan, provider) if current else None,
+                latest_price=latest_prices.get(plan.id) if plan else None,
+                active_deal_count=deal_counts.get(provider.id, 0) if provider else 0,
+                recommendations=recommendations_by_subscription[subscription.id],
+            )
+        )
+    return PriceIntelligenceDashboard(
+        summary=await summary(session, user), subscriptions=items, generated_at=generated_at
     )
 
 

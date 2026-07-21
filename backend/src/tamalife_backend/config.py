@@ -93,6 +93,7 @@ class Settings(BaseSettings):
     scraper_source_batch_size: int = Field(default=25, ge=1, le=200)
     scraper_source_lease_seconds: int = Field(default=300, ge=30, le=3600)
     scraper_missing_plan_threshold: int = Field(default=2, ge=2, le=10)
+    scraper_min_auto_publish_confidence: float = Field(default=0.8, ge=0, le=1)
     scraper_monitoring_enabled: bool = False
     scraper_monitor_interval_seconds: int = Field(default=3600, ge=300)
     pricing_evidence_storage_bucket: str = "pricing-evidence"

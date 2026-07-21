@@ -11,6 +11,7 @@ from tamalife_backend.db.models import (
     PricingSource,
     Provider,
     ProviderPlan,
+    ReviewStatus,
     SourceFetch,
     SourceFetchStatus,
     SourceType,
@@ -48,7 +49,13 @@ async def test_publication_is_idempotent_and_records_only_real_price_changes(
 
         async def add_fetch(price: str, content_hash: str) -> SourceFetch:
             catalog = extract_pricing_catalog(
-                f"<div>Premium ${price} per month</div>".encode(), default_currency="CAD"
+                (
+                    '<script type="application/ld+json">'
+                    f'{{"@type":"Offer","name":"Premium","price":"{price}",'
+                    '"priceCurrency":"CAD","priceSpecification":"per month"}'
+                    "</script>"
+                ).encode(),
+                default_currency="CAD",
             )
             fetch = SourceFetch(
                 source_id=source.id,
@@ -76,6 +83,10 @@ async def test_publication_is_idempotent_and_records_only_real_price_changes(
         assert increase_result.changed_prices == 1
         history_count = await session.scalar(select(func.count()).select_from(PlanPriceHistory))
         assert history_count == 2
+        history_statuses = list(
+            (await session.scalars(select(PlanPriceHistory.review_status))).all()
+        )
+        assert history_statuses == [ReviewStatus.auto_approved, ReviewStatus.auto_approved]
         plan = await session.scalar(select(ProviderPlan))
         assert plan is not None and str(plan.current_price) == "12.00"
     await engine.dispose()

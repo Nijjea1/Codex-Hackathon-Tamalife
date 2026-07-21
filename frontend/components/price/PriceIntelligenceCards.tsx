@@ -1,6 +1,6 @@
-import { ExternalLink, ThumbsDown, ThumbsUp, TrendingDown, TrendingUp } from "lucide-react-native";
+import { ExternalLink, TrendingDown, TrendingUp } from "lucide-react-native";
 import React from "react";
-import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, StyleSheet, Text, View } from "react-native";
 import { useGardenPalette } from "../../constants/garden";
 import { fonts, spacing } from "../../constants/theme";
 import { mapAlternative, mapDeal, mapPricePoint, safeExternalUrl } from "../../lib/priceIntelligenceMappers";
@@ -45,14 +45,8 @@ export function InlineResourceState({
 
 export function MerchantMatchCard({
   match,
-  pending,
-  onConfirm,
-  onReject,
 }: {
   match: MerchantMatchDto | null;
-  pending: boolean;
-  onConfirm: () => void;
-  onReject: () => void;
 }) {
   const p = useGardenPalette();
   if (!match) return <Card><Text style={[styles.body, { color: p.muted }]}>No verified provider match yet.</Text></Card>;
@@ -68,12 +62,7 @@ export function MerchantMatchCard({
           {match.status.toUpperCase()}
         </Text>
       </View>
-      {match.status === "pending" && (
-        <View style={styles.actionRow}>
-          <Button label="Yes, that's it" onPress={onConfirm} loading={pending} style={{ flex: 1 }} />
-          <Button label="Not mine" variant="secondary" onPress={onReject} disabled={pending} style={{ flex: 1 }} />
-        </View>
-      )}
+      <Text style={[styles.caption, { color: p.muted }]}>Matched automatically from verified pricing data.</Text>
     </Card>
   );
 }
@@ -152,12 +141,8 @@ export function AlternativesCard({ items }: { items: AlternativeDto[] }) {
 
 export function RecommendationsCard({
   items,
-  pendingId,
-  onFeedback,
 }: {
   items: RecommendationDto[];
-  pendingId: string | null;
-  onFeedback: (item: RecommendationDto, helpful: boolean) => void;
 }) {
   const p = useGardenPalette();
   return <View style={{ gap: spacing.sm }}>{items.map((item) => (
@@ -165,18 +150,7 @@ export function RecommendationsCard({
       <Text style={[styles.title, { color: p.ink }]}>{item.recommendation_type.replace(/_/g, " ")}</Text>
       <Text style={[styles.body, { color: p.body }]}>{item.explanation}</Text>
       {item.estimated_monthly_savings && <Text style={[styles.price, { color: p.success }]}>Potentially save {formatMoney(Number(item.estimated_monthly_savings))}/mo</Text>}
-      {item.feedback ? (
-        <Text style={[styles.caption, { color: p.muted }]}>Thanks for your feedback.</Text>
-      ) : (
-        <View style={styles.feedbackRow}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Helpful recommendation" disabled={pendingId === item.id} onPress={() => onFeedback(item, true)} style={styles.feedbackButton}>
-            <ThumbsUp size={17} color={p.success} /><Text style={[styles.caption, { color: p.body }]}>Helpful</Text>
-          </Pressable>
-          <Pressable accessibilityRole="button" accessibilityLabel="Not helpful recommendation" disabled={pendingId === item.id} onPress={() => onFeedback(item, false)} style={styles.feedbackButton}>
-            <ThumbsDown size={17} color={p.warning} /><Text style={[styles.caption, { color: p.body }]}>Not for me</Text>
-          </Pressable>
-        </View>
-      )}
+      <Text style={[styles.caption, { color: p.muted }]}>Based on verified pricing and your subscription details.</Text>
     </Card>
   ))}</View>;
 }
@@ -188,9 +162,6 @@ const styles = StyleSheet.create({
   badge: { fontFamily: "monospace", fontWeight: "900", fontSize: 11 },
   price: { fontFamily: fonts.pixelBold, fontSize: 14 },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: spacing.sm },
-  actionRow: { flexDirection: "row", gap: spacing.sm },
   historyRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.sm },
-  feedbackRow: { flexDirection: "row", gap: spacing.md },
-  feedbackButton: { flexDirection: "row", alignItems: "center", gap: 6, paddingVertical: 5 },
   skeleton: { height: 12, borderRadius: 8, opacity: 0.75 },
 });

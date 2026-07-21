@@ -11,6 +11,7 @@ from tamalife_backend.price_intelligence_schemas import (
     MatchConfirmationRequest,
     MatchConfirmationResponse,
     PriceHistoryResponse,
+    PriceIntelligenceDashboard,
     PriceIntelligenceSummary,
     RecommendationFeedbackRequest,
     RecommendationItem,
@@ -19,6 +20,7 @@ from tamalife_backend.price_intelligence_schemas import (
 from tamalife_backend.services.price_intelligence import (
     alternatives,
     confirm_match,
+    dashboard,
     deals,
     price_history,
     record_feedback,
@@ -32,6 +34,11 @@ router = APIRouter(tags=["price-intelligence"])
 @router.get("/price-intelligence/summary", response_model=PriceIntelligenceSummary)
 async def get_summary(session: SessionDep, user: UserDep) -> PriceIntelligenceSummary:
     return await summary(session, user)
+
+
+@router.get("/price-intelligence/dashboard", response_model=PriceIntelligenceDashboard)
+async def get_dashboard(session: SessionDep, user: UserDep) -> PriceIntelligenceDashboard:
+    return await dashboard(session, user)
 
 
 @router.get(

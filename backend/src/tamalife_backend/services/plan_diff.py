@@ -12,12 +12,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from tamalife_backend.config import Settings
 from tamalife_backend.db.models import (
     BillingCycle,
+    CandidateStatus,
     Deal,
     PlanPriceHistory,
     PriceChangeType,
+    PricingSource,
     ProviderPlan,
     ReviewStatus,
+    SourceCandidate,
     SourceFetch,
+    SourceStatus,
 )
 from tamalife_backend.services.pricing_extraction import ExtractedPricingCatalog
 
@@ -41,6 +45,30 @@ def _monthly(price: Decimal, cycle: BillingCycle) -> Decimal | None:
     return None
 
 
+async def _source_is_safe_for_automatic_publication(
+    session: AsyncSession,
+    source: PricingSource,
+    *,
+    minimum_confidence: float,
+) -> bool:
+    """Only publish scraped data from active, trusted sources automatically.
+
+    Sources explicitly created by an administrator are treated as trusted. Discovery
+    sources must additionally retain their verified first-party candidate linkage.
+    """
+    if source.status is not SourceStatus.active:
+        return False
+    if source.discovery_candidate_id is None:
+        return True
+    candidate = await session.get(SourceCandidate, source.discovery_candidate_id)
+    return bool(
+        candidate
+        and candidate.status is CandidateStatus.active
+        and candidate.first_party
+        and candidate.confidence >= minimum_confidence
+    )
+
+
 async def publish_source_fetch(
     session: AsyncSession, settings: Settings, fetch_id: UUID
 ) -> PublicationOutcome:
@@ -50,11 +78,14 @@ async def publish_source_fetch(
     if fetch.publication_completed_at is not None:
         return PublicationOutcome(fetch.id, 0, 0, 0, True)
     source = fetch.source_id
-    from tamalife_backend.db.models import PricingSource
-
     pricing_source = await session.get(PricingSource, source)
     if pricing_source is None:
         raise ValueError("pricing source not found")
+    source_is_trusted = await _source_is_safe_for_automatic_publication(
+        session,
+        pricing_source,
+        minimum_confidence=settings.discovery_min_auto_activate_confidence,
+    )
     catalog = ExtractedPricingCatalog.model_validate(fetch.extracted_data)
     existing = list(
         (
@@ -141,7 +172,8 @@ async def publish_source_fetch(
                 confidence=extracted.confidence,
                 review_status=(
                     ReviewStatus.auto_approved
-                    if extracted.confidence >= settings.discovery_min_auto_activate_confidence
+                    if source_is_trusted
+                    and extracted.confidence >= settings.scraper_min_auto_publish_confidence
                     else ReviewStatus.pending
                 ),
                 evidence_hash=evidence_hash,
@@ -186,7 +218,8 @@ async def publish_source_fetch(
                 confidence=deal_item.confidence,
                 review_status=(
                     ReviewStatus.auto_approved
-                    if deal_item.confidence >= settings.discovery_min_auto_activate_confidence
+                    if source_is_trusted
+                    and deal_item.confidence >= settings.scraper_min_auto_publish_confidence
                     else ReviewStatus.pending
                 ),
             )

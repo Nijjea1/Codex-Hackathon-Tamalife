@@ -24,6 +24,7 @@ from tamalife_backend.db.models import (
     SourceDiscoveryRun,
     SourceType,
 )
+from tamalife_backend.services.admin_scraper import auto_activate_candidate
 
 logger = logging.getLogger("tamalife.discovery")
 
@@ -366,6 +367,11 @@ async def discover_provider_sources(
             if known is not None:
                 known.confidence = max(known.confidence, item.confidence)
                 known.page_title = item.title or known.page_title
+                await auto_activate_candidate(
+                    session,
+                    known.id,
+                    minimum_confidence=settings.discovery_min_auto_activate_confidence,
+                )
                 continue
             candidate = SourceCandidate(
                 discovery_run_id=run.id,
@@ -395,6 +401,12 @@ async def discover_provider_sources(
                         citation_index=index,
                     )
                 )
+            await session.flush()
+            await auto_activate_candidate(
+                session,
+                candidate.id,
+                minimum_confidence=settings.discovery_min_auto_activate_confidence,
+            )
             accepted += 1
 
         input_tokens, output_tokens = _usage(response_dump)

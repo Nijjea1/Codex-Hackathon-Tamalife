@@ -327,6 +327,17 @@ async def test_price_intelligence_contract_ownership_and_review_filtering(tmp_pa
             assert summary.json()["active_deal_count"] == 1
             assert summary.json()["estimated_monthly_savings"] == "10.00"
 
+            dashboard = await client.get("/v1/price-intelligence/dashboard")
+            assert dashboard.status_code == 200
+            payload = dashboard.json()
+            assert payload["summary"]["matched_count"] == 1
+            assert len(payload["subscriptions"]) == 1
+            item = payload["subscriptions"][0]
+            assert item["subscription_id"] == str(subscription_id)
+            assert item["latest_price"]["price"] == "19.99"
+            assert item["active_deal_count"] == 1
+            assert item["recommendations"][0]["estimated_monthly_savings"] == "10.00"
+
             cross_user_feedback = await client.post(
                 f"/v1/recommendations/{ids['other_recommendation_id']}/feedback",
                 json={"feedback": "helpful", "status": "seen"},
