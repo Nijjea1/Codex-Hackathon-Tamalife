@@ -43,6 +43,15 @@ CATEGORY_DISCOVERY_FOCUS: dict[str, tuple[str, str]] = {
         "pricing tiers, ad-supported versus ad-free plans, family plans, student offers, "
         "annual discounts, trials, and regional price pages",
     ),
+    "Streaming": (
+        "video or streaming subscription",
+        "pricing tiers, ad-supported versus ad-free plans, family plans, annual discounts, "
+        "trials, and regional price pages",
+    ),
+    "Music": (
+        "music, audio, podcast, or audiobook subscription",
+        "individual, duo, family, student, annual, and promotional plan pages",
+    ),
     "Fitness": (
         "gym, fitness, or wellness membership",
         "membership tiers, initiation fees, trial offers, annual commitments, locations, "
@@ -57,6 +66,20 @@ CATEGORY_DISCOVERY_FOCUS: dict[str, tuple[str, str]] = {
         "cloud storage, backup, weather, or utility-style digital subscription",
         "storage tiers, included capacity, family sharing, annual discounts, regional "
         "pricing, and plan-change help pages",
+    ),
+    "Delivery": (
+        "food delivery, grocery delivery, or retail membership",
+        "membership fees, delivery benefits, partner offers, trial terms, and annual discounts",
+    ),
+    "News": (
+        "news, publication, or newsletter subscription",
+        "digital subscription tiers, introductory offers, student pricing, annual discounts, "
+        "and cancellation terms",
+    ),
+    "Mobile": (
+        "mobile, wireless, or phone-service plan",
+        "plan tiers, data allowances, device offers, family plans, regional pricing, and plan "
+        "change terms",
     ),
     "Other": (
         "delivery, retail membership, news, phone, or other recurring subscription",

@@ -33,9 +33,14 @@ const KEYWORD_SPECIES: Array<[RegExp, CreatureSpecies]> = [
 
 const SPECIES_BY_CATEGORY: Record<string, CreatureSpecies> = {
   Entertainment: "video",
+  Streaming: "video",
+  Music: "music",
   Productivity: "phone",
   Fitness: "fitness",
   Storage: "weather",
+  Delivery: "delivery",
+  News: "news",
+  Mobile: "phone",
   Other: "delivery",
 };
 

@@ -16,7 +16,8 @@ const moods = new Set<CreatureMood>([
   "happy", "healthy", "concerned", "sick", "critical", "reviving", "resolved",
 ]);
 const categories = new Set<SubscriptionCategory>([
-  "Entertainment", "Productivity", "Fitness", "Storage", "Other",
+  "Entertainment", "Streaming", "Music", "Productivity", "Fitness", "Storage", "Delivery",
+  "News", "Mobile", "Other",
 ]);
 const subscriptionMascotSpecies = new Set<CreatureSpecies>([
   "delivery", "fitness", "music", "news", "phone", "video", "weather",

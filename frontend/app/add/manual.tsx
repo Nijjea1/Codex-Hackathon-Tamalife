@@ -17,9 +17,14 @@ import { mapSubscription } from "../../lib/mappers";
 
 const categories: SubscriptionCategory[] = [
   "Entertainment",
+  "Streaming",
+  "Music",
   "Productivity",
   "Fitness",
   "Storage",
+  "Delivery",
+  "News",
+  "Mobile",
   "Other",
 ];
 

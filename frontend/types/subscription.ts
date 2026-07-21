@@ -33,9 +33,14 @@ export type BillingInterval = "monthly" | "yearly" | "weekly" | "trial";
 
 export type SubscriptionCategory =
   | "Entertainment"
+  | "Streaming"
+  | "Music"
   | "Productivity"
   | "Fitness"
   | "Storage"
+  | "Delivery"
+  | "News"
+  | "Mobile"
   | "Other";
 
 export type ResolutionAction = "renew" | "cancel" | "acceptPrice" | "dispute" | "snooze";
