@@ -179,7 +179,7 @@ async function request<T>(
       }
       throw new ApiError(
         timedOut ? "request_timeout" : "network_error",
-        timedOut ? "The request timed out. Please try again." : "Something went wrong. Please try again.",
+        timedOut ? "The request timed out." : "Couldn't connect.",
         0,
         undefined,
         requestId,
