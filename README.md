@@ -61,8 +61,38 @@ Then press `a` for Android, `i` for iOS simulator, or scan the QR code with Expo
 ```bash
 cd backend
 uv sync
-uv run uvicorn app.main:app --reload   # see backend/README.md for details
+uv run uvicorn tamalife_backend.main:app --reload   # see backend/README.md for details
 ```
+
+## How we collaborated with Codex and GPT-5.6
+
+Tamalife was built as a collaborative engineering project with Codex, using GPT-5.6 to move
+from product idea to a tested full-stack implementation. The team made the product decisions;
+Codex accelerated implementation, debugging, and verification.
+
+- **Architecture and product decisions:** We defined Tamalife as a creature-based way to make
+  renewal dates, price increases, bills, and warranties more visible. We chose FastAPI, Supabase
+  Postgres, Expo, Clerk, OpenAI receipt extraction, and Alembic migrations rather than a
+  frontend-only demo.
+- **Backend implementation:** Codex helped build and validate the async FastAPI service,
+  user-scoped subscription APIs, Clerk session verification, Supabase persistence and Storage,
+  structured receipt extraction, deterministic creature-health logic, and Alembic migrations.
+- **Price intelligence:** Codex accelerated a bounded scraper workflow that discovers
+  first-party provider pages, requires review before activation, records price history, detects
+  changes, and produces matches, deals, and recommendations. It also helped create a one-shot
+  demo runner that works without Redis or Celery.
+- **Frontend implementation:** Codex helped connect the Expo app to typed backend DTOs, add
+  receipt/manual creation flows, surface live price-increase warnings, and make a newly created
+  creature appear immediately without a manual refresh. Subscription types map to distinct
+  mascot families and their health frames.
+- **Quality and iteration:** Codex was used to diagnose environment and migration issues,
+  resolve integration problems, run Ruff, pytest, TypeScript, and Expo web-build checks, and
+  keep commits scoped to tested features. The team reviewed outputs and chose the final product,
+  design, safety, and rollout decisions.
+
+GPT-5.6 was particularly useful for working across the Python/FastAPI and TypeScript/Expo
+codebases, keeping API contracts aligned, turning requirements into incremental changes, and
+explaining the implementation in plain language for testing and demo preparation.
 
 ## Demo walkthrough
 
