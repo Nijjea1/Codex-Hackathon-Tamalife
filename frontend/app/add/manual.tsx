@@ -34,6 +34,7 @@ export default function ManualScreen() {
   const addSubscription = useSubscriptionStore((s) => s.addSubscription);
   const upsertRemoteSubscription = useSubscriptionStore((s) => s.upsertRemoteSubscription);
   const showToast = useUIStore((s) => s.showToast);
+  const currency = useUIStore((s) => s.currency);
   const demoMode = useDemoModeStore((s) => s.active);
   const api = useApiClient();
 
@@ -66,6 +67,7 @@ export default function ManualScreen() {
         mood: "happy",
         healthScore: 94,
         category,
+        currency,
       annualCost: billingCycle === "yearly" ? priceNum : billingCycle === "weekly" ? priceNum * 52 : priceNum * 12,
         status: "active",
       } as const;
@@ -77,7 +79,7 @@ export default function ManualScreen() {
           display_name: name.trim(),
           category,
           amount: priceNum,
-          currency: "USD",
+          currency,
           billing_cycle: billingCycle,
           renewal_or_expiry_date: renewalDate || null,
           creature_name: creatureName,
@@ -118,7 +120,7 @@ export default function ManualScreen() {
         accessibilityLabel="Merchant"
       />
 
-      <Text style={[styles.label, { color: p.ink }]}>Price (USD)</Text>
+      <Text style={[styles.label, { color: p.ink }]}>Price ({currency})</Text>
       <TextInput
         style={inputStyle}
         placeholder="9.99"

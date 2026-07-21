@@ -6,12 +6,11 @@ import {
   CircleDollarSign,
   Download,
   HelpCircle,
-  Lock,
   LogOut,
   Palette,
 } from "lucide-react-native";
-import React from "react";
-import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
+import React, { useState } from "react";
+import { Platform, Pressable, Share, StyleSheet, Switch, Text, View } from "react-native";
 import { fonts, spacing } from "../../constants/theme";
 import { useGardenPalette } from "../../constants/garden";
 import { AccountCard } from "../../components/AccountCard";
@@ -26,6 +25,7 @@ import { useAuthStore } from "../../store/useAuthStore";
 import { useUIStore } from "../../store/useUIStore";
 import { useDemoModeStore } from "../../store/useDemoModeStore";
 import { useSubscriptionData } from "../../lib/useSubscriptionData";
+import { useApiClient } from "../../lib/api";
 import { portfolioStats } from "../../lib/portfolio";
 
 const lockedMascots: { name: string; id: string }[] = [
@@ -43,6 +43,8 @@ export default function ProfileScreen() {
   const resetLocalState = useAuthStore((s) => s.resetLocalState);
   const reducedMotion = useUIStore((s) => s.reducedMotion);
   const setReducedMotion = useUIStore((s) => s.setReducedMotion);
+  const currency = useUIStore((s) => s.currency);
+  const setCurrency = useUIStore((s) => s.setCurrency);
   const onboardingTheme = useUIStore((s) => s.onboardingTheme);
   const setOnboardingTheme = useUIStore((s) => s.setOnboardingTheme);
   const showToast = useUIStore((s) => s.showToast);
@@ -50,6 +52,8 @@ export default function ProfileScreen() {
   const leaveDemo = useDemoModeStore((s) => s.leave);
   const { subscriptions } = useSubscriptionData();
   const stats = portfolioStats(subscriptions);
+  const api = useApiClient();
+  const [exporting, setExporting] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -70,17 +74,47 @@ export default function ProfileScreen() {
   const rows = [
     { icon: Bell, label: "Notification preferences", note: "14, 7 and 1 day reminders" },
     { icon: Palette, label: "Appearance", note: onboardingTheme === "day" ? "Day mode" : "Night mode" },
-    { icon: CircleDollarSign, label: "Currency", note: "USD $" },
-    { icon: Lock, label: "Security", note: "Coming soon" },
-    { icon: Download, label: "Export data", note: "Coming soon" },
+    { icon: CircleDollarSign, label: "Currency", note: `${currency} · used for new subscriptions` },
+    { icon: Download, label: "Export data", note: exporting ? "Preparing your export…" : "Download a copy of your data" },
     { icon: HelpCircle, label: "Help", note: "FAQs and support" },
   ];
 
-  const onRowPress = (label: string) => {
+  const onRowPress = async (label: string) => {
     if (label === "Notification preferences") {
       router.push("/notification-preferences");
     } else if (label === "Appearance") {
       setOnboardingTheme(onboardingTheme === "day" ? "night" : "day");
+    } else if (label === "Currency") {
+      const currencies = ["USD", "CAD", "EUR", "GBP"] as const;
+      const next = currencies[(currencies.indexOf(currency) + 1) % currencies.length];
+      setCurrency(next);
+      showToast({ message: `Currency set to ${next} for new subscriptions`, tone: "success" });
+    } else if (label === "Export data") {
+      if (demoMode) {
+        showToast({ message: "Sign in to export your personal data", tone: "info" });
+        return;
+      }
+      setExporting(true);
+      try {
+        const data = await api.exportMyData();
+        const json = JSON.stringify(data, null, 2);
+        if (Platform.OS === "web") {
+          const blob = new Blob([json], { type: "application/json" });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement("a");
+          link.href = url;
+          link.download = `tamalife-data-${new Date().toISOString().slice(0, 10)}.json`;
+          link.click();
+          URL.revokeObjectURL(url);
+        } else {
+          await Share.share({ title: "Tamalife data export", message: json });
+        }
+        showToast({ message: "Your data export is ready", tone: "success" });
+      } catch (error) {
+        showToast({ message: (error as Error).message, tone: "warning" });
+      } finally {
+        setExporting(false);
+      }
     } else {
       showToast({ message: `${label} is not available yet`, tone: "info" });
     }
@@ -133,7 +167,7 @@ export default function ProfileScreen() {
             key={label}
             accessibilityRole="button"
             accessibilityLabel={label}
-            onPress={() => onRowPress(label)}
+            onPress={() => void onRowPress(label)}
             style={({ pressed }) => [styles.row, { borderTopWidth: 1.5, borderTopColor: p.cardBorder }, pressed && { opacity: 0.7 }]}
           >
             <View style={[styles.rowIcon, { backgroundColor: p.warningBg, borderColor: p.goldBorder }]}>

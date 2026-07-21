@@ -65,6 +65,7 @@ export default function RootLayout() {
 function AuthenticatedNavigation() {
   const { isLoaded, isSignedIn } = useAuth();
   const demoMode = useDemoModeStore((s) => s.active);
+  const reducedMotion = useUIStore((s) => s.reducedMotion);
 
   if (!isLoaded) {
     return <View style={{ flex: 1, backgroundColor: colors.background }} />;
@@ -80,7 +81,7 @@ function AuthenticatedNavigation() {
               screenOptions={{
                 headerShown: false,
                 contentStyle: { backgroundColor: colors.background },
-                animation: "fade_from_bottom",
+                animation: reducedMotion ? "none" : "fade_from_bottom",
               }}
             >
               <Stack.Screen name="index" />

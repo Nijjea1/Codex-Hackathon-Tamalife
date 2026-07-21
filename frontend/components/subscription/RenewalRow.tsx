@@ -17,7 +17,7 @@ export function RenewalRow({ subscription: s, onPress }: Props) {
       onPress={onPress}
       compact
       style={styles.card}
-      accessibilityLabel={`${s.displayName}, ${formatDate(s.nextActionDate)}, ${formatMoney(s.price)}, ${meta.label}`}
+      accessibilityLabel={`${s.displayName}, ${formatDate(s.nextActionDate)}, ${formatMoney(s.price, s.currency)}, ${meta.label}`}
     >
       <View style={styles.row}>
         <View style={{ transform: [{ scale: 0.75 }], width: 58, alignItems: "center" }}>
@@ -30,7 +30,7 @@ export function RenewalRow({ subscription: s, onPress }: Props) {
           </Text>
         </View>
         <View style={{ alignItems: "flex-end" }}>
-          <Text style={[styles.price, { color: p.inkStrong }]}>{formatMoney(s.price)}</Text>
+          <Text style={[styles.price, { color: p.inkStrong }]}>{formatMoney(s.price, s.currency)}</Text>
           <Text style={[styles.state, { color: meta.color }]}>{meta.label}</Text>
         </View>
       </View>

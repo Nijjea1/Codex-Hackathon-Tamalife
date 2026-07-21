@@ -88,7 +88,7 @@ export default function SubscriptionDetailScreen() {
         <Creature species={subscription.species} mood={subscription.mood} size="medium" />
       </View>
       <Card style={{ gap: 5 }}>
-        <Text style={[styles.price, { color: p.inkStrong }]}>{formatMoney(subscription.price)} {subscription.billingInterval}</Text>
+        <Text style={[styles.price, { color: p.inkStrong }]}>{formatMoney(subscription.price, subscription.currency)} {subscription.billingInterval}</Text>
         <Text style={[styles.body, { color: p.body }]}>Renews {formatDate(subscription.nextActionDate)} Â· {daysLabel(subscription.daysRemaining)}</Text>
         <Text style={[styles.body, { color: subscription.needsAttention ? p.warning : p.success }]}>{subscription.healthReason ?? `${subscription.healthScore}% healthy`}</Text>
       </Card>
