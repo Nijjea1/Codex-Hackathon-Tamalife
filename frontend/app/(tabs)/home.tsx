@@ -89,6 +89,8 @@ export default function HomeScreen() {
           </View>
         </View>
         <View style={styles.controls}>
+          <AmbienceButton compact />
+          <GardenModeButton compact />
           <IconButton
             accessibilityLabel={stats.needsAttention > 0 ? `${stats.needsAttention} items need attention` : "Reminders"}
             icon={<Bell size={20} color={p.pillInk} strokeWidth={2.4} />}
@@ -104,11 +106,6 @@ export default function HomeScreen() {
         needsAttention={stats.needsAttention}
         priceHikes={stats.priceHikes.length}
       />
-
-      <View style={styles.miniControls}>
-        <AmbienceButton compact />
-        <GardenModeButton compact />
-      </View>
 
       {loading && <Text style={[styles.status, { color: p.muted }]}>Loading your garden…</Text>}
       {error && <Text style={[styles.status, { color: p.danger }]}>{error}</Text>}

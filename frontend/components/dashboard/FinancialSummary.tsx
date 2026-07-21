@@ -40,7 +40,7 @@ export function FinancialSummary({ monthly, annual, savedPerYear = 0, activeCoun
 const styles = StyleSheet.create({
   card: { gap: 4 },
   moneyRow: { flexDirection: "row", alignItems: "flex-end", gap: 6, marginTop: 4 },
-  money: { fontFamily: fonts.pixelBold, fontSize: 34, lineHeight: 40 },
+  money: { fontFamily: fonts.extraBold, fontSize: 34, lineHeight: 40, letterSpacing: 0.3, fontVariant: ["tabular-nums"] },
   per: { fontFamily: fonts.semiBold, fontSize: 15, marginBottom: 6 },
   annual: { fontFamily: fonts.medium, fontSize: 13, marginTop: 2 },
   trend: {
