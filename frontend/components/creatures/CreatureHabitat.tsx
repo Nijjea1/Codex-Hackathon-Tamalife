@@ -1,7 +1,8 @@
 import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
 import { StyleSheet, View, ViewStyle } from "react-native";
-import { colors, radius } from "../../constants/theme";
+import { useGardenPalette } from "../../constants/garden";
+import { radius } from "../../constants/theme";
 import { CreatureMood } from "../../types/subscription";
 
 type Props = {
@@ -10,27 +11,24 @@ type Props = {
   style?: ViewStyle;
 };
 
-const moodGradients: Record<CreatureMood, [string, string]> = {
-  happy: ["#1B2340", "#12321F"],
-  healthy: ["#1B2340", "#12302C"],
-  concerned: ["#1F2138", "#33290F"],
-  sick: ["#1A1B28", "#2E1A20"],
-  critical: ["#16151F", "#2B141C"],
-  reviving: ["#1F2145", "#232B4F"],
-  resolved: ["#1E2142", "#26204A"],
-};
-
-// Environment behind a creature. Darkens as health worsens.
 export function CreatureHabitat({ mood, children, style }: Props) {
+  const palette = useGardenPalette();
+  const moodColor =
+    mood === "critical" || mood === "sick"
+      ? palette.dangerBg
+      : mood === "concerned"
+        ? palette.warningBg
+        : palette.successBg;
+
   return (
     <LinearGradient
-      colors={moodGradients[mood]}
+      colors={[palette.cardBgSolid, moodColor]}
       start={{ x: 0.2, y: 0 }}
       end={{ x: 0.8, y: 1 }}
-      style={[styles.habitat, style]}
+      style={[styles.habitat, { borderColor: palette.cardBorder }, style]}
     >
-      <View style={[styles.blob, { backgroundColor: colors.primary, top: -30, left: -20 }]} />
-      <View style={[styles.blob, { backgroundColor: colors.secondary, bottom: -40, right: -10 }]} />
+      <View style={[styles.blob, { backgroundColor: palette.accent, top: -30, left: -20 }]} />
+      <View style={[styles.blob, { backgroundColor: palette.leaf, bottom: -40, right: -10 }]} />
       {children}
     </LinearGradient>
   );
@@ -41,7 +39,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: colors.border,
   },
   blob: {
     position: "absolute",

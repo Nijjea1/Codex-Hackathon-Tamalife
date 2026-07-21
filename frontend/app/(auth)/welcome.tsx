@@ -17,7 +17,8 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Circle, Defs, RadialGradient, Stop, Svg } from "react-native-svg";
-import { colors, fonts, spacing } from "../../constants/theme";
+import { fonts, spacing } from "../../constants/theme";
+import { useGardenPalette } from "../../constants/garden";
 import { useUIStore } from "../../store/useUIStore";
 import { AmbienceButton, useGardenAmbienceFadeOut, useGardenClickSound, useGardenContinueSound } from "../../components/onboarding/GardenAmbience";
 import { PennyPiggy } from "../../components/onboarding/PennyPiggy";
@@ -264,13 +265,13 @@ function CelestialToggle({ isDay, onPress }: { isDay: boolean; onPress: () => vo
 export default function WelcomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const onboardingTheme = useUIStore((s) => s.onboardingTheme);
   const setOnboardingTheme = useUIStore((s) => s.setOnboardingTheme);
+  const palette = useGardenPalette();
   const playClick = useGardenClickSound();
   const playContinueClick = useGardenContinueSound();
   const fadeOutAmbience = useGardenAmbienceFadeOut();
   const enterDemo = useDemoModeStore((s) => s.enter);
-  const isDay = onboardingTheme === "day";
+  const isDay = palette.isDay;
 
   return (
     <View style={[styles.root, isDay && styles.rootDay, { paddingTop: insets.top + spacing.sm, paddingBottom: insets.bottom + spacing.md }]}>
@@ -279,7 +280,9 @@ export default function WelcomeScreen() {
       <View pointerEvents="none" style={[styles.gardenShade, isDay && styles.gardenShadeDay]} />
 
       <View style={styles.topBar}>
-        <Text style={[styles.brand, isDay && styles.brandDay]}>TAMALIFE</Text>
+        <Text style={[styles.brand, { color: palette.inkStrong }, isDay && styles.brandDay]}>
+          TAMALIFE
+        </Text>
         <View style={styles.topControls}>
           <AmbienceButton compact />
           <CelestialToggle isDay={isDay} onPress={() => { playClick(); setOnboardingTheme(isDay ? "night" : "day"); }} />
@@ -291,10 +294,14 @@ export default function WelcomeScreen() {
           sits at a lower zIndex, so without this the button is unreachable). */}
       <Animated.View entering={FadeInDown.duration(560)} style={styles.intro} pointerEvents="none">
         <View style={[styles.eyebrowPill, isDay && styles.eyebrowPillDay]}>
-          <Text style={[styles.eyebrow, isDay && styles.eyebrowDay]}>A COZY MONEY ADVENTURE</Text>
+          <Text style={[styles.eyebrow, { color: palette.accent }]}>A COZY MONEY ADVENTURE</Text>
         </View>
-        <Text style={[styles.title, isDay && styles.titleDay]}>WELCOME TO{`\n`}TAMALIFE</Text>
-        <Text style={[styles.description, isDay && styles.descriptionDay]}>Grow better money habits with a tiny friend by your side.</Text>
+        <Text style={[styles.title, { color: palette.inkStrong }, isDay && styles.titleDay]}>
+          WELCOME TO{`\n`}TAMALIFE
+        </Text>
+        <Text style={[styles.description, { color: palette.body }, isDay && styles.descriptionDay]}>
+          Grow better money habits with a tiny friend by your side.
+        </Text>
       </Animated.View>
 
       <Animated.View entering={FadeIn.delay(160).duration(600)} style={styles.hero}>
@@ -380,8 +387,8 @@ const styles = StyleSheet.create({
   pollenThree: { bottom: "24%", left: "27%" },
   topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", zIndex: 2 },
   topControls: { flexDirection: "row", alignItems: "center", gap: 7 },
-  brand: { color: colors.text, fontSize: 18, letterSpacing: 2.2, fontFamily: fonts.pixelBold, textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 },
-  brandDay: { color: "#122a1a", textShadowColor: "rgba(255,255,255,0.8)", textShadowRadius: 5 },
+  brand: { fontSize: 18, letterSpacing: 2.2, fontFamily: fonts.pixelBold, textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 },
+  brandDay: { textShadowColor: "rgba(255,255,255,0.8)", textShadowRadius: 5 },
   celestialSky: { position: "absolute", top: 0, left: 0, right: 0, height: 300, zIndex: 1 },
   celestialBody: { position: "absolute", right: -32 },
   celestialBodyOverlay: { position: "absolute", top: 0, left: 0 },
@@ -391,14 +398,13 @@ const styles = StyleSheet.create({
   intro: { alignItems: "center", marginTop: 18, zIndex: 2 },
   eyebrowPill: { backgroundColor: "rgba(139,124,255,0.28)", borderWidth: 1, borderColor: "rgba(184,174,255,0.5)", borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6, marginBottom: spacing.md },
   eyebrowPillDay: { backgroundColor: "rgba(255, 247, 210, 0.9)", borderColor: "#578c61" },
-  eyebrow: { color: colors.primaryLight, fontFamily: fonts.pixel, fontSize: 10, letterSpacing: 1 },
-  eyebrowDay: { color: "#1c3a26" },
+  eyebrow: { fontFamily: fonts.pixel, fontSize: 10, letterSpacing: 1 },
   // Regular (not bold) pixel weight, with extra tracking — the bold cut closes
   // the "C" counter enough that it reads as an "O" at this size.
-  title: { color: colors.text, fontFamily: fonts.pixel, fontSize: 32, lineHeight: 36, letterSpacing: 2, textAlign: "center", textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 },
-  titleDay: { color: "#122a1a", textShadowColor: "rgba(255,255,255,0.8)", textShadowRadius: 5 },
-  description: { color: "#E4E1F2", fontFamily: fonts.pixel, fontSize: 13, lineHeight: 20, textAlign: "center", maxWidth: 300, marginTop: spacing.md },
-  descriptionDay: { color: "#1c3a26", textShadowColor: "rgba(255,255,255,0.7)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
+  title: { fontFamily: fonts.pixel, fontSize: 32, lineHeight: 36, letterSpacing: 2, textAlign: "center", textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 },
+  titleDay: { textShadowColor: "rgba(255,255,255,0.8)", textShadowRadius: 5 },
+  description: { fontFamily: fonts.pixel, fontSize: 13, lineHeight: 20, textAlign: "center", maxWidth: 300, marginTop: spacing.md },
+  descriptionDay: { textShadowColor: "rgba(255,255,255,0.7)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3 },
   hero: { flex: 1, minHeight: 300, alignItems: "center", justifyContent: "center", zIndex: 2 },
   speech: { backgroundColor: "#fff7d8", borderWidth: 3, borderColor: "#332051", borderRadius: 10, paddingHorizontal: 15, paddingVertical: 8, zIndex: 3, marginBottom: -7, shadowColor: "#161027", shadowOffset: { width: 4, height: 4 }, shadowOpacity: 0.6, shadowRadius: 0 },
   speechText: { color: "#332051", fontSize: 13, fontFamily: fonts.pixelBold, textAlign: "center", letterSpacing: 0.6 },
