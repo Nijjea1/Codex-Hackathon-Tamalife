@@ -159,12 +159,28 @@ class NotificationPreferencesResponse(StrictModel):
     reminder_days_before: list[int]
     push_enabled: bool
     email_enabled: bool
+    renewal_enabled: bool
+    price_hike_enabled: bool
+    creature_health_enabled: bool
+    re_engagement_enabled: bool
+    weekly_digest_enabled: bool
+    re_engagement_after_days: int
+    weekly_digest_weekday: int
+    weekly_digest_hour: int
 
 
 class NotificationPreferencesUpdate(StrictModel):
     reminder_days_before: list[int] | None = None
     push_enabled: bool | None = None
     email_enabled: bool | None = None
+    renewal_enabled: bool | None = None
+    price_hike_enabled: bool | None = None
+    creature_health_enabled: bool | None = None
+    re_engagement_enabled: bool | None = None
+    weekly_digest_enabled: bool | None = None
+    re_engagement_after_days: int | None = None
+    weekly_digest_weekday: int | None = None
+    weekly_digest_hour: int | None = None
 
     @field_validator("reminder_days_before")
     @classmethod
@@ -172,6 +188,27 @@ class NotificationPreferencesUpdate(StrictModel):
         if value is not None and (not value or any(day < 0 or day > 365 for day in value)):
             raise ValueError("reminder days must contain values from 0 through 365")
         return sorted(set(value), reverse=True) if value else value
+
+    @field_validator("re_engagement_after_days")
+    @classmethod
+    def validate_after_days(cls, value: int | None) -> int | None:
+        if value is not None and not 1 <= value <= 365:
+            raise ValueError("re_engagement_after_days must be from 1 through 365")
+        return value
+
+    @field_validator("weekly_digest_weekday")
+    @classmethod
+    def validate_weekday(cls, value: int | None) -> int | None:
+        if value is not None and not 0 <= value <= 6:
+            raise ValueError("weekly_digest_weekday must be from 0 (Mon) through 6 (Sun)")
+        return value
+
+    @field_validator("weekly_digest_hour")
+    @classmethod
+    def validate_hour(cls, value: int | None) -> int | None:
+        if value is not None and not 0 <= value <= 23:
+            raise ValueError("weekly_digest_hour must be from 0 through 23")
+        return value
 
 
 class DevicePushTokenRegister(StrictModel):

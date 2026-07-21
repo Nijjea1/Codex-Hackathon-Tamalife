@@ -22,8 +22,6 @@ device_platform = sa.Enum("ios", "android", name="device_platform")
 
 def upgrade() -> None:
     bind = op.get_bind()
-    device_platform.create(bind, checkfirst=True)
-
     op.create_table(
         "device_push_tokens",
         sa.Column("id", sa.Uuid(), nullable=False),

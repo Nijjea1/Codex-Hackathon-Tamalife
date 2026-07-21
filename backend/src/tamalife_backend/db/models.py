@@ -97,6 +97,21 @@ class ReminderDeliveryStatus(str, enum.Enum):
     dead_letter = "dead_letter"
 
 
+class NotificationCategory(str, enum.Enum):
+    """The kinds of notifications the app can send.
+
+    ``renewal`` is subscription-scoped (renewal/expiry reminders). ``price_hike``
+    and ``creature_health`` are also subscription-scoped. ``re_engagement`` and
+    ``weekly_digest`` are user-scoped (no subscription).
+    """
+
+    renewal = "renewal"
+    price_hike = "price_hike"
+    creature_health = "creature_health"
+    re_engagement = "re_engagement"
+    weekly_digest = "weekly_digest"
+
+
 class User(TimestampMixin, Base):
     __tablename__ = "users"
 
@@ -107,6 +122,8 @@ class User(TimestampMixin, Base):
     image_url: Mapped[str | None] = mapped_column(String(1000))
     disabled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    # Last time the user was seen active in the app; drives re-engagement nudges.
+    last_active_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
     subscriptions: Mapped[list[Subscription]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
@@ -201,20 +218,45 @@ class NotificationPreference(TimestampMixin, Base):
         ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False
     )
     reminder_days_before: Mapped[list[int]] = mapped_column(JSON, default=lambda: [14, 7, 1])
+    # Master channel switches (apply across every category).
     push_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     email_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    # Per-category opt-in switches.
+    renewal_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default="true", nullable=False
+    )
+    price_hike_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default="true", nullable=False
+    )
+    creature_health_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default="true", nullable=False
+    )
+    re_engagement_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default="true", nullable=False
+    )
+    weekly_digest_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default="true", nullable=False
+    )
+    # "We miss you" fires once the user has been away this many days.
+    re_engagement_after_days: Mapped[int] = mapped_column(
+        Integer, default=7, server_default="7", nullable=False
+    )
+    # Weekly digest cadence: weekday (0=Monday..6=Sunday) and local-ish hour (UTC).
+    weekly_digest_weekday: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
+    weekly_digest_hour: Mapped[int] = mapped_column(
+        Integer, default=9, server_default="9", nullable=False
+    )
 
 
 class ReminderDelivery(TimestampMixin, Base):
     __tablename__ = "reminder_deliveries"
     __table_args__ = (
-        UniqueConstraint(
-            "subscription_id",
-            "channel",
-            "scheduled_for",
-            "threshold_days",
-            name="uq_reminder_delivery_schedule",
-        ),
+        # A single deterministic key makes every category idempotent, including
+        # user-scoped notifications where subscription_id is NULL (Postgres treats
+        # NULLs as distinct, so the old schedule constraint could not dedupe them).
+        UniqueConstraint("dedupe_key", name="uq_reminder_deliveries_dedupe_key"),
         CheckConstraint("threshold_days >= 0", name="reminder_threshold_nonnegative"),
         CheckConstraint("attempt_count >= 0", name="reminder_attempt_count_nonnegative"),
         CheckConstraint("max_attempts > 0", name="reminder_max_attempts_positive"),
@@ -225,9 +267,17 @@ class ReminderDelivery(TimestampMixin, Base):
     user_id: Mapped[UUID] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
-    subscription_id: Mapped[UUID] = mapped_column(
-        ForeignKey("subscriptions.id", ondelete="CASCADE"), nullable=False, index=True
+    # NULL for user-scoped categories (re_engagement, weekly_digest).
+    subscription_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("subscriptions.id", ondelete="CASCADE"), nullable=True, index=True
     )
+    category: Mapped[NotificationCategory] = mapped_column(
+        Enum(NotificationCategory, name="notification_category"),
+        nullable=False,
+        server_default=NotificationCategory.renewal.value,
+        index=True,
+    )
+    dedupe_key: Mapped[str] = mapped_column(String(200), nullable=False)
     channel: Mapped[NotificationChannel] = mapped_column(
         Enum(NotificationChannel, name="notification_channel"), nullable=False
     )

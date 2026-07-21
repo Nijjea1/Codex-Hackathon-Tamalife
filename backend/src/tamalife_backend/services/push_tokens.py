@@ -57,13 +57,22 @@ async def register_push_token(
 
 async def revoke_push_token(session: AsyncSession, user: User, token: str) -> None:
     """Release a device token owned by the current user. Idempotent."""
-    owner_id = await session.scalar(
-        select(DevicePushToken.user_id).where(DevicePushToken.token == token)
+    deleted_id = await session.scalar(
+        delete(DevicePushToken)
+        .where(
+            DevicePushToken.token == token,
+            DevicePushToken.user_id == user.id,
+        )
+        .returning(DevicePushToken.id)
     )
-    if owner_id is None:
+    if deleted_id is not None:
+        logger.info("push_token_revoked", user_id=str(user.id))
         return
-    if owner_id != user.id:
-        raise ApiError("push_token_not_found", "Device token not found", 404)
 
-    await session.execute(delete(DevicePushToken).where(DevicePushToken.token == token))
-    logger.info("push_token_revoked", user_id=str(user.id))
+    # Keep a missing token idempotent while hiding tokens owned by another
+    # account behind the same not-found response. The ownership predicate is
+    # part of the DELETE itself so a concurrent token reassignment cannot make
+    # us delete the new owner's row after checking the old owner.
+    exists = await session.scalar(select(DevicePushToken.id).where(DevicePushToken.token == token))
+    if exists is not None:
+        raise ApiError("push_token_not_found", "Device token not found", 404)

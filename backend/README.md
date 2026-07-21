@@ -144,7 +144,11 @@ ISO dates, and billing intervals without network access. Image extraction requir
   remain queryable in the `dead_letter` state. Processing leases let beat recover work after a
   worker or broker interruption.
 - The development `log` reminder provider performs no external delivery. Production should set
-  `TAMALIFE_REMINDER_DELIVERY_ENABLED=true`, select the `webhook` provider, and configure its URL
-  and bearer token. Provider requests include stable `Idempotency-Key` and `X-Request-ID` headers.
+  `TAMALIFE_REMINDER_DELIVERY_ENABLED=true`, then select either the `webhook` provider (and
+  configure its URL and bearer token) or the `fcm` provider. FCM requires
+  `TAMALIFE_FIREBASE_CREDENTIALS_JSON` to contain the complete Firebase Admin SDK service-account
+  JSON as one quoted environment value. Keep that value in the backend secret store only; the
+  native mobile Firebase files are separate, gitignored frontend files. Provider requests include
+  stable `Idempotency-Key` and `X-Request-ID` headers.
 - Date, health, mood, price-increase, resolution, cost, and reminder calculations are pure
   domain functions with an injected current date/time for deterministic behavior.

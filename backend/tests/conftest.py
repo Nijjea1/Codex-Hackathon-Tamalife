@@ -8,6 +8,7 @@ import httpx
 import pytest
 
 os.environ["TAMALIFE_CLERK_AUTH_ENABLED"] = "false"
+os.environ["TAMALIFE_STORAGE_BACKEND"] = "local"
 
 from tamalife_backend.config import Settings
 from tamalife_backend.main import create_app

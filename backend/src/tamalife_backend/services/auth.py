@@ -5,12 +5,15 @@ from functools import lru_cache
 from typing import Any
 
 import httpx
+import structlog
 from clerk_backend_api import Clerk
 from clerk_backend_api.security.types import AuthenticateRequestOptions, TokenType
 from fastapi import Request
 
 from tamalife_backend.config import Settings
 from tamalife_backend.errors import ApiError
+
+logger = structlog.get_logger("tamalife.auth")
 
 
 @dataclass(frozen=True)
@@ -51,6 +54,14 @@ def verify_clerk_request(request: Request, settings: Settings) -> ClerkIdentity:
     try:
         state = get_clerk_client(settings).authenticate_request(_as_httpx_request(request), options)
     except Exception as exc:
+        # Never log the request or bearer token. The exception type and message
+        # are enough to diagnose Clerk connectivity/configuration failures, and
+        # the logging pipeline redacts secret-shaped values as a second guard.
+        logger.warning(
+            "clerk_token_verification_failed",
+            exception_type=type(exc).__name__,
+            exception_message=str(exc),
+        )
         raise ApiError("unauthorized", "Could not verify authentication token", 401) from exc
 
     if not state.is_signed_in:
