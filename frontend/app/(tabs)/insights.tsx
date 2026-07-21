@@ -19,6 +19,7 @@ import { GardenModeButton } from "../../components/onboarding/GardenModeButton";
 import { GardenKicker } from "../../components/ui/GardenKit";
 import { formatMoney, moodMeta } from "../../utils/creatureMood";
 import { CreatureMood, SubscriptionCategory } from "../../types/subscription";
+import { savingsTips } from "../../lib/portfolio";
 import { useSubscriptionData } from "../../lib/useSubscriptionData";
 
 function categoryColors(p: GardenPalette): Record<SubscriptionCategory, string> {
@@ -47,9 +48,6 @@ function AnimatedBar({ fraction, color, delay, track }: { fraction: number; colo
   );
 }
 
-const trend = [92.5, 96.9, 89.4, 94.2, 96.96, 84.96];
-const trendLabels = ["Feb", "Mar", "Apr", "May", "Jun", "Jul"];
-
 export default function InsightsScreen() {
   const p = useGardenPalette();
   const { subscriptions, loading, error } = useSubscriptionData();
@@ -73,7 +71,8 @@ export default function InsightsScreen() {
   const catColors = categoryColors(p);
 
   const topThree = [...active].sort((a, b) => b.price - a.price).slice(0, 3);
-  const maxTrend = Math.max(...trend);
+  const priceHikes = active.filter((s) => s.priceHikeDetected && s.previousPrice != null);
+  const tips = savingsTips(subscriptions);
 
   const moodCounts = subscriptions.reduce<Partial<Record<CreatureMood, number>>>((acc, s) => {
     acc[s.mood] = (acc[s.mood] ?? 0) + 1;
@@ -136,29 +135,30 @@ export default function InsightsScreen() {
         ))}
       </Card>
 
-      <SectionHeader title="Spending trend" />
-      <Card>
-        <View style={styles.trendRow}>
-          {trend.map((v, i) => (
-            <View key={i} style={styles.trendCol}>
-              <View style={styles.trendBarArea}>
-                <View
-                  style={[
-                    styles.trendBar,
-                    {
-                      height: `${(v / maxTrend) * 100}%`,
-                      backgroundColor: i === trend.length - 1 ? p.gold : p.warningBg,
-                    },
-                  ]}
-                />
+      <SectionHeader title="Price watch" />
+      <Card style={{ gap: spacing.sm }}>
+        {priceHikes.length === 0 ? (
+          <Text style={[styles.note, { color: p.body }]}>
+            No price increases detected across your subscriptions. Nice and steady.
+          </Text>
+        ) : (
+          priceHikes.map((s, i) => (
+            <View key={s.id} style={[styles.hikeRow, i > 0 && { borderTopWidth: 1.5, borderTopColor: p.cardBorder }]}>
+              <View style={[styles.priceIcon, { backgroundColor: p.dangerBg, borderColor: p.danger }]}>
+                <TrendingUp size={16} color={p.danger} strokeWidth={2.5} />
               </View>
-              <Text style={[styles.trendLabel, { color: p.muted }]}>{trendLabels[i]}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.hikeName, { color: p.ink }]}>{s.displayName}</Text>
+                <Text style={[styles.tip, { color: p.body }]}>
+                  {formatMoney(s.previousPrice ?? 0)} → {formatMoney(s.price)} / {s.billingInterval}
+                </Text>
+              </View>
+              <Text style={[styles.hikeDelta, { color: p.danger }]}>
+                +{formatMoney(s.price - (s.previousPrice ?? 0))}
+              </Text>
             </View>
-          ))}
-        </View>
-        <Text style={[styles.note, { color: p.body }]}>
-          Six-month recurring spend. July is your lowest so far.
-        </Text>
+          ))
+        )}
       </Card>
 
       <SectionHeader title="Most expensive" />
@@ -175,16 +175,6 @@ export default function InsightsScreen() {
         ))}
       </Card>
 
-      <SectionHeader title="Price changes" />
-      <Card style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm + 4 }}>
-        <View style={[styles.priceIcon, { backgroundColor: p.warningBg, borderColor: p.goldBorder }]}>
-          <TrendingUp size={18} color={p.accent} strokeWidth={2.5} />
-        </View>
-        <Text style={[styles.tip, { flex: 1, color: p.body }]}>
-          StreamFlix increased by $2.00 last month.
-        </Text>
-      </Card>
-
       <SectionHeader title="Creature health" />
       <Card style={{ gap: spacing.sm }}>
         {(Object.entries(moodCounts) as [CreatureMood, number][]).map(([mood, count]) => (
@@ -197,15 +187,19 @@ export default function InsightsScreen() {
       </Card>
 
       <SectionHeader title="Savings opportunities" />
-      {[
-        "You have two entertainment subscriptions. Do you use both?",
-        "Wobble has been snoozed three times. Time to decide?",
-        "An annual plan may be cheaper than monthly billing for SoundWave.",
-      ].map((tip) => (
-        <Card key={tip} style={{ marginBottom: spacing.sm + 2 }}>
-          <Text style={[styles.tip, { color: p.body }]}>{tip}</Text>
+      {tips.length === 0 ? (
+        <Card>
+          <Text style={[styles.tip, { color: p.body }]}>
+            Nothing jumps out right now — your garden is in good shape.
+          </Text>
         </Card>
-      ))}
+      ) : (
+        tips.map((tip) => (
+          <Card key={tip} style={{ marginBottom: spacing.sm + 2 }}>
+            <Text style={[styles.tip, { color: p.body }]}>{tip}</Text>
+          </Card>
+        ))
+      )}
     </Screen>
   );
 }
@@ -236,6 +230,9 @@ const styles = StyleSheet.create({
   trendBar: { width: "100%", borderRadius: 8 },
   trendLabel: { fontFamily: fonts.medium, fontSize: 10, marginTop: 6 },
   note: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, marginTop: spacing.sm },
+  hikeRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 2, paddingVertical: spacing.sm },
+  hikeName: { fontFamily: fonts.pixelBold, fontSize: 14 },
+  hikeDelta: { fontFamily: fonts.pixelBold, fontSize: 14, fontVariant: ["tabular-nums"] },
   rankRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 4, paddingVertical: spacing.sm },
   rankNum: { fontFamily: fonts.pixelBold, fontSize: 18, width: 22, textAlign: "center" },
   rankName: { fontFamily: fonts.pixelBold, fontSize: 14 },

@@ -25,6 +25,8 @@ import { GardenKicker } from "../../components/ui/GardenKit";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useUIStore } from "../../store/useUIStore";
 import { useDemoModeStore } from "../../store/useDemoModeStore";
+import { useSubscriptionData } from "../../lib/useSubscriptionData";
+import { portfolioStats } from "../../lib/portfolio";
 
 const lockedMascots: { name: string; id: string }[] = [
   { name: "???", id: "rolo" },
@@ -41,9 +43,13 @@ export default function ProfileScreen() {
   const resetLocalState = useAuthStore((s) => s.resetLocalState);
   const reducedMotion = useUIStore((s) => s.reducedMotion);
   const setReducedMotion = useUIStore((s) => s.setReducedMotion);
+  const onboardingTheme = useUIStore((s) => s.onboardingTheme);
+  const setOnboardingTheme = useUIStore((s) => s.setOnboardingTheme);
   const showToast = useUIStore((s) => s.showToast);
   const demoMode = useDemoModeStore((s) => s.active);
   const leaveDemo = useDemoModeStore((s) => s.leave);
+  const { subscriptions } = useSubscriptionData();
+  const stats = portfolioStats(subscriptions);
 
   const handleSignOut = async () => {
     try {
@@ -63,12 +69,22 @@ export default function ProfileScreen() {
 
   const rows = [
     { icon: Bell, label: "Notification preferences", note: "14, 7 and 1 day reminders" },
-    { icon: Palette, label: "Appearance", note: "Day & night garden" },
+    { icon: Palette, label: "Appearance", note: onboardingTheme === "day" ? "Day mode" : "Night mode" },
     { icon: CircleDollarSign, label: "Currency", note: "USD $" },
     { icon: Lock, label: "Security", note: "Coming soon" },
     { icon: Download, label: "Export data", note: "Coming soon" },
     { icon: HelpCircle, label: "Help", note: "FAQs and support" },
   ];
+
+  const onRowPress = (label: string) => {
+    if (label === "Notification preferences") {
+      router.push("/notification-preferences");
+    } else if (label === "Appearance") {
+      setOnboardingTheme(onboardingTheme === "day" ? "night" : "day");
+    } else {
+      showToast({ message: `${label} is not available yet`, tone: "info" });
+    }
+  };
 
   return (
     <Screen>
@@ -89,7 +105,9 @@ export default function ProfileScreen() {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.profileName, { color: p.ink }]}>{userName}</Text>
-          <Text style={[styles.profileSub, { color: p.body }]}>Garden Lv. 3 · 5 creatures</Text>
+          <Text style={[styles.profileSub, { color: p.body }]}>
+            Lv. {stats.level} {stats.levelLabel} · {stats.count} creature{stats.count === 1 ? "" : "s"}
+          </Text>
         </View>
       </Card>
 
@@ -115,9 +133,7 @@ export default function ProfileScreen() {
             key={label}
             accessibilityRole="button"
             accessibilityLabel={label}
-            onPress={() => label === "Notification preferences"
-              ? router.push("/notification-preferences")
-              : showToast({ message: `${label} is not available yet`, tone: "info" })}
+            onPress={() => onRowPress(label)}
             style={({ pressed }) => [styles.row, { borderTopWidth: 1.5, borderTopColor: p.cardBorder }, pressed && { opacity: 0.7 }]}
           >
             <View style={[styles.rowIcon, { backgroundColor: p.warningBg, borderColor: p.goldBorder }]}>

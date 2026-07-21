@@ -48,6 +48,10 @@ export default function ReviewScreen() {
   const set = (key: keyof typeof fields) => (value: string) =>
     setFields((f) => ({ ...f, [key]: value }));
 
+  const prevPrice = Number(fields.previousPrice) || 0;
+  const curPrice = Number(fields.price) || 0;
+  const priceIncrease = prevPrice > 0 && curPrice > prevPrice ? curPrice - prevPrice : 0;
+
   const rows: { key: keyof typeof fields; label: string }[] = [
     { key: "name", label: "Name" },
     { key: "merchant", label: "Merchant" },
@@ -95,13 +99,17 @@ export default function ReviewScreen() {
           tone="success"
           label={extracted ? `${Math.round(extracted.confidence * 100)}% CONFIDENCE` : "HIGH CONFIDENCE"}
         />
-        <GardenPill tone="warning" label="PRICE +$2.00 / MO" />
+        {priceIncrease > 0 && <GardenPill tone="warning" label={`PRICE +$${priceIncrease.toFixed(2)}`} />}
       </View>
 
-      <View style={[styles.increase, { backgroundColor: p.warningBg }]}>
-        <TrendingUp size={16} color={p.accent} strokeWidth={2.4} />
-        <Text style={[styles.increaseText, { color: p.body }]}>Price increased by $2.00 per month.</Text>
-      </View>
+      {priceIncrease > 0 && (
+        <View style={[styles.increase, { backgroundColor: p.warningBg }]}>
+          <TrendingUp size={16} color={p.accent} strokeWidth={2.4} />
+          <Text style={[styles.increaseText, { color: p.body }]}>
+            Price went up ${priceIncrease.toFixed(2)} — from ${prevPrice.toFixed(2)} to ${curPrice.toFixed(2)}.
+          </Text>
+        </View>
+      )}
 
       <Card style={{ paddingVertical: spacing.xs }}>
         {rows.map(({ key, label }, i) => (
