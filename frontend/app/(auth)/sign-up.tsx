@@ -16,14 +16,14 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { colors, fonts, spacing } from "../../constants/theme";
+import { fonts, spacing } from "../../constants/theme";
+import { useGardenPalette } from "../../constants/garden";
 import { GardenBackdrop } from "../../components/onboarding/GardenBackdrop";
 import { GardenButton } from "../../components/onboarding/GardenButton";
 import { MascotPortrait } from "../../components/onboarding/MascotPortrait";
 import { demoModeAvailable } from "../../lib/config";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useDemoModeStore } from "../../store/useDemoModeStore";
-import { useUIStore } from "../../store/useUIStore";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -37,7 +37,8 @@ export default function SignUpScreen() {
   const selectedStarter = useAuthStore((s) => s.selectedStarter);
   const completeOnboarding = useAuthStore((s) => s.completeOnboarding);
   const enterDemo = useDemoModeStore((s) => s.enter);
-  const isDay = useUIStore((s) => s.onboardingTheme === "day");
+  const palette = useGardenPalette();
+  const isDay = palette.isDay;
 
   const { isLoaded: signUpLoaded, signUp, setActive: setActiveSignUp } = useSignUp();
   const { isLoaded: signInLoaded, signIn, setActive: setActiveSignIn } = useSignIn();
@@ -201,7 +202,7 @@ export default function SignUpScreen() {
                   setStep("form");
                 }}
                 variant="secondary"
-                icon={<Mail size={18} color="#31543c" />}
+                icon={<Mail size={18} color={palette.pillInk} />}
               />
             </View>
           )}
@@ -212,7 +213,7 @@ export default function SignUpScreen() {
                 <TextInput
                   style={[styles.input, !isDay && styles.inputNight]}
                   placeholder="First name"
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor={palette.muted}
                   autoCapitalize="words"
                   value={firstName}
                   onChangeText={setFirstName}
@@ -222,7 +223,7 @@ export default function SignUpScreen() {
               <TextInput
                 style={[styles.input, !isDay && styles.inputNight]}
                 placeholder="Email"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={palette.muted}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoComplete="email"
@@ -234,7 +235,7 @@ export default function SignUpScreen() {
                 <TextInput
                   style={[styles.input, !isDay && styles.inputNight]}
                   placeholder="Password"
-                  placeholderTextColor={colors.textMuted}
+                  placeholderTextColor={palette.muted}
                   secureTextEntry={!showPassword}
                   value={password}
                   onChangeText={setPassword}
@@ -248,14 +249,14 @@ export default function SignUpScreen() {
                   hitSlop={8}
                 >
                   {showPassword ? (
-                    <EyeOff size={18} color={colors.textMuted} />
+                    <EyeOff size={18} color={palette.muted} />
                   ) : (
-                    <Eye size={18} color={colors.textMuted} />
+                    <Eye size={18} color={palette.muted} />
                   )}
                 </Pressable>
               </View>
 
-              {error && <Text style={styles.error}>{error}</Text>}
+              {error && <Text style={[styles.error, { color: palette.danger }]}>{error}</Text>}
 
               <GardenButton
                 label={mode === "signUp" ? "Create account" : "Sign in"}
@@ -298,14 +299,14 @@ export default function SignUpScreen() {
               <TextInput
                 style={[styles.input, styles.codeInput, !isDay && styles.inputNight]}
                 placeholder="123456"
-                placeholderTextColor={colors.textMuted}
+                placeholderTextColor={palette.muted}
                 keyboardType="number-pad"
                 value={code}
                 onChangeText={setCode}
                 maxLength={6}
                 accessibilityLabel="Verification code"
               />
-              {error && <Text style={styles.error}>{error}</Text>}
+              {error && <Text style={[styles.error, { color: palette.danger }]}>{error}</Text>}
               <GardenButton
                 label="Verify & enter"
                 onPress={submitCode}
@@ -391,7 +392,6 @@ const styles = StyleSheet.create({
   error: {
     fontFamily: fonts.medium,
     fontSize: 13,
-    color: colors.danger,
     textAlign: "center",
   },
   toggle: { fontFamily: "monospace", fontWeight: "900", fontSize: 12, color: "#31543c", textAlign: "center" },

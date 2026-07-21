@@ -14,6 +14,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { fonts, spacing } from "../constants/theme";
+import { useGardenPalette } from "../constants/garden";
 import { GardenBackdrop } from "../components/onboarding/GardenBackdrop";
 import { PennyPiggy } from "../components/onboarding/PennyPiggy";
 import { useUIStore } from "../store/useUIStore";
@@ -26,7 +27,8 @@ export default function LaunchScreen() {
   const insets = useSafeAreaInsets();
   const { isLoaded, isSignedIn } = useAuth();
   const demoMode = useDemoModeStore((s) => s.active);
-  const isDay = useUIStore((s) => s.onboardingTheme === "day");
+  const palette = useGardenPalette();
+  const isDay = palette.isDay;
   const reducedMotion = useUIStore((s) => s.reducedMotion);
 
   const wordmark = useSharedValue(0);
@@ -61,7 +63,7 @@ export default function LaunchScreen() {
   }));
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, { backgroundColor: palette.bgDeep }]}>
       <GardenBackdrop hideSky />
       <View style={[styles.center, { paddingTop: insets.top }]}>
         <Animated.View style={[styles.hero, wordmarkStyle]}>
@@ -88,7 +90,7 @@ export default function LaunchScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0e0d27" },
+  root: { flex: 1 },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
   hero: { alignItems: "center" },
   pennyWrap: { marginBottom: spacing.md },

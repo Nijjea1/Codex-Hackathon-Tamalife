@@ -9,7 +9,7 @@ import Animated, {
   withSequence,
   withTiming,
 } from "react-native-reanimated";
-import { colors } from "../../constants/theme";
+import { useGardenPalette } from "../../constants/garden";
 import { CreatureMood } from "../../types/subscription";
 
 type Props = { mood: CreatureMood; size: number; reducedMotion?: boolean };
@@ -63,15 +63,16 @@ function Particle({
 }
 
 export function CreatureParticles({ mood, size, reducedMotion }: Props) {
+  const palette = useGardenPalette();
   if (mood === "healthy" || mood === "concerned") return null;
   const sparkle = mood === "happy" || mood === "reviving" || mood === "resolved";
   const color = sparkle
     ? mood === "resolved"
-      ? colors.primaryLight
-      : colors.warning
+      ? palette.accent
+      : palette.goldLight
     : mood === "critical"
-    ? colors.critical
-    : colors.textMuted;
+      ? palette.danger
+      : palette.muted;
   const count = mood === "critical" ? 1 : sparkle ? 3 : 2;
 
   return (

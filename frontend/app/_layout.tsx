@@ -16,7 +16,7 @@ import React, { useEffect } from "react";
 import { AccessibilityInfo, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { colors } from "../constants/theme";
+import { useGardenPalette } from "../constants/garden";
 import { ClerkSync } from "../components/ClerkSync";
 import { GardenAmbienceProvider } from "../components/onboarding/GardenAmbience";
 import { ToastHost } from "../components/ui/Toast";
@@ -28,6 +28,7 @@ const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
+  const palette = useGardenPalette();
   const setReducedMotion = useUIStore((s) => s.setReducedMotion);
   const [fontsLoaded] = useFonts({
     PlusJakartaSans_400Regular,
@@ -52,7 +53,7 @@ export default function RootLayout() {
   }, [fontsLoaded]);
 
   if (!fontsLoaded) {
-    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+    return <View style={{ flex: 1, backgroundColor: palette.bgDeep }} />;
   }
 
   return (
@@ -63,23 +64,24 @@ export default function RootLayout() {
 }
 
 function AuthenticatedNavigation() {
+  const palette = useGardenPalette();
   const { isLoaded, isSignedIn } = useAuth();
   const demoMode = useDemoModeStore((s) => s.active);
 
   if (!isLoaded) {
-    return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+    return <View style={{ flex: 1, backgroundColor: palette.bgDeep }} />;
   }
 
   return (
       <GestureHandlerRootView style={{ flex: 1 }}>
         <SafeAreaProvider>
-          <StatusBar style="light" />
+          <StatusBar style={palette.isDay ? "dark" : "light"} />
           <ClerkSync />
           <GardenAmbienceProvider>
             <Stack
               screenOptions={{
                 headerShown: false,
-                contentStyle: { backgroundColor: colors.background },
+                contentStyle: { backgroundColor: palette.bgDeep },
                 animation: "fade_from_bottom",
               }}
             >

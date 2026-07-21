@@ -1,4 +1,7 @@
 import { useUIStore } from "../store/useUIStore";
+import { GardenMode, resolveGardenMode } from "./gardenMode";
+
+export { GardenMode, resolveGardenMode } from "./gardenMode";
 
 // Cozy day/night garden palette shared across the whole app so every screen
 // matches the onboarding experience. Colors are pulled from the onboarding
@@ -81,11 +84,15 @@ export const gardenNight = {
 type Widen<T> = { [K in keyof T]: T[K] extends boolean ? boolean : string };
 export type GardenPalette = Widen<typeof gardenDay>;
 
+export function useGardenMode(): GardenMode {
+  return useUIStore((state) => resolveGardenMode(state.onboardingTheme));
+}
+
 /**
  * Day/night garden palette driven by the global onboarding theme toggle, so
  * flipping day/night anywhere re-themes every screen that uses it.
  */
 export function useGardenPalette(): GardenPalette {
-  const isDay = useUIStore((s) => s.onboardingTheme === "day");
-  return isDay ? gardenDay : gardenNight;
+  const mode = useGardenMode();
+  return mode === "night" ? gardenNight : gardenDay;
 }
