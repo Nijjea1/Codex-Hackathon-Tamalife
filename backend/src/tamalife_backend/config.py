@@ -49,6 +49,7 @@ class Settings(BaseSettings):
             "TAMALIFE_CLERK_AUTHORIZED_PARTIES", "CLERK_AUTHORIZED_PARTIES"
         ),
     )
+    clerk_admin_user_ids: Annotated[list[str], NoDecode] = Field(default_factory=list)
     clerk_webhook_signing_secret: str | None = Field(
         default=None,
         validation_alias=AliasChoices(
@@ -70,6 +71,35 @@ class Settings(BaseSettings):
     openai_reasoning_effort: Literal["none", "low", "medium", "high"] = "low"
     extraction_provider: Literal["heuristic", "openai"] = "heuristic"
     extraction_prompt_version: str = "receipt-v1"
+
+    discovery_enabled: bool = False
+    discovery_model: str = "gpt-5.6-luna"
+    discovery_prompt_version: str = "source-discovery-v1"
+    discovery_interval_days: int = Field(default=30, ge=7, le=90)
+    discovery_max_providers_per_run: int = Field(default=30, ge=1, le=200)
+    discovery_max_searches_per_provider: int = Field(default=4, ge=1, le=10)
+    discovery_max_candidates_per_provider: int = Field(default=12, ge=1, le=50)
+    discovery_min_auto_activate_confidence: float = Field(default=0.92, ge=0, le=1)
+    discovery_monthly_cost_limit_micros: int = Field(default=25_000_000, ge=0)
+    discovery_country: str = "CA"
+    discovery_currency: str = "CAD"
+
+    scraper_user_agent: str = "TamalifePriceMonitor/1.0 (+https://tamalife.app)"
+    scraper_connect_timeout_seconds: float = Field(default=5.0, ge=1, le=30)
+    scraper_read_timeout_seconds: float = Field(default=15.0, ge=1, le=60)
+    scraper_total_timeout_seconds: float = Field(default=25.0, ge=2, le=120)
+    scraper_max_response_bytes: int = Field(default=2 * 1024 * 1024, ge=1024)
+    scraper_max_redirects: int = Field(default=3, ge=0, le=5)
+    scraper_source_batch_size: int = Field(default=25, ge=1, le=200)
+    scraper_source_lease_seconds: int = Field(default=300, ge=30, le=3600)
+    scraper_missing_plan_threshold: int = Field(default=2, ge=2, le=10)
+    scraper_monitoring_enabled: bool = False
+    scraper_monitor_interval_seconds: int = Field(default=3600, ge=300)
+    pricing_evidence_storage_bucket: str = "pricing-evidence"
+
+    price_intelligence_refresh_enabled: bool = False
+    price_intelligence_refresh_interval_seconds: int = Field(default=3600, ge=300)
+    price_intelligence_refresh_batch_size: int = Field(default=100, ge=1, le=1000)
 
     storage_backend: Literal["local", "supabase"] = "local"
     local_storage_root: Path = Path(".data/storage")
@@ -108,7 +138,13 @@ class Settings(BaseSettings):
     sentry_traces_sample_rate: float = 0.0
     log_level: str = "INFO"
 
-    @field_validator("cors_origins", "trusted_hosts", "clerk_authorized_parties", mode="before")
+    @field_validator(
+        "cors_origins",
+        "trusted_hosts",
+        "clerk_authorized_parties",
+        "clerk_admin_user_ids",
+        mode="before",
+    )
     @classmethod
     def parse_origins(cls, value: object) -> object:
         if isinstance(value, str):
@@ -143,6 +179,8 @@ class Settings(BaseSettings):
     def validate_runtime(self) -> None:
         if self.extraction_provider == "openai" and not self.openai_api_key:
             raise ValueError("TAMALIFE_OPENAI_API_KEY is required for the OpenAI provider")
+        if self.discovery_enabled and not self.openai_api_key:
+            raise ValueError("TAMALIFE_OPENAI_API_KEY is required when discovery is enabled")
         if self.storage_backend == "supabase" and not (
             self.supabase_url and self.supabase_service_key
         ):

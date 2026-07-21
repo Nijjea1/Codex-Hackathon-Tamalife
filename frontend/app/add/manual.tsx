@@ -12,21 +12,27 @@ import { SubscriptionCategory } from "../../types/subscription";
 import { useDemoModeStore } from "../../store/useDemoModeStore";
 import { useApiClient } from "../../lib/api";
 import { BillingCycleDto } from "../../types/api";
+import { assignCreature } from "../../lib/creatureAssign";
+import { mapSubscription } from "../../lib/mappers";
 
 const categories: SubscriptionCategory[] = [
   "Entertainment",
+  "Streaming",
+  "Music",
   "Productivity",
   "Fitness",
   "Storage",
+  "Delivery",
+  "News",
+  "Mobile",
   "Other",
 ];
-
-const creatureNames = ["Nova", "Bramble", "Echo", "Willow", "Zephyr", "Maple"];
 
 export default function ManualScreen() {
   const router = useRouter();
   const p = useGardenPalette();
   const addSubscription = useSubscriptionStore((s) => s.addSubscription);
+  const upsertRemoteSubscription = useSubscriptionStore((s) => s.upsertRemoteSubscription);
   const showToast = useUIStore((s) => s.showToast);
   const demoMode = useDemoModeStore((s) => s.active);
   const api = useApiClient();
@@ -43,8 +49,8 @@ export default function ManualScreen() {
 
   const create = async () => {
     const priceNum = Number(price);
-    const creatureName =
-      creatureNames[Math.floor(Math.random() * creatureNames.length)];
+    const assignment = assignCreature(category, merchant.trim(), name.trim());
+    const creatureName = assignment.name;
     setLoading(true);
     try {
       const local = {
@@ -52,7 +58,7 @@ export default function ManualScreen() {
         merchant: merchant.trim(),
         displayName: name.trim(),
         creatureName,
-        species: "blob",
+        species: assignment.species,
         price: priceNum,
         billingInterval: billingCycle,
         nextActionDate: renewalDate,
@@ -66,7 +72,7 @@ export default function ManualScreen() {
       if (demoMode) {
         addSubscription(local);
       } else {
-        await api.createSubscription({
+        const created = await api.createSubscription({
           vendor_name: merchant.trim(),
           display_name: name.trim(),
           category,
@@ -75,8 +81,9 @@ export default function ManualScreen() {
           billing_cycle: billingCycle,
           renewal_or_expiry_date: renewalDate || null,
           creature_name: creatureName,
-          creature_species: "blob",
+          creature_species: assignment.species,
         });
+        upsertRemoteSubscription(mapSubscription(created));
       }
       showToast({ message: `${creatureName} joined your garden!`, tone: "success" });
       router.dismissTo("/(tabs)/garden");

@@ -2,7 +2,7 @@ import sentry_sdk
 from celery import Celery
 from celery.signals import worker_process_init
 
-from tamalife_backend.config import get_settings
+from tamalife_backend.config import Settings, get_settings
 from tamalife_backend.logging import configure_logging
 
 settings = get_settings()
@@ -10,8 +10,45 @@ celery_app = Celery(
     "tamalife",
     broker=settings.celery_broker_url or settings.redis_url,
     backend=settings.celery_result_backend or settings.redis_url,
-    include=["tamalife_backend.tasks.reminders", "tamalife_backend.tasks.cleanup"],
+    include=[
+        "tamalife_backend.tasks.reminders",
+        "tamalife_backend.tasks.cleanup",
+        "tamalife_backend.tasks.discovery",
+        "tamalife_backend.tasks.source_monitoring",
+        "tamalife_backend.tasks.recommendation_refresh",
+    ],
 )
+
+
+def build_beat_schedule(config: Settings) -> dict[str, dict[str, object]]:
+    schedule: dict[str, dict[str, object]] = {
+        "scan-reminders-hourly": {
+            "task": "tamalife.scan_reminders",
+            "schedule": float(config.reminder_scan_interval_seconds),
+        },
+        "cleanup-abandoned-receipts-daily": {
+            "task": "tamalife.cleanup_receipts",
+            "schedule": 86400.0,
+        },
+    }
+    if config.discovery_enabled:
+        schedule["discover-pricing-sources-monthly"] = {
+            "task": "tamalife.schedule_source_discovery",
+            "schedule": float(config.discovery_interval_days * 86400),
+        }
+    if config.scraper_monitoring_enabled:
+        schedule["monitor-pricing-sources"] = {
+            "task": "tamalife.schedule_source_monitoring",
+            "schedule": float(config.scraper_monitor_interval_seconds),
+        }
+    if config.price_intelligence_refresh_enabled:
+        schedule["refresh-price-intelligence"] = {
+            "task": "tamalife.schedule_price_intelligence_refresh",
+            "schedule": float(config.price_intelligence_refresh_interval_seconds),
+        }
+    return schedule
+
+
 celery_app.conf.update(
     task_serializer="json",
     result_serializer="json",
@@ -32,16 +69,7 @@ celery_app.conf.update(
     broker_transport_options={
         "visibility_timeout": max(settings.celery_task_time_limit_seconds * 2, 300)
     },
-    beat_schedule={
-        "scan-reminders-hourly": {
-            "task": "tamalife.scan_reminders",
-            "schedule": float(settings.reminder_scan_interval_seconds),
-        },
-        "cleanup-abandoned-receipts-daily": {
-            "task": "tamalife.cleanup_receipts",
-            "schedule": 86400.0,
-        },
-    },
+    beat_schedule=build_beat_schedule(settings),
 )
 
 
