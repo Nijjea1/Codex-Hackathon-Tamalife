@@ -1,5 +1,5 @@
 import { useRouter } from "expo-router";
-import { Search, SlidersHorizontal } from "lucide-react-native";
+import { Search } from "lucide-react-native";
 import React, { useState } from "react";
 import { ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { fonts, spacing } from "../../constants/theme";
@@ -62,11 +62,6 @@ export default function GardenScreen() {
         </View>
       </View>
       <View style={styles.toolRow}>
-        <IconButton
-          accessibilityLabel="Filter creatures"
-          icon={<SlidersHorizontal size={18} color={p.pillInk} strokeWidth={2.4} />}
-          onPress={() => showToast({ message: "Use the chips below to filter", tone: "info" })}
-        />
         <IconButton
           accessibilityLabel={showSearch ? "Hide search" : "Search creatures"}
           icon={<Search size={18} color={p.pillInk} strokeWidth={2.4} />}
