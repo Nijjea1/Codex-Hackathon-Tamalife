@@ -10,7 +10,6 @@ import { PixelifySans_500Medium, PixelifySans_700Bold } from "@expo-google-fonts
 import { ClerkProvider, useAuth } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { Stack } from "expo-router";
-import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
 import { AccessibilityInfo, View } from "react-native";
@@ -24,8 +23,6 @@ import { useUIStore } from "../store/useUIStore";
 import { useDemoModeStore } from "../store/useDemoModeStore";
 
 const publishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? "";
-
-SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   const setReducedMotion = useUIStore((s) => s.setReducedMotion);
@@ -46,10 +43,6 @@ export default function RootLayout() {
     );
     return () => sub.remove();
   }, [setReducedMotion]);
-
-  useEffect(() => {
-    if (fontsLoaded) SplashScreen.hideAsync().catch(() => {});
-  }, [fontsLoaded]);
 
   if (!fontsLoaded) {
     return <View style={{ flex: 1, backgroundColor: colors.background }} />;
