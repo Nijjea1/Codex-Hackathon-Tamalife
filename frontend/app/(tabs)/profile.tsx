@@ -27,6 +27,7 @@ import { GardenKicker } from "../../components/ui/GardenKit";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useUIStore } from "../../store/useUIStore";
 import { useDemoModeStore } from "../../store/useDemoModeStore";
+import { useSubscriptionStore } from "../../store/useSubscriptionStore";
 import { useSubscriptionData } from "../../lib/useSubscriptionData";
 import { useApiClient } from "../../lib/api";
 import { portfolioStats } from "../../lib/portfolio";
@@ -64,24 +65,31 @@ export default function ProfileScreen() {
   const showToast = useUIStore((s) => s.showToast);
   const demoMode = useDemoModeStore((s) => s.active);
   const leaveDemo = useDemoModeStore((s) => s.leave);
+  const resetRemoteState = useSubscriptionStore((s) => s.resetRemoteState);
   const { subscriptions } = useSubscriptionData();
   const stats = portfolioStats(subscriptions);
   const api = useApiClient();
   const [exporting, setExporting] = useState(false);
   const [currencyPickerVisible, setCurrencyPickerVisible] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
 
   const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
     try {
       if (demoMode) {
         leaveDemo();
       } else {
         await clerkSignOut();
       }
+      resetLocalState();
+      resetRemoteState();
+      router.replace("/");
     } catch {
-      // ignore — demo sessions have no Clerk session to end
+      showToast({ message: "Sign out could not be completed. Please try again.", tone: "warning" });
+    } finally {
+      setSigningOut(false);
     }
-    resetLocalState();
-    router.replace("/");
   };
 
   const mascotId = selectedStarter ?? "penny";
@@ -285,11 +293,12 @@ export default function ProfileScreen() {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Sign out"
+        disabled={signingOut}
         onPress={handleSignOut}
-        style={({ pressed }) => [styles.signOut, { borderColor: p.danger, backgroundColor: p.dangerBg }, pressed && { transform: [{ translateY: 2 }] }]}
+        style={({ pressed }) => [styles.signOut, { borderColor: p.danger, backgroundColor: p.dangerBg }, signingOut && { opacity: 0.6 }, pressed && !signingOut && { transform: [{ translateY: 2 }] }]}
       >
         <LogOut size={18} color={p.danger} strokeWidth={2.4} />
-        <Text style={[styles.signOutText, { color: p.danger }]}>Sign out</Text>
+        <Text style={[styles.signOutText, { color: p.danger }]}>{signingOut ? "Signing out…" : "Sign out"}</Text>
       </Pressable>
     </Screen>
   );
