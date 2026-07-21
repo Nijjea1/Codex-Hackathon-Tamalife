@@ -48,5 +48,8 @@ export function mapSubscription(dto: SubscriptionDto): Subscription {
     currency: dto.currency,
     status: dto.status === "canceled" ? "cancelled" : dto.status,
     notes: dto.notes ?? undefined,
+    priceHikeDetected: dto.price_hike_detected,
+    nextTransitionAt: dto.next_transition_at,
+    cancellationDifficulty: dto.cancellation_difficulty,
   };
 }

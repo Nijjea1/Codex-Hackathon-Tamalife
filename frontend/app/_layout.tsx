@@ -90,6 +90,7 @@ function AuthenticatedNavigation() {
                 <Stack.Screen name="add" options={{ presentation: "modal" }} />
                 <Stack.Screen name="creature/[id]" />
                 <Stack.Screen name="subscription/[id]" />
+                <Stack.Screen name="edit/[id]" />
                 <Stack.Screen name="notification-preferences" />
               </Stack.Protected>
             </Stack>

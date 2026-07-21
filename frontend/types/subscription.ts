@@ -57,6 +57,9 @@ export type Subscription = {
   notes?: string;
   receiptText?: string;
   snoozeCount?: number;
+  priceHikeDetected?: boolean;
+  nextTransitionAt?: string | null;
+  cancellationDifficulty?: "easy" | "moderate" | "hard" | "unknown";
 };
 
 export type ParsedReceipt = {

@@ -23,6 +23,8 @@ import { useSubscriptionStore } from "../../store/useSubscriptionStore";
 import { useUIStore } from "../../store/useUIStore";
 import { useSubscriptionData } from "../../lib/useSubscriptionData";
 import { useApiClient } from "../../lib/api";
+import { portfolioStats } from "../../lib/portfolio";
+import { PortfolioHealthBar } from "../../components/dashboard/PortfolioHealthBar";
 import { DashboardSummaryDto } from "../../types/api";
 
 function greeting(): string {
@@ -67,6 +69,8 @@ export default function HomeScreen() {
     .sort((a, b) => a.daysRemaining - b.daysRemaining)
     .slice(0, 3);
 
+  const stats = portfolioStats(subscriptions);
+
   return (
     <Screen>
       <View style={styles.topBar}>
@@ -78,24 +82,30 @@ export default function HomeScreen() {
             <GardenKicker>{greeting().toUpperCase()}</GardenKicker>
             <Text style={[styles.name, { color: p.ink }]}>{userName}</Text>
             <View style={[styles.levelBadge, { backgroundColor: p.warningBg, borderColor: p.goldBorder }]}>
-              <Text style={[styles.levelText, { color: p.accent }]}>GARDEN LV. 3</Text>
+              <Text style={[styles.levelText, { color: p.accent }]}>
+                LV. {stats.level} · {stats.levelLabel.toUpperCase()}
+              </Text>
             </View>
           </View>
         </View>
         <View style={styles.controls}>
+          <AmbienceButton compact />
+          <GardenModeButton compact />
           <IconButton
-            accessibilityLabel="Notifications, 1 unread"
+            accessibilityLabel={stats.needsAttention > 0 ? `${stats.needsAttention} items need attention` : "Reminders"}
             icon={<Bell size={20} color={p.pillInk} strokeWidth={2.4} />}
-            badge
-            onPress={() => showToast({ message: "Notifications are mocked in this demo", tone: "info" })}
+            badge={stats.needsAttention > 0}
+            onPress={() => router.push("/notification-preferences")}
           />
         </View>
       </View>
 
-      <View style={styles.miniControls}>
-        <AmbienceButton compact />
-        <GardenModeButton compact />
-      </View>
+      <PortfolioHealthBar
+        health={stats.health}
+        thriving={stats.thriving}
+        needsAttention={stats.needsAttention}
+        priceHikes={stats.priceHikes.length}
+      />
 
       {loading && <Text style={[styles.status, { color: p.muted }]}>Loading your garden…</Text>}
       {error && <Text style={[styles.status, { color: p.danger }]}>{error}</Text>}
@@ -108,7 +118,12 @@ export default function HomeScreen() {
       </Animated.View>
 
       <View style={{ marginTop: spacing.md }}>
-        <FinancialSummary monthly={monthly} annual={annual} />
+        <FinancialSummary
+          monthly={monthly}
+          annual={annual}
+          savedPerYear={stats.savedPerYear}
+          activeCount={stats.count}
+        />
       </View>
 
       {urgent && (

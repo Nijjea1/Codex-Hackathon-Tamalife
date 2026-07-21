@@ -14,6 +14,7 @@ import { MoodBadge } from "../../components/subscription/MoodBadge";
 import { ResolutionSheet } from "../../components/subscription/ResolutionSheet";
 import { Button } from "../../components/ui/Button";
 import { Card } from "../../components/ui/Card";
+import { GardenPill } from "../../components/ui/GardenKit";
 import { IconButton } from "../../components/ui/IconButton";
 import { Screen } from "../../components/ui/Screen";
 import { useUIStore } from "../../store/useUIStore";
@@ -25,14 +26,6 @@ import {
   formatMoney,
   healthExplanation,
 } from "../../utils/creatureMood";
-
-const accordionSections = [
-  { title: "Billing history", body: "Jun 18 — $17.99\nMay 18 — $15.99\nApr 18 — $15.99" },
-  { title: "Last price change", body: "Increased from $15.99 to $17.99 on June 18." },
-  { title: "Reminder schedule", body: "Reminders at 14, 7 and 1 day before renewal." },
-  { title: "Original receipt text", body: "" },
-  { title: "Notes", body: "" },
-];
 
 type Phase = "normal" | "reviving" | "celebrated";
 
@@ -60,6 +53,35 @@ export default function CreatureDetailScreen() {
 
   const s = subscription;
   const displayMood = phase === "reviving" ? "reviving" : s.mood;
+
+  const sections = [
+    {
+      title: "Plan",
+      content: `${formatMoney(s.price)} / ${s.billingInterval}\n${s.category}${s.currency ? ` · ${s.currency}` : ""}`,
+    },
+    {
+      title: "Last price change",
+      content:
+        s.previousPrice != null
+          ? `Increased from ${formatMoney(s.previousPrice)} to ${formatMoney(s.price)}.`
+          : "No price change recorded for this item.",
+    },
+    {
+      title: "Reminder schedule",
+      content: s.nextActionDate
+        ? `Reminders 14, 7 and 1 day before ${formatDate(s.nextActionDate)}.`
+        : "No renewal date set, so no reminders are scheduled.",
+    },
+    { title: "Original receipt text", content: s.receiptText ?? "No receipt saved for this subscription." },
+    { title: "Notes", content: s.notes ?? "No notes yet." },
+  ];
+
+  const cancelTone =
+    s.cancellationDifficulty === "easy"
+      ? "success"
+      : s.cancellationDifficulty === "hard"
+        ? "danger"
+        : "warning";
 
   const handleResolve = (action: ResolutionAction) => {
     setSheetVisible(false);
@@ -164,16 +186,19 @@ export default function CreatureDetailScreen() {
             <Text style={[styles.priceLine, { color: p.ink }]}>
               {formatMoney(s.price)} {s.billingInterval === "trial" ? "after trial" : s.billingInterval}
             </Text>
-            {s.previousPrice != null && (
-              <Text style={[styles.priceIncrease, { color: p.warning }]}>
-                Price increased from {formatMoney(s.previousPrice)}
-              </Text>
-            )}
             <Text style={[styles.bodyText, { color: p.body }]}>
               {s.billingInterval === "trial" ? "Ends" : "Renews"} {formatDate(s.nextActionDate)} ·{" "}
               {daysLabel(s.daysRemaining)}{" "}
               {s.daysRemaining > 1 ? "remaining" : ""}
             </Text>
+            {(s.priceHikeDetected || (s.cancellationDifficulty && s.cancellationDifficulty !== "unknown")) && (
+              <View style={styles.detailBadges}>
+                {s.priceHikeDetected && <GardenPill tone="danger" label="PRICE INCREASE" />}
+                {s.cancellationDifficulty && s.cancellationDifficulty !== "unknown" && (
+                  <GardenPill tone={cancelTone} label={`${s.cancellationDifficulty.toUpperCase()} TO CANCEL`} />
+                )}
+              </View>
+            )}
           </Card>
 
           <Card style={{ marginTop: spacing.sm + 2, gap: spacing.sm }}>
@@ -208,19 +233,13 @@ export default function CreatureDetailScreen() {
               <Button
                 label="Edit details"
                 variant="ghost"
-                onPress={() => showToast({ message: "Editing is mocked in this demo", tone: "info" })}
+                onPress={() => router.push(`/edit/${s.id}`)}
                 style={{ flex: 1 }}
               />
             </View>
           </View>
 
-          {accordionSections.map(({ title, body }) => {
-            const content =
-              title === "Original receipt text"
-                ? s.receiptText ?? "No receipt saved for this subscription."
-                : title === "Notes"
-                ? s.notes ?? "No notes yet."
-                : body;
+          {sections.map(({ title, content }) => {
             const open = openSection === title;
             return (
               <Pressable
@@ -279,6 +298,7 @@ const styles = StyleSheet.create({
   priceLine: { fontFamily: fonts.pixelBold, fontSize: 16, fontVariant: ["tabular-nums"] },
   priceIncrease: { fontFamily: "monospace", fontWeight: "900", fontSize: 12 },
   bodyText: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 20 },
+  detailBadges: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: 6 },
   cardTitle: { fontFamily: fonts.pixelBold, fontSize: 15 },
   actions: { gap: spacing.sm + 2, marginTop: spacing.md },
   actionRow: { flexDirection: "row", gap: spacing.sm + 2 },
