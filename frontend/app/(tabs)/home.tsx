@@ -27,7 +27,6 @@ import { useApiClient } from "../../lib/api";
 import { portfolioStats } from "../../lib/portfolio";
 import { PortfolioHealthBar } from "../../components/dashboard/PortfolioHealthBar";
 import { DashboardSummaryDto } from "../../types/api";
-import { useForegroundRefresh } from "../../lib/useForegroundRefresh";
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -46,17 +45,12 @@ export default function HomeScreen() {
   const api = useApiClient();
   const [summary, setSummary] = React.useState<DashboardSummaryDto | null>(null);
 
-  const loadSummary = React.useCallback(async () => {
+  React.useEffect(() => {
     if (demo) return;
-    try {
-      setSummary(await api.dashboardSummary());
-    } catch (e) {
-      showToast({ message: (e as Error).message, tone: "warning" });
-    }
+    api.dashboardSummary().then(setSummary).catch((e) =>
+      showToast({ message: (e as Error).message, tone: "warning" })
+    );
   }, [api, demo, showToast]);
-
-  React.useEffect(() => { void loadSummary(); }, [loadSummary]);
-  useForegroundRefresh(loadSummary, !demo);
 
   const active = subscriptions.filter((s) => s.status !== "cancelled");
   const localMonthly = active.reduce(

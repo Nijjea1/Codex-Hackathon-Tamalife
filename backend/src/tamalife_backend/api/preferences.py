@@ -27,14 +27,6 @@ def response(preference: NotificationPreference) -> NotificationPreferencesRespo
         reminder_days_before=preference.reminder_days_before,
         push_enabled=preference.push_enabled,
         email_enabled=preference.email_enabled,
-        renewal_enabled=preference.renewal_enabled,
-        price_hike_enabled=preference.price_hike_enabled,
-        creature_health_enabled=preference.creature_health_enabled,
-        re_engagement_enabled=preference.re_engagement_enabled,
-        weekly_digest_enabled=preference.weekly_digest_enabled,
-        re_engagement_after_days=preference.re_engagement_after_days,
-        weekly_digest_weekday=preference.weekly_digest_weekday,
-        weekly_digest_hour=preference.weekly_digest_hour,
     )
 
 

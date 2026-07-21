@@ -67,14 +67,13 @@ export default function RemindersScreen() {
 }
 
 const styles = StyleSheet.create({
-  previewLabel: { fontFamily: "monospace", fontWeight: "900", fontSize: 10, letterSpacing: 0.9, color: "#b06a43", marginTop: spacing.md, marginBottom: 4 },
+  previewLabel: { fontFamily: "monospace", fontWeight: "900", fontSize: 12, letterSpacing: 0.9, color: "#000000", marginTop: spacing.md, marginBottom: 4 },
   previewLabelNight: { color: "#ffd66e" },
   preview: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm + 4,
-    backgroundColor: "rgba(255,244,200,0.96)",
-    borderWidth: 3,
+    backgroundColor: "rgba(255,244,200,0.9)",
     borderColor: "#4f7b55",
     borderRadius: 8,
     padding: spacing.sm + 4,

@@ -34,10 +34,6 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# Firebase config (project-identifying; each dev supplies their own)
-google-services.json
-GoogleService-Info.plist
-
 # local env files
 .env
 .env*.local

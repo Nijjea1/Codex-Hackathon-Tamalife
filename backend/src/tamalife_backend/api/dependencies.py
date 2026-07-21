@@ -4,7 +4,7 @@ import asyncio
 import hashlib
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from typing import Annotated, Any, cast
 from uuid import UUID
 
@@ -23,19 +23,6 @@ from tamalife_backend.services.redis import Cache, ParseRateLimiter
 from tamalife_backend.services.storage import Storage
 
 WIDGET_READ_SCOPE = "widget:read"
-
-# How stale last_active_at may get before we write it again (throttles per-request
-# writes while keeping the re-engagement signal fresh enough).
-_LAST_ACTIVE_REFRESH = timedelta(minutes=15)
-
-
-def _touch_last_active(user: User) -> None:
-    now = datetime.now(UTC)
-    previous = user.last_active_at
-    if previous is not None and previous.tzinfo is None:
-        previous = previous.replace(tzinfo=UTC)
-    if previous is None or now - previous >= _LAST_ACTIVE_REFRESH:
-        user.last_active_at = now
 
 
 def settings_from(request: Request) -> Settings:
@@ -71,7 +58,6 @@ async def authenticated_user(
         user = await get_or_create_user(session, identity.user_id, settings)
         if user.disabled_at is not None or user.deleted_at is not None:
             raise ApiError("account_disabled", "This account is disabled", 403)
-        _touch_last_active(user)
         return AuthenticatedUser(user, identity.user_id, identity.session_id, identity.claims)
 
     user_id = settings.default_user_id

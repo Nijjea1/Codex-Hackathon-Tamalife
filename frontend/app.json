@@ -3,21 +3,13 @@
     "name": "Tamalife",
     "slug": "Tamalife",
     "version": "1.0.0",
-    "icon": "./assets/penny-app-icon.png",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.tamalife.app",
-      "googleServicesFile": "./GoogleService-Info.plist"
+      "supportsTablet": true
     },
     "android": {
-      "backgroundColor": "#0B0D17",
-      "package": "com.tamalife.app",
-      "googleServicesFile": "./google-services.json",
-      "permissions": [
-        "POST_NOTIFICATIONS"
-      ]
+      "backgroundColor": "#0B0D17"
     },
     "web": {
       "bundler": "metro"
@@ -25,14 +17,7 @@
     "plugins": [
       "expo-router",
       "expo-font",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/splash-icon.png",
-          "backgroundColor": "#0B0D17",
-          "imageWidth": 200
-        }
-      ],
+      "expo-splash-screen",
       "expo-secure-store",
       "expo-web-browser",
       "@clerk/expo",
@@ -43,38 +28,12 @@
           "cameraPermission": false,
           "microphonePermission": false
         }
-      ],
-      "@react-native-firebase/app",
-      "@react-native-firebase/messaging",
-      [
-        "expo-notifications",
-        {
-          "icon": "./assets/penny-notification-icon.png",
-          "color": "#F3A6C0",
-          "defaultChannel": "reminders"
-        }
-      ],
-      [
-        "expo-build-properties",
-        {
-          "ios": {
-            "useFrameworks": "static"
-          }
-        }
-      ],
-      "./plugins/withNotificationManifestFix"
+      ]
     ],
     "scheme": "tamalife",
     "backgroundColor": "#0B0D17",
     "splash": {
       "backgroundColor": "#0B0D17"
-    },
-    "extra": {
-      "router": {},
-      "eas": {
-        "projectId": "1d8e3f29-2d12-4529-b443-80e14992791c"
-      }
-    },
-    "owner": "param840"
+    }
   }
 }

@@ -11,7 +11,6 @@ from tamalife_backend.config import Settings
 from tamalife_backend.db.models import (
     BillingCycle,
     ItemType,
-    NotificationCategory,
     NotificationPreference,
     ReminderDelivery,
     ReminderDeliveryStatus,
@@ -20,7 +19,7 @@ from tamalife_backend.db.models import (
     User,
 )
 from tamalife_backend.db.session import create_engine, create_schema, create_session_factory
-from tamalife_backend.services.reminders import PermanentDeliveryError, ReminderPayload
+from tamalife_backend.services.reminders import ReminderPayload
 from tamalife_backend.tasks.reminders import _deliver, _scan
 
 pytestmark = pytest.mark.asyncio
@@ -43,14 +42,6 @@ class FailingSender:
     ) -> None:
         del payload, idempotency_key, request_id
         raise RuntimeError("provider unavailable")
-
-
-class UnsupportedChannelSender:
-    async def send(
-        self, payload: ReminderPayload, *, idempotency_key: str, request_id: str
-    ) -> None:
-        del payload, idempotency_key, request_id
-        raise PermanentDeliveryError("provider cannot deliver this channel")
 
 
 def reminder_settings(tmp_path: Path, *, max_attempts: int = 3) -> Settings:
@@ -214,81 +205,3 @@ async def test_scan_recovers_an_expired_processing_lease(tmp_path: Path) -> None
     assert delivery.status == ReminderDeliveryStatus.pending
     assert delivery.request_id == "recovery"
     assert "lease expired" in (delivery.last_error or "")
-
-
-async def test_weekly_digest_waits_for_configured_hour(tmp_path: Path) -> None:
-    settings = reminder_settings(tmp_path)
-    await seed_subscription(settings, email_enabled=False)
-    engine = create_engine(settings)
-    factory = create_session_factory(engine)
-    async with factory() as session:
-        preference = await session.scalar(select(NotificationPreference))
-        assert preference is not None
-        preference.weekly_digest_weekday = NOW.weekday()
-        preference.weekly_digest_hour = NOW.hour + 1
-        await session.commit()
-    await engine.dispose()
-
-    await _scan(settings=settings, now=NOW, request_id="before-digest-hour")
-    before = await load_deliveries(settings)
-    await _scan(settings=settings, now=NOW + timedelta(hours=1), request_id="digest-hour")
-    after = await load_deliveries(settings)
-
-    assert all(item.category != NotificationCategory.weekly_digest for item in before)
-    assert sum(item.category == NotificationCategory.weekly_digest for item in after) == 1
-
-
-async def test_scan_does_not_create_health_reminders_for_expired_items(tmp_path: Path) -> None:
-    settings = reminder_settings(tmp_path)
-    await seed_subscription(settings, email_enabled=False)
-    engine = create_engine(settings)
-    factory = create_session_factory(engine)
-    async with factory() as session:
-        subscription = await session.scalar(select(Subscription))
-        assert subscription is not None
-        subscription.renewal_or_expiry_date = NOW.date() - timedelta(days=1)
-        await session.commit()
-    await engine.dispose()
-
-    assert await _scan(settings=settings, now=NOW, request_id="expired") == []
-    assert await load_deliveries(settings) == []
-
-
-async def test_price_hike_delivery_does_not_require_a_renewal_date(tmp_path: Path) -> None:
-    settings = reminder_settings(tmp_path)
-    await seed_subscription(settings, email_enabled=False)
-    engine = create_engine(settings)
-    factory = create_session_factory(engine)
-    async with factory() as session:
-        subscription = await session.scalar(select(Subscription))
-        assert subscription is not None
-        subscription.renewal_or_expiry_date = None
-        subscription.previous_amount = Decimal("9.99")
-        await session.commit()
-    await engine.dispose()
-
-    delivery_id = (await _scan(settings=settings, now=NOW, request_id="price-hike"))[0]
-    sender = SuccessfulSender()
-    result = await _deliver(delivery_id, settings=settings, sender=sender, now=NOW)
-
-    assert result.status == ReminderDeliveryStatus.delivered
-    assert sender.calls[0][0].category == NotificationCategory.price_hike
-
-
-async def test_permanent_provider_mismatch_is_canceled_without_retry(tmp_path: Path) -> None:
-    settings = reminder_settings(tmp_path)
-    await seed_subscription(settings, email_enabled=False)
-    delivery_id = (await _scan(settings=settings, now=NOW, request_id="scan"))[0]
-
-    result = await _deliver(
-        delivery_id,
-        settings=settings,
-        sender=UnsupportedChannelSender(),
-        now=NOW,
-    )
-    delivery = (await load_deliveries(settings))[0]
-
-    assert result.status == ReminderDeliveryStatus.canceled
-    assert result.retry_in_seconds is None
-    assert delivery.attempt_count == 1
-    assert "cannot deliver this channel" in (delivery.last_error or "")

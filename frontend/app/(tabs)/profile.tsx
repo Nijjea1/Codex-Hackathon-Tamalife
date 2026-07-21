@@ -24,13 +24,12 @@ import { Card } from "../../components/ui/Card";
 import { Screen } from "../../components/ui/Screen";
 import { SectionHeader } from "../../components/ui/SectionHeader";
 import { GardenKicker } from "../../components/ui/GardenKit";
-import { useApiClient } from "../../lib/api";
-import { unregisterCurrentPushToken } from "../../lib/pushNotifications";
-import { portfolioStats } from "../../lib/portfolio";
-import { useSubscriptionData } from "../../lib/useSubscriptionData";
 import { useAuthStore } from "../../store/useAuthStore";
-import { useDemoModeStore } from "../../store/useDemoModeStore";
 import { useUIStore } from "../../store/useUIStore";
+import { useDemoModeStore } from "../../store/useDemoModeStore";
+import { useSubscriptionData } from "../../lib/useSubscriptionData";
+import { useApiClient } from "../../lib/api";
+import { portfolioStats } from "../../lib/portfolio";
 
 const lockedMascots: { name: string; id: string }[] = [
   { name: "???", id: "rolo" },
@@ -53,7 +52,6 @@ export default function ProfileScreen() {
   const router = useRouter();
   const p = useGardenPalette();
   const { signOut: clerkSignOut } = useClerk();
-  const api = useApiClient();
   const userName = useAuthStore((s) => s.userName);
   const selectedStarter = useAuthStore((s) => s.selectedStarter);
   const resetLocalState = useAuthStore((s) => s.resetLocalState);
@@ -68,6 +66,7 @@ export default function ProfileScreen() {
   const leaveDemo = useDemoModeStore((s) => s.leave);
   const { subscriptions } = useSubscriptionData();
   const stats = portfolioStats(subscriptions);
+  const api = useApiClient();
   const [exporting, setExporting] = useState(false);
   const [currencyPickerVisible, setCurrencyPickerVisible] = useState(false);
 
@@ -76,11 +75,10 @@ export default function ProfileScreen() {
       if (demoMode) {
         leaveDemo();
       } else {
-        await unregisterCurrentPushToken(api.unregisterPushToken).catch(() => {});
         await clerkSignOut();
       }
     } catch {
-      // Ignore sign-out errors; local state still needs to be cleared.
+      // ignore — demo sessions have no Clerk session to end
     }
     resetLocalState();
     router.replace("/");

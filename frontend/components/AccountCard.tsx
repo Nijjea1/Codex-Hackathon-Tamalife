@@ -1,13 +1,12 @@
 import { useUser } from "@clerk/expo";
 import { CheckCircle2, CloudOff, Loader } from "lucide-react-native";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { fonts, spacing } from "../constants/theme";
 import { useGardenPalette } from "../constants/garden";
 import { useApiClient } from "../lib/api";
 import { Card } from "./ui/Card";
 import { GardenKicker } from "./ui/GardenKit";
-import { useForegroundRefresh } from "../lib/useForegroundRefresh";
 
 type Status = "demo" | "loading" | "connected" | "error";
 
@@ -16,31 +15,24 @@ export function AccountCard() {
   const { isSignedIn, user } = useUser();
   const api = useApiClient();
   const [status, setStatus] = useState<Status>("loading");
-  const mounted = useRef(false);
-
-  const loadAccount = useCallback(async () => {
-    if (!isSignedIn) {
-      if (mounted.current) setStatus("demo");
-      return;
-    }
-    if (mounted.current) setStatus("loading");
-    try {
-      await api.me();
-      if (mounted.current) setStatus("connected");
-    } catch {
-      if (mounted.current) setStatus("error");
-    }
-  }, [isSignedIn, api]);
 
   useEffect(() => {
-    mounted.current = true;
-    void loadAccount();
+    let active = true;
+    if (!isSignedIn) {
+      setStatus("demo");
+      return () => {
+        active = false;
+      };
+    }
+    setStatus("loading");
+    api.me().then(
+      () => active && setStatus("connected"),
+      () => active && setStatus("error"),
+    );
     return () => {
-      mounted.current = false;
+      active = false;
     };
-  }, [loadAccount]);
-
-  useForegroundRefresh(loadAccount, Boolean(isSignedIn));
+  }, [api, isSignedIn]);
 
   const email = user?.primaryEmailAddress?.emailAddress;
 

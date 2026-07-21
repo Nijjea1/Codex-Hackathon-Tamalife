@@ -4,7 +4,6 @@ from tamalife_backend.api.admin_scraper import router as admin_scraper_router
 from tamalife_backend.api.clerk_webhooks import router as clerk_webhooks_router
 from tamalife_backend.api.dashboard import router as dashboard_router
 from tamalife_backend.api.me import router as me_router
-from tamalife_backend.api.notifications import router as notifications_router
 from tamalife_backend.api.operations import router as operations_router
 from tamalife_backend.api.parsing import router as parsing_router
 from tamalife_backend.api.preferences import router as preferences_router
@@ -21,6 +20,5 @@ api_router.include_router(subscriptions_router)
 api_router.include_router(dashboard_router)
 api_router.include_router(parsing_router)
 api_router.include_router(preferences_router)
-api_router.include_router(notifications_router)
 api_router.include_router(price_intelligence_router)
 api_router.include_router(widget_router)
