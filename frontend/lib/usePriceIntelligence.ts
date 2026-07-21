@@ -66,7 +66,7 @@ function useResource<T>(loader: (signal: AbortSignal) => Promise<T>, demoData: T
         sequence.current === request &&
         !(cause instanceof ApiError && cause.code === "request_cancelled")
       ) {
-        setError(cause instanceof ApiError ? cause : new ApiError("unknown_error", "Something went wrong.", 0));
+        setError(cause instanceof ApiError ? cause : new ApiError("unknown_error", "Price intelligence is temporarily unavailable.", 0));
       }
     } finally {
       if (sequence.current === request) {

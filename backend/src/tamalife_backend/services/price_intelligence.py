@@ -511,9 +511,9 @@ async def dashboard(session: AsyncSession, user: User) -> PriceIntelligenceDashb
     items: list[DashboardSubscriptionItem] = []
     for subscription in subscriptions:
         current = matches.get(subscription.id)
-        match = current[0] if current else None
-        plan = current[1] if current else None
-        provider = current[2] if current else None
+        match_dto = _match_dto(*current) if current is not None else None
+        plan = current[1] if current is not None else None
+        provider = current[2] if current is not None else None
         items.append(
             DashboardSubscriptionItem(
                 subscription_id=subscription.id,
@@ -525,7 +525,7 @@ async def dashboard(session: AsyncSession, user: User) -> PriceIntelligenceDashb
                 renewal_or_expiry_date=subscription.renewal_or_expiry_date,
                 creature_name=subscription.creature_name,
                 creature_species=subscription.creature_species,
-                match=_match_dto(match, plan, provider) if current else None,
+                match=match_dto,
                 latest_price=latest_prices.get(plan.id) if plan else None,
                 active_deal_count=deal_counts.get(provider.id, 0) if provider else 0,
                 recommendations=recommendations_by_subscription[subscription.id],

@@ -80,39 +80,6 @@ export default function InsightsScreen() {
   const priceChanges = summary.data?.price_change_count ?? activeSubscriptions.filter((item) => item.priceHikeDetected).length;
   const loading = subscriptions.loading || dashboard.loading || summary.loading;
   const error = subscriptions.error ?? dashboard.error?.message ?? summary.error?.message;
-  const refreshAll = () => void Promise.all([subscriptions.refresh(), dashboard.refresh(), summary.refresh()]);
-  // Financial breakdown, computed from the subscription list (real data).
-  const active = subscriptions.subscriptions.filter((s) => s.status !== "cancelled");
-  const byCategory = active.reduce<Record<string, number>>((acc, s) => {
-    acc[s.category] = (acc[s.category] ?? 0) + (s.monthlyCost ?? s.price);
-    return acc;
-  }, {});
-  const maxCategory = Math.max(...Object.values(byCategory), 1);
-  const moodCounts = subscriptions.subscriptions.reduce<Partial<Record<CreatureMood, number>>>((acc, s) => {
-    acc[s.mood] = (acc[s.mood] ?? 0) + 1;
-    return acc;
-  }, {});
-  const tips = savingsTips(subscriptions.subscriptions);
-
-  const feedback = async (item: RecommendationDto, helpful: boolean) => {
-    setFeedbackPending(item.id);
-    try {
-      await api.recommendationFeedback(
-        item.id,
-        helpful
-          ? { feedback: "helpful", status: "seen" }
-          : { feedback: "not_helpful", status: "dismissed", reason: "Not relevant" },
-        createIdempotencyKey(`feedback:${item.id}`),
-      );
-      await dashboard.refresh();
-      showToast({ message: "Thanks — your feedback was saved.", tone: "success" });
-    } catch (error) {
-      showToast({ message: (error as Error).message, tone: "warning" });
-    } finally {
-      setFeedbackPending(null);
-    }
-  };
-
   return (
     <Screen contentStyle={styles.screen}>
       <View style={styles.header}>
@@ -129,19 +96,6 @@ export default function InsightsScreen() {
         error={summary.error?.message}
         onRetry={() => void summary.refresh()}
       />
-      {summary.data && !summary.loading && (
-        <>
-          {summary.refreshing && <Text style={[styles.status, { color: p.muted }]}>Refreshing verified prices…</Text>}
-          <View style={styles.metricGrid}>
-            <Metric label="Possible monthly savings" value={formatMoney(Number(summary.data.estimated_monthly_savings))} />
-            <Metric label="Possible annual savings" value={formatMoney(Number(summary.data.estimated_annual_savings))} />
-            <Metric label="Active deals" value={`${summary.data.active_deal_count}`} />
-            <Metric label="Price changes" value={`${summary.data.price_change_count}`} />
-          </View>
-          <Text style={[styles.freshness, { color: p.muted }]}>Checked {new Date(summary.data.generated_at).toLocaleString()}</Text>
-        </>
-      )}
-
       {!loading && !error && activeSubscriptions.length === 0 ? (
         <Card raised style={styles.emptyCard}>
           <View style={[styles.emptyIcon, { backgroundColor: p.successBg }]}><Sparkles size={22} color={p.success} /></View>
