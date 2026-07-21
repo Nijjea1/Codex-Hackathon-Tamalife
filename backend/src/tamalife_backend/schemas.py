@@ -87,6 +87,8 @@ class SubscriptionResponse(StrictModel):
     needs_attention: bool
     attention_state: Literal["none", "upcoming", "urgent", "overdue", "resolved"]
     health_reason: str
+    price_hike_detected: bool
+    next_transition_at: datetime | None
     monthly_cost: Decimal
     annual_cost: Decimal
 
