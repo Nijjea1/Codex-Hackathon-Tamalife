@@ -22,6 +22,13 @@ const basePalettes: Record<CreatureSpecies, CreaturePalette> = {
   tilly: { body: "#86CFA0", bodyDark: "#4C9B6D", bodyLight: "#C7F1CF", accent: "#F6C453", cheek: "#F3A6A6" },
   rory: { body: "#9DA3B7", bodyDark: "#656B82", bodyLight: "#D9DDEA", accent: "#B8AEFF", cheek: "#F2A5B9" },
   pip: { body: "#7184AF", bodyDark: "#3E4F7B", bodyLight: "#DCE7FF", accent: "#F6C453", cheek: "#F3A6A6" },
+  delivery: { body: "#C98B5A", bodyDark: "#7D4D32", bodyLight: "#E5B27B", accent: "#F6C453", cheek: "#F3A6A6" },
+  fitness: { body: "#D87542", bodyDark: "#703B2E", bodyLight: "#F1A16F", accent: "#55D6BE", cheek: "#F3A6A6" },
+  music: { body: "#7FD95E", bodyDark: "#438C43", bodyLight: "#C5F493", accent: "#55D6BE", cheek: "#F3A6A6" },
+  news: { body: "#DCE6F3", bodyDark: "#78869D", bodyLight: "#FFFFFF", accent: "#5F769B", cheek: "#F3A6A6" },
+  phone: { body: "#D8A740", bodyDark: "#8B5C18", bodyLight: "#F2D778", accent: "#F6C453", cheek: "#F3A6A6" },
+  video: { body: "#2F3544", bodyDark: "#121621", bodyLight: "#69718A", accent: "#F05A7E", cheek: "#F3A6A6" },
+  weather: { body: "#C7E8FA", bodyDark: "#719ABE", bodyLight: "#FFFFFF", accent: "#A7E8FF", cheek: "#F3A6A6" },
 };
 
 function mix(hex: string, target: string, amount: number): string {

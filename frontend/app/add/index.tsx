@@ -127,7 +127,13 @@ export default function AddScreen() {
   const handleParsed = async (parsed: ParseResponseDto) => {
     const extracted: ExtractedReceiptDto | null = parsed.extracted;
     if (parsed.status === "completed" && extracted && extracted.confidence >= AUTO_CREATE_CONFIDENCE) {
-      const { name, species } = assignCreature(extracted.category);
+
+      const { name, species } = assignCreature(
+        extracted.category,
+        extracted.vendor_name,
+        extracted.display_name,
+      );
+
       const response = await api.confirmParse(parsed.id, extracted, name, species);
       setSubscription(mapSubscription(response.subscription));
       router.push("/add/success");
