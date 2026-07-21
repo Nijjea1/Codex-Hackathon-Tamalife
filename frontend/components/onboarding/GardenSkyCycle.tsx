@@ -8,6 +8,7 @@ const RAYS = Array.from({ length: 8 }, (_, index) => index * 45);
 
 export function GardenSkyCycle({ interactive = false }: { interactive?: boolean }) {
   const isDay = useUIStore((state) => state.onboardingTheme === "day");
+  const reducedMotion = useUIStore((state) => state.reducedMotion);
   const setTheme = useUIStore((state) => state.setOnboardingTheme);
   const playClick = useGardenClickSound();
   const { height } = useWindowDimensions();
@@ -16,6 +17,10 @@ export function GardenSkyCycle({ interactive = false }: { interactive?: boolean 
   const travel = Math.max(390, height * 0.76);
 
   useEffect(() => {
+    if (reducedMotion) {
+      floating.value = 0;
+      return;
+    }
     floating.value = withRepeat(
       withSequence(
         withTiming(1, { duration: 1900, easing: Easing.inOut(Easing.sin), reduceMotion: ReduceMotion.Never }),
@@ -26,11 +31,15 @@ export function GardenSkyCycle({ interactive = false }: { interactive?: boolean 
       undefined,
       ReduceMotion.Never,
     );
-  }, [floating]);
+  }, [floating, reducedMotion]);
 
   useEffect(() => {
-    daylight.value = withTiming(isDay ? 1 : 0, { duration: 1650, easing: Easing.inOut(Easing.cubic), reduceMotion: ReduceMotion.Never });
-  }, [daylight, isDay]);
+    daylight.value = withTiming(isDay ? 1 : 0, {
+      duration: 1650,
+      easing: Easing.inOut(Easing.cubic),
+      reduceMotion: reducedMotion ? ReduceMotion.Always : ReduceMotion.Never,
+    });
+  }, [daylight, isDay, reducedMotion]);
 
   const sunMotion = useAnimatedStyle(() => ({
     opacity: 0.08 + daylight.value * 0.92,

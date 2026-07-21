@@ -1,6 +1,6 @@
 import { LinearGradient } from "expo-linear-gradient";
 import { Tabs, useRouter } from "expo-router";
-import { Flower2, House, Plus, UserRound } from "lucide-react-native";
+import { ChartPie, Flower2, House, Plus, UserRound } from "lucide-react-native";
 import React from "react";
 import { Pressable, StyleSheet, View } from "react-native";
 import Animated, {
@@ -109,7 +109,12 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="insights"
         options={{
-          href: null,
+          title: "Insights",
+          tabBarIcon: ({ color, focused }) => (
+            <TabIcon focused={focused}>
+              <ChartPie size={22} color={color} strokeWidth={2.4} />
+            </TabIcon>
+          ),
         }}
       />
       <Tabs.Screen

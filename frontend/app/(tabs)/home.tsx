@@ -168,6 +168,7 @@ export default function HomeScreen() {
       <QuickActions
         onAdd={() => router.push("/add")}
         onPaste={() => router.push("/add/paste")}
+        onPriceChanges={() => router.push("/(tabs)/insights")}
         onViewAll={() => router.push("/(tabs)/garden")}
       />
 

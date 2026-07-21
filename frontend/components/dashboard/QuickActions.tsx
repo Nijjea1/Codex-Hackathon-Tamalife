@@ -1,20 +1,22 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { ClipboardPaste, Plus, Sparkles } from "lucide-react-native";
+import { ClipboardPaste, Plus, Sparkles, TrendingUp } from "lucide-react-native";
 import { fonts, spacing } from "../../constants/theme";
 import { useGardenPalette } from "../../constants/garden";
 
 type Props = {
   onAdd: () => void;
   onPaste: () => void;
+  onPriceChanges: () => void;
   onViewAll: () => void;
 };
 
-export function QuickActions({ onAdd, onPaste, onViewAll }: Props) {
+export function QuickActions({ onAdd, onPaste, onPriceChanges, onViewAll }: Props) {
   const p = useGardenPalette();
   const actions = [
     { label: "Add subscription", icon: Plus, onPress: onAdd },
     { label: "Paste receipt", icon: ClipboardPaste, onPress: onPaste },
+    { label: "Price changes", icon: TrendingUp, onPress: onPriceChanges },
     { label: "All creatures", icon: Sparkles, onPress: onViewAll },
   ];
   return (

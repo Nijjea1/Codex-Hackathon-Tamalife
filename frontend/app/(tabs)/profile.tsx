@@ -1,5 +1,7 @@
 import { useClerk } from "@clerk/expo";
 import { useRouter } from "expo-router";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
 import {
   Bell,
   ChevronRight,
@@ -10,7 +12,7 @@ import {
   Palette,
 } from "lucide-react-native";
 import React, { useState } from "react";
-import { Platform, Pressable, Share, StyleSheet, Switch, Text, View } from "react-native";
+import { Modal, Platform, Pressable, StyleSheet, Switch, Text, View } from "react-native";
 import { fonts, spacing } from "../../constants/theme";
 import { useGardenPalette } from "../../constants/garden";
 import { AccountCard } from "../../components/AccountCard";
@@ -34,6 +36,17 @@ const lockedMascots: { name: string; id: string }[] = [
   { name: "???", id: "bucky" },
 ];
 
+const currencyOptions = [
+  { code: "USD", label: "US Dollar", symbol: "$" },
+  { code: "CAD", label: "Canadian Dollar", symbol: "CA$" },
+  { code: "EUR", label: "Euro", symbol: "€" },
+  { code: "GBP", label: "British Pound", symbol: "£" },
+] as const;
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>\"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[character] ?? character);
+}
+
 export default function ProfileScreen() {
   const router = useRouter();
   const p = useGardenPalette();
@@ -54,6 +67,7 @@ export default function ProfileScreen() {
   const stats = portfolioStats(subscriptions);
   const api = useApiClient();
   const [exporting, setExporting] = useState(false);
+  const [currencyPickerVisible, setCurrencyPickerVisible] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -75,7 +89,7 @@ export default function ProfileScreen() {
     { icon: Bell, label: "Notification preferences", note: "14, 7 and 1 day reminders" },
     { icon: Palette, label: "Appearance", note: onboardingTheme === "day" ? "Day mode" : "Night mode" },
     { icon: CircleDollarSign, label: "Currency", note: `${currency} · used for new subscriptions` },
-    { icon: Download, label: "Export data", note: exporting ? "Preparing your export…" : "Download a copy of your data" },
+    { icon: Download, label: "Export data", note: exporting ? "Preparing your PDF…" : "Create a PDF copy of your data" },
     { icon: HelpCircle, label: "Help", note: "FAQs and support" },
   ];
 
@@ -85,10 +99,7 @@ export default function ProfileScreen() {
     } else if (label === "Appearance") {
       setOnboardingTheme(onboardingTheme === "day" ? "night" : "day");
     } else if (label === "Currency") {
-      const currencies = ["USD", "CAD", "EUR", "GBP"] as const;
-      const next = currencies[(currencies.indexOf(currency) + 1) % currencies.length];
-      setCurrency(next);
-      showToast({ message: `Currency set to ${next} for new subscriptions`, tone: "success" });
+      setCurrencyPickerVisible(true);
     } else if (label === "Export data") {
       if (demoMode) {
         showToast({ message: "Sign in to export your personal data", tone: "info" });
@@ -97,19 +108,21 @@ export default function ProfileScreen() {
       setExporting(true);
       try {
         const data = await api.exportMyData();
-        const json = JSON.stringify(data, null, 2);
+        const exportedAt = new Date().toLocaleString();
+        const html = `<!doctype html><html><head><meta charset="utf-8" /><style>
+          body { font-family: Arial, sans-serif; color: #1f2937; padding: 28px; }
+          h1 { color: #31543c; margin-bottom: 4px; } p { color: #4b5563; }
+          pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f8fafc; border: 1px solid #d1d5db; border-radius: 8px; padding: 14px; font-size: 9px; }
+        </style></head><body><h1>Tamalife data export</h1><p>Created ${escapeHtml(exportedAt)}</p><pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre></body></html>`;
         if (Platform.OS === "web") {
-          const blob = new Blob([json], { type: "application/json" });
-          const url = URL.createObjectURL(blob);
-          const link = document.createElement("a");
-          link.href = url;
-          link.download = `tamalife-data-${new Date().toISOString().slice(0, 10)}.json`;
-          link.click();
-          URL.revokeObjectURL(url);
+          await Print.printAsync({ html });
         } else {
-          await Share.share({ title: "Tamalife data export", message: json });
+          const { uri } = await Print.printToFileAsync({ html });
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "Save Tamalife data export" });
+          }
         }
-        showToast({ message: "Your data export is ready", tone: "success" });
+        showToast({ message: "Your PDF export is ready", tone: "success" });
       } catch (error) {
         showToast({ message: (error as Error).message, tone: "warning" });
       } finally {
@@ -144,6 +157,43 @@ export default function ProfileScreen() {
           </Text>
         </View>
       </Card>
+
+      <Modal
+        transparent
+        visible={currencyPickerVisible}
+        animationType={reducedMotion ? "none" : "fade"}
+        onRequestClose={() => setCurrencyPickerVisible(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setCurrencyPickerVisible(false)}>
+          <Pressable
+            style={[styles.currencyPicker, { backgroundColor: p.cardBgSolid, borderColor: p.cardBorder }]}
+            onPress={(event) => event.stopPropagation()}
+          >
+            <Text style={[styles.currencyTitle, { color: p.ink }]}>Choose currency</Text>
+            <Text style={[styles.rowNote, { color: p.body }]}>Used when you add a new subscription.</Text>
+            {currencyOptions.map((option) => (
+              <Pressable
+                key={option.code}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: currency === option.code }}
+                onPress={() => {
+                  setCurrency(option.code);
+                  setCurrencyPickerVisible(false);
+                  showToast({ message: `Currency set to ${option.code}`, tone: "success" });
+                }}
+                style={[
+                  styles.currencyOption,
+                  { borderColor: p.cardBorder },
+                  currency === option.code && { backgroundColor: p.warningBg, borderColor: p.goldBorder },
+                ]}
+              >
+                <Text style={[styles.currencyCode, { color: p.ink }]}>{option.symbol} {option.code}</Text>
+                <Text style={[styles.rowNote, { color: p.body }]}>{option.label}</Text>
+              </Pressable>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <AccountCard />
 
@@ -273,4 +323,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   signOutText: { fontFamily: fonts.pixelBold, fontSize: 15 },
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(12, 9, 34, 0.55)", alignItems: "center", justifyContent: "center", padding: spacing.lg },
+  currencyPicker: { width: "100%", maxWidth: 420, borderWidth: 2, borderRadius: 18, padding: spacing.lg, gap: spacing.sm },
+  currencyTitle: { fontFamily: fonts.pixelBold, fontSize: 18 },
+  currencyOption: { borderWidth: 1.5, borderRadius: 12, padding: spacing.sm + 2, gap: 2 },
+  currencyCode: { fontFamily: fonts.pixelBold, fontSize: 14 },
 });

@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 import { Image, ImageSourcePropType, StyleSheet, View } from "react-native";
 import Animated, { Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withRepeat, withSequence, withTiming } from "react-native-reanimated";
+import { useUIStore } from "../../store/useUIStore";
 
 const sheet = require("../../assets/onboarding-mascot-sheet.png") as ImageSourcePropType;
 
@@ -16,11 +17,16 @@ export const mascotOptions = [
 export type MascotId = (typeof mascotOptions)[number]["id"];
 
 export function MascotPortrait({ id, size }: { id: string; size: number }) {
+  const reducedMotion = useUIStore((state) => state.reducedMotion);
   const mascot = mascotOptions.find((item) => item.id === id) ?? mascotOptions[0];
   const [column, row] = mascot.cell;
   const idle = useSharedValue(0);
 
   useEffect(() => {
+    if (reducedMotion) {
+      idle.value = 0;
+      return;
+    }
     idle.value = withRepeat(
       withSequence(withTiming(1, { duration: 1200, easing: Easing.inOut(Easing.sin), reduceMotion: ReduceMotion.Never }), withTiming(0, { duration: 1200, easing: Easing.inOut(Easing.sin), reduceMotion: ReduceMotion.Never })),
       -1,
@@ -28,13 +34,13 @@ export function MascotPortrait({ id, size }: { id: string; size: number }) {
       undefined,
       ReduceMotion.Never,
     );
-  }, [idle]);
+  }, [idle, reducedMotion]);
 
   const idleStyle = useAnimatedStyle(() => ({
     transform: [
-      { translateY: -4 - idle.value * 8 },
-      { rotate: `${-1.5 + idle.value * 3}deg` },
-      { scale: 1.055 + idle.value * 0.022 },
+      { translateY: reducedMotion ? 0 : -4 - idle.value * 8 },
+      { rotate: `${reducedMotion ? 0 : -1.5 + idle.value * 3}deg` },
+      { scale: reducedMotion ? 1 : 1.055 + idle.value * 0.022 },
     ],
   }));
   return (
