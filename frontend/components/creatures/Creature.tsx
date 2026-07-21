@@ -19,6 +19,7 @@ import { CreatureFace } from "./CreatureFace";
 import { CreatureParticles } from "./CreatureParticles";
 import { CreatureShadow } from "./CreatureShadow";
 import { paletteFor } from "./palettes";
+import { isSubscriptionMascot, SubscriptionMascot } from "./SubscriptionMascot";
 
 export type CreatureProps = {
   species: CreatureSpecies;
@@ -45,8 +46,9 @@ export function Creature({
   const reducedMotion = useUIStore((s) => s.reducedMotion);
   const px = SIZES[size];
   const id = useId().replace(/[^a-zA-Z0-9]/g, "");
-  const palette = paletteFor(species, mood);
-  const Body = bodyBySpecies[species];
+  const customMascot = isSubscriptionMascot(species);
+  const palette = paletteFor(customMascot ? "blob" : species, mood);
+  const Body = bodyBySpecies[customMascot ? "blob" : species];
 
   const breath = useSharedValue(0);
   const shiver = useSharedValue(0);
@@ -130,15 +132,21 @@ export function Creature({
   const content = (
     <View style={{ width: px, alignItems: "center" }}>
       <Animated.View style={bodyStyle}>
-        <Body size={px} palette={palette} id={id} />
-        <View style={[styles.faceWrap, { top: species === "cloud" ? px * 0.3 : px * 0.34 }]}>
-          <CreatureFace
-            mood={mood}
-            size={px * 0.62}
-            cheek={palette.cheek}
-            reducedMotion={reducedMotion}
-          />
-        </View>
+        {customMascot ? (
+          <SubscriptionMascot species={species} mood={mood} size={px} />
+        ) : (
+          <>
+            <Body size={px} palette={palette} id={id} />
+            <View style={[styles.faceWrap, { top: species === "cloud" ? px * 0.3 : px * 0.34 }]}>
+              <CreatureFace
+                mood={mood}
+                size={px * 0.62}
+                cheek={palette.cheek}
+                reducedMotion={reducedMotion}
+              />
+            </View>
+          </>
+        )}
       </Animated.View>
       <Animated.View style={shadowStyle}>
         <CreatureShadow width={px * 0.62} />

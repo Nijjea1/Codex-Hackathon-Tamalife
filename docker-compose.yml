@@ -33,6 +33,10 @@ services:
       TAMALIFE_REDIS_URL: redis://redis:6379/0
       TAMALIFE_CACHE_ENABLED: "true"
       TAMALIFE_AUTO_CREATE_SCHEMA: "false"
+      TAMALIFE_CLERK_AUTH_ENABLED: "false"
+      TAMALIFE_DISCOVERY_ENABLED: "false"
+      TAMALIFE_SCRAPER_MONITORING_ENABLED: "false"
+      TAMALIFE_PRICE_INTELLIGENCE_REFRESH_ENABLED: "false"
     command: ["sh", "-c", "alembic upgrade head && uvicorn tamalife_backend.main:app --host 0.0.0.0 --port 8000"]
     ports:
       - "8000:8000"
@@ -49,7 +53,7 @@ services:
     command: ["celery", "-A", "tamalife_backend.tasks.celery_app:celery_app", "worker", "--loglevel=INFO"]
     depends_on:
       api:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       disable: true
     stop_grace_period: 90s
@@ -61,7 +65,7 @@ services:
     command: ["celery", "-A", "tamalife_backend.tasks.celery_app:celery_app", "beat", "--loglevel=INFO"]
     depends_on:
       api:
-        condition: service_started
+        condition: service_healthy
     healthcheck:
       disable: true
     stop_grace_period: 30s
