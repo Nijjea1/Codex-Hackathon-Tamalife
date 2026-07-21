@@ -50,21 +50,21 @@ export function MerchantMatchCard({
 }) {
   const p = useGardenPalette();
   if (!match) return <Card><Text style={[styles.body, { color: p.muted }]}>No verified provider match yet.</Text></Card>;
-  const isDemo = match.method === "demo_fixture";
+  const isDemo = match.method === "demo_fixture" || match.method === "sample_fixture";
   const confidence = `${Math.round(match.confidence * 100)}% match`;
   return (
     <Card style={{ gap: spacing.sm }}>
       <View style={styles.rowBetween}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.title, { color: p.ink }]}>{match.provider_name}</Text>
-          <Text style={[styles.body, { color: p.body }]}>{match.plan_name} Â· {confidence}</Text>
+          <Text style={[styles.body, { color: p.body }]}>{match.plan_name} · {confidence}</Text>
         </View>
         <Text style={[styles.badge, { color: match.status === "confirmed" ? p.success : p.warning }]}>
-          {isDemo ? "LOCAL DEMO" : match.status.toUpperCase()}
+          {isDemo ? "SAMPLE DATA" : match.status.toUpperCase()}
         </Text>
       </View>
       <Text style={[styles.caption, { color: p.muted }]}>
-        {isDemo ? "Simulated local data for the product walkthrough — not a provider claim." : "Matched automatically from verified pricing data."}
+        {isDemo ? "Sample local walkthrough data — not a live provider claim." : "Matched automatically from verified pricing data."}
       </Text>
     </Card>
   );
@@ -82,7 +82,7 @@ export function PriceHistoryCard({ items }: { items: PricePointDto[] }) {
             <Icon size={17} color={item.change_type === "decrease" ? p.success : item.change_type === "increase" ? p.danger : p.muted} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.title, { color: p.ink }]}>{formatMoney(item.price)}</Text>
-              <Text style={[styles.caption, { color: p.muted }]}>{new Date(item.observed_at).toLocaleDateString()} Â· {Math.round(item.confidence * 100)}% confidence</Text>
+              <Text style={[styles.caption, { color: p.muted }]}>{new Date(item.observed_at).toLocaleDateString()} · {Math.round(item.confidence * 100)}% confidence</Text>
             </View>
             {item.changeAmount !== null && <Text style={[styles.badge, { color: item.changeAmount > 0 ? p.danger : p.success }]}>{item.changeAmount > 0 ? "+" : ""}{formatMoney(item.changeAmount)}</Text>}
           </View>
@@ -110,7 +110,7 @@ export function DealsCard({ items }: { items: DealDto[] }) {
               <View style={{ flex: 1 }}>
                 <Text style={[styles.title, { color: p.ink }]}>{item.title}</Text>
                 {item.description && <Text style={[styles.body, { color: p.body }]}>{item.description}</Text>}
-                {isDemo && <Text style={[styles.caption, { color: p.warning }]}>SIMULATED LOCAL DEMO</Text>}
+                {isDemo && <Text style={[styles.caption, { color: p.warning }]}>SIMULATED LOCAL SAMPLE</Text>}
                 {item.expires_at && <Text style={[styles.caption, { color: p.muted }]}>Ends {new Date(item.expires_at).toLocaleDateString()}</Text>}
               </View>
               <View style={{ alignItems: "flex-end", gap: 4 }}>
@@ -135,7 +135,7 @@ export function AlternativesCard({ items }: { items: AlternativeDto[] }) {
           <View style={{ flex: 1 }}>
             <Text style={[styles.title, { color: p.ink }]}>{item.provider_name} {item.plan_name}</Text>
             <Text style={[styles.body, { color: p.body }]}>{formatMoney(item.currentPrice)} {item.billing_cycle}</Text>
-            <Text style={[styles.caption, { color: p.muted }]}>{Math.round(item.feature_similarity * 100)}% feature match Â· switching effort {item.switching_effort}/5</Text>
+            <Text style={[styles.caption, { color: p.muted }]}>{Math.round(item.feature_similarity * 100)}% feature match · switching effort {item.switching_effort}/5</Text>
           </View>
           {item.monthlySavings !== null && <Text style={[styles.price, { color: p.success }]}>Save {formatMoney(item.monthlySavings)}/mo</Text>}
         </View>

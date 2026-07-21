@@ -82,13 +82,15 @@ async def seed_local_demo_intelligence(session: AsyncSession, settings: Settings
         provider = await session.scalar(select(Provider).where(Provider.slug == slug))
         if provider is None:
             provider = Provider(
-                name=f"Demo {subscription.vendor_name}",
+                name=f"Sample {subscription.vendor_name}",
                 slug=slug,
                 category=subscription.category,
                 policy_status="demo_fixture",
             )
             session.add(provider)
             await session.flush()
+        else:
+            provider.name = f"Sample {subscription.vendor_name}"
         source_url = f"https://demo.tamalife.local/pricing/{slug}"
         source = await session.scalar(
             select(PricingSource).where(PricingSource.canonical_url == source_url)
@@ -122,8 +124,8 @@ async def seed_local_demo_intelligence(session: AsyncSession, settings: Settings
                 provider_id=provider.id,
                 source_id=source.id,
                 external_key=external_key,
-                name=f"{subscription.display_name} — demo tracked plan",
-                normalized_name=f"demo {subscription.display_name.lower()}",
+                name=f"{subscription.display_name} — sample tracked plan",
+                normalized_name=f"sample {subscription.display_name.lower()}",
                 country="CA",
                 currency=subscription.currency,
                 billing_cycle=subscription.billing_cycle,
@@ -136,6 +138,8 @@ async def seed_local_demo_intelligence(session: AsyncSession, settings: Settings
             session.add(plan)
             await session.flush()
         else:
+            plan.name = f"{subscription.display_name} — sample tracked plan"
+            plan.normalized_name = f"sample {subscription.display_name.lower()}"
             plan.current_price = subscription.amount
             plan.monthly_equivalent = _monthly(subscription.amount, subscription.billing_cycle)
             plan.active = True
@@ -161,6 +165,11 @@ async def seed_local_demo_intelligence(session: AsyncSession, settings: Settings
                     confirmed_at=now,
                 )
             )
+        else:
+            match.method = "sample_fixture"
+            match.reason_codes = ["local_sample"]
+            match.status = MatchStatus.confirmed
+            match.confirmed_at = now
 
         evidence_hash = hashlib.sha256(
             f"demo:{subscription.id}:{subscription.amount}".encode()
@@ -205,8 +214,8 @@ async def seed_local_demo_intelligence(session: AsyncSession, settings: Settings
                     plan_id=plan.id,
                     source_id=source.id,
                     fingerprint=deal_fingerprint,
-                    title="Demo: 20% annual-plan offer",
-                    description="Simulated local demo data — not a real provider offer.",
+                    title="Sample: 20% annual-plan offer",
+                    description="Simulated local walkthrough data — not a real provider offer.",
                     regular_price=subscription.amount,
                     promotional_price=discounted,
                     currency=subscription.currency,
@@ -218,6 +227,9 @@ async def seed_local_demo_intelligence(session: AsyncSession, settings: Settings
                     review_status=ReviewStatus.auto_approved,
                 )
                 session.add(deal)
+            else:
+                deal.title = "Sample: 20% annual-plan offer"
+                deal.description = "Simulated local walkthrough data — not a real provider offer."
 
             alternative_key = f"demo-save-{subscription.id}"
             alternative_plan = await session.scalar(
@@ -234,8 +246,8 @@ async def seed_local_demo_intelligence(session: AsyncSession, settings: Settings
                     provider_id=provider.id,
                     source_id=source.id,
                     external_key=alternative_key,
-                    name="Demo Saver plan",
-                    normalized_name="demo saver plan",
+                    name="Sample Saver plan",
+                    normalized_name="sample saver plan",
                     country="CA",
                     currency=subscription.currency,
                     billing_cycle=subscription.billing_cycle,
@@ -300,6 +312,13 @@ async def seed_local_demo_intelligence(session: AsyncSession, settings: Settings
                         expires_at=now + timedelta(days=30),
                     )
                 )
+            else:
+                recommendation.recommendation_type = "sample_switch_plan"
+                recommendation.explanation = (
+                    "Sample recommendation: simulated savings preview for the "
+                    "hackathon walkthrough."
+                )
+                recommendation.reason_codes = ["local_sample"]
         seeded += 1
     await session.flush()
     return seeded
