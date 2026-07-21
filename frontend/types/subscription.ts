@@ -59,6 +59,8 @@ export type Subscription = {
   needsAttention?: boolean;
   attentionState?: "none" | "upcoming" | "urgent" | "overdue" | "resolved";
   healthReason?: string;
+  priceHikeDetected?: boolean;
+  nextTransitionAt?: string | null;
   currency?: string;
   status: "active" | "cancelled" | "renewed" | "snoozed" | "disputed";
   notes?: string;

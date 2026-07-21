@@ -15,6 +15,7 @@ import { Subscription } from "../../types/subscription";
 import { daysLabel, formatMoney, moodMeta } from "../../utils/creatureMood";
 import { Creature } from "../creatures/Creature";
 import { MoodBadge } from "./MoodBadge";
+import { PriceHikeNotice } from "./PriceHikeNotice";
 
 type Props = {
   subscription: Subscription;
@@ -112,6 +113,7 @@ export function SubscriptionCard({ subscription: s, onPress, onQuickAction }: Pr
                 : daysLabel(s.daysRemaining)}
             </Text>
           </View>
+          <PriceHikeNotice subscription={s} compact />
         </View>
       </Pressable>
 

@@ -10,6 +10,8 @@ import {
   PriceHistoryCard,
   RecommendationsCard,
 } from "../../components/price/PriceIntelligenceCards";
+import { Creature } from "../../components/creatures/Creature";
+import { PriceHikeNotice } from "../../components/subscription/PriceHikeNotice";
 import { Card } from "../../components/ui/Card";
 import { IconButton } from "../../components/ui/IconButton";
 import { Screen } from "../../components/ui/Screen";
@@ -82,11 +84,15 @@ export default function SubscriptionDetailScreen() {
         </View>
       </View>
 
+      <View style={styles.creaturePreview}>
+        <Creature species={subscription.species} mood={subscription.mood} size="medium" />
+      </View>
       <Card style={{ gap: 5 }}>
         <Text style={[styles.price, { color: p.inkStrong }]}>{formatMoney(subscription.price)} {subscription.billingInterval}</Text>
         <Text style={[styles.body, { color: p.body }]}>Renews {formatDate(subscription.nextActionDate)} Â· {daysLabel(subscription.daysRemaining)}</Text>
         <Text style={[styles.body, { color: subscription.needsAttention ? p.warning : p.success }]}>{subscription.healthReason ?? `${subscription.healthScore}% healthy`}</Text>
       </Card>
+      <PriceHikeNotice subscription={subscription} />
 
       <SectionHeader title="Verified provider match" />
       <InlineResourceState loading={pricing.intelligence.loading} error={pricing.intelligence.error?.message} onRetry={() => void pricing.intelligence.refresh()} />
@@ -145,5 +151,6 @@ const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginBottom: spacing.md },
   title: { fontFamily: fonts.pixelBold, fontSize: 22 },
   price: { fontFamily: fonts.pixelBold, fontSize: 20 },
+  creaturePreview: { alignItems: "center", marginBottom: spacing.sm },
   body: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 19 },
 });

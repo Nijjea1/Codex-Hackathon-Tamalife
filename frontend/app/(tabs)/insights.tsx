@@ -35,6 +35,9 @@ export default function InsightsScreen() {
   const recommendations = dashboard.data?.intelligence.flatMap((item) => item.recommendations)
     .filter((item) => item.status === "active" || item.status === "seen") ?? [];
   const deals = dashboard.data?.deals.flatMap((item) => item.items) ?? [];
+  const priceHikes = subscriptions.subscriptions.filter(
+    (item) => item.status === "active" && item.priceHikeDetected
+  );
 
   const feedback = async (item: RecommendationDto, helpful: boolean) => {
     setFeedbackPending(item.id);
@@ -91,6 +94,25 @@ export default function InsightsScreen() {
 
       {!dashboard.loading && dashboard.data && (
         <>
+          {priceHikes.length > 0 && (
+            <>
+              <SectionHeader title="Creatures affected by price changes" />
+              {priceHikes.map((item) => (
+                <Card
+                  key={item.id}
+                  onPress={() => router.push(`/subscription/${item.id}`)}
+                  accessibilityLabel={`Review price increase for ${item.displayName}`}
+                >
+                  <Text style={[styles.cardTitle, { color: p.ink }]}>{item.displayName}</Text>
+                  <Text style={[styles.body, { color: p.danger }]}>
+                    {item.previousPrice !== undefined
+                      ? `${formatMoney(item.previousPrice)} -> ${formatMoney(item.price)}`
+                      : `Price is now ${formatMoney(item.price)}`}
+                  </Text>
+                </Card>
+              ))}
+            </>
+          )}
           <SectionHeader title="Needs match confirmation" />
           {unmatched.length === 0 ? (
             <Card><Text style={[styles.body, { color: p.muted }]}>Every tracked subscription with pricing data is matched.</Text></Card>

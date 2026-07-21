@@ -11,6 +11,7 @@ import { QuickActions } from "../../components/dashboard/QuickActions";
 import { RecentWinCard } from "../../components/dashboard/RecentWinCard";
 import { RenewalRow } from "../../components/subscription/RenewalRow";
 import { UrgentSubscriptionCard } from "../../components/subscription/UrgentSubscriptionCard";
+import { PriceHikeNotice } from "../../components/subscription/PriceHikeNotice";
 import { AmbienceButton } from "../../components/onboarding/GardenAmbience";
 import { GardenModeButton } from "../../components/onboarding/GardenModeButton";
 import { MascotPortrait } from "../../components/onboarding/MascotPortrait";
@@ -66,6 +67,9 @@ export default function HomeScreen() {
     .filter((s) => s.status === "active")
     .sort((a, b) => a.daysRemaining - b.daysRemaining)
     .slice(0, 3);
+  const priceHikes = subscriptions.filter(
+    (s) => s.status === "active" && s.priceHikeDetected
+  );
 
   return (
     <Screen>
@@ -110,6 +114,15 @@ export default function HomeScreen() {
       <View style={{ marginTop: spacing.md }}>
         <FinancialSummary monthly={monthly} annual={annual} />
       </View>
+
+      {priceHikes.length > 0 && (
+        <>
+          <SectionHeader title="Price changes" />
+          {priceHikes.slice(0, 2).map((s) => (
+            <PriceHikeNotice key={s.id} subscription={s} />
+          ))}
+        </>
+      )}
 
       {urgent && (
         <>

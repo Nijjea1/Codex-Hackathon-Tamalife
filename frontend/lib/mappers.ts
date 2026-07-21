@@ -59,6 +59,8 @@ export function mapSubscription(dto: SubscriptionDto): Subscription {
     needsAttention: dto.needs_attention,
     attentionState: dto.attention_state,
     healthReason: dto.health_reason,
+    priceHikeDetected: dto.price_hike_detected,
+    nextTransitionAt: dto.next_transition_at,
     currency: dto.currency,
     status: dto.status === "canceled" ? "cancelled" : dto.status,
     notes: dto.notes ?? undefined,
