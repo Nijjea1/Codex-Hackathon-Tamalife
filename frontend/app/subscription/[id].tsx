@@ -130,9 +130,9 @@ export default function SubscriptionDetailScreen() {
       />
       {!!pricing.deals.data?.items.length ? <DealsCard items={pricing.deals.data.items} /> : !pricing.deals.loading && (
         <Card style={{ gap: 5 }}>
-          <Text style={[styles.price, { color: p.ink }]}>Deal watch is active</Text>
-          <Text style={[styles.body, { color: p.body }]}>We will surface official {subscription.merchant} offers here when we can verify them.</Text>
-          <Text style={[styles.caption, { color: p.muted }]}>No unverified promotions are shown as deals.</Text>
+          <Text style={[styles.price, { color: p.success }]}>No better verified deal found</Text>
+          <Text style={[styles.body, { color: p.body }]}>We checked available official {subscription.merchant} pricing and did not find an eligible deal below your recorded price.</Text>
+          <Text style={[styles.caption, { color: p.muted }]}>Deal watch stays active and will add a verified offer here if one appears.</Text>
         </Card>
       )}
 
@@ -145,9 +145,9 @@ export default function SubscriptionDetailScreen() {
       />
       {!!pricing.alternatives.data?.items.length ? <AlternativesCard items={pricing.alternatives.data.items} /> : !pricing.alternatives.loading && (
         <Card style={{ gap: 5 }}>
-          <Text style={[styles.price, { color: p.ink }]}>{formatMoney(subscription.annualCost, subscription.currency)} / year</Text>
-          <Text style={[styles.body, { color: p.body }]}>Your current annual spend for {subscription.merchant}</Text>
-          <Text style={[styles.caption, { color: p.muted }]}>Comparable official plans appear here when a verified lower-cost option is found.</Text>
+          <Text style={[styles.price, { color: p.success }]}>No better verified plan found</Text>
+          <Text style={[styles.body, { color: p.body }]}>Your current {subscription.merchant} cost is {formatMoney(subscription.annualCost, subscription.currency)} per year, and no lower-cost comparable plan was verified.</Text>
+          <Text style={[styles.caption, { color: p.muted }]}>We will replace this with savings details when a verified alternative appears.</Text>
         </Card>
       )}
 
