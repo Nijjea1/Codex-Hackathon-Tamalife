@@ -15,9 +15,14 @@ import { BillingCycleDto } from "../../types/api";
 
 const categories: SubscriptionCategory[] = [
   "Entertainment",
+  "Streaming",
+  "Music",
   "Productivity",
   "Fitness",
   "Storage",
+  "Delivery",
+  "News",
+  "Mobile",
   "Other",
 ];
 const cycles: BillingInterval[] = ["weekly", "monthly", "yearly", "trial"];
@@ -27,7 +32,7 @@ export default function EditSubscriptionScreen() {
   const router = useRouter();
   const p = useGardenPalette();
   const api = useApiClient();
-  const { subscriptions, demo, refresh } = useSubscriptionData(id);
+  const { subscriptions, demo, loading, refresh } = useSubscriptionData(id);
   const updateLocal = useSubscriptionStore((s) => s.updateSubscription);
   const showToast = useUIStore((s) => s.showToast);
   const subscription = subscriptions.find((s) => s.id === id);
@@ -40,11 +45,24 @@ export default function EditSubscriptionScreen() {
   const [renewalDate, setRenewalDate] = useState(subscription?.nextActionDate ?? "");
   const [notes, setNotes] = useState(subscription?.notes ?? "");
   const [saving, setSaving] = useState(false);
+  const [initialized, setInitialized] = useState(false);
+
+  React.useEffect(() => {
+    if (!subscription || initialized) return;
+    setName(subscription.displayName);
+    setMerchant(subscription.merchant);
+    setPrice(String(subscription.price));
+    setCategory(subscription.category);
+    setCycle(subscription.billingInterval);
+    setRenewalDate(subscription.nextActionDate);
+    setNotes(subscription.notes ?? "");
+    setInitialized(true);
+  }, [initialized, subscription]);
 
   if (!subscription) {
     return (
       <GardenScreen title="Edit" onBack={() => router.back()} scroll={false}>
-        <Text style={[styles.missing, { color: p.ink }]}>This item could not be found.</Text>
+        <Text style={[styles.missing, { color: p.ink }]}>{loading ? "Loading subscription…" : "This item could not be found."}</Text>
       </GardenScreen>
     );
   }
@@ -100,7 +118,7 @@ export default function EditSubscriptionScreen() {
       <Text style={[styles.label, { color: p.ink }]}>Merchant</Text>
       <TextInput style={inputStyle} value={merchant} onChangeText={setMerchant} placeholderTextColor={p.muted} accessibilityLabel="Merchant" />
 
-      <Text style={[styles.label, { color: p.ink }]}>Price (USD)</Text>
+      <Text style={[styles.label, { color: p.ink }]}>Price ({subscription.currency ?? "USD"})</Text>
       <TextInput style={inputStyle} value={price} onChangeText={setPrice} keyboardType="decimal-pad" placeholderTextColor={p.muted} accessibilityLabel="Price" />
 
       <Text style={[styles.label, { color: p.ink }]}>Category</Text>

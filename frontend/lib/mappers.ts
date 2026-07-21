@@ -2,25 +2,17 @@ import { SubscriptionDto } from "../types/api";
 import {
   BillingInterval,
   CreatureMood,
-  CreatureSpecies,
   Subscription,
   SubscriptionCategory,
 } from "../types/subscription";
 import { assignCreature } from "./creatureAssign";
 
-const species = new Set<CreatureSpecies>([
-  "cloud", "sprout", "blob", "ember", "egg", "gem", "penny", "milo", "nori", "benny", "tilly", "rory", "pip",
-  "delivery", "fitness", "music", "news", "phone", "video", "weather",
-]);
 const moods = new Set<CreatureMood>([
   "happy", "healthy", "concerned", "sick", "critical", "reviving", "resolved",
 ]);
 const categories = new Set<SubscriptionCategory>([
   "Entertainment", "Streaming", "Music", "Productivity", "Fitness", "Storage", "Delivery",
   "News", "Mobile", "Other",
-]);
-const subscriptionMascotSpecies = new Set<CreatureSpecies>([
-  "delivery", "fitness", "music", "news", "phone", "video", "weather",
 ]);
 
 function money(value: string | number | null | undefined): number {
@@ -33,14 +25,9 @@ export function mapSubscription(dto: SubscriptionDto): Subscription {
   const category = categories.has(dto.category as SubscriptionCategory)
     ? (dto.category as SubscriptionCategory)
     : "Other";
-  const savedSpecies = species.has(dto.creature_species as CreatureSpecies)
-    ? (dto.creature_species as CreatureSpecies)
-    : null;
-  // Legacy records were created before these PNG mascots existed. Render them
-  // with the new type-specific character without changing database history.
-  const displaySpecies = savedSpecies && subscriptionMascotSpecies.has(savedSpecies)
-    ? savedSpecies
-    : assignCreature(category, dto.vendor_name, dto.display_name).species;
+  // Character art is derived consistently from the provider/category. This
+  // repairs legacy rows whose stored species predates the type-specific PNGs.
+  const displaySpecies = assignCreature(category, dto.vendor_name, dto.display_name).species;
   return {
     id: dto.id,
     merchant: dto.vendor_name,

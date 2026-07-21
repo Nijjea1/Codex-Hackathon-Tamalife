@@ -1,4 +1,4 @@
-import { ChevronLeft } from "lucide-react-native";
+import { Archive, ChevronLeft, Pencil } from "lucide-react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
@@ -13,15 +13,17 @@ import {
 import { Creature } from "../../components/creatures/Creature";
 import { PriceHikeNotice } from "../../components/subscription/PriceHikeNotice";
 import { Card } from "../../components/ui/Card";
+import { Button } from "../../components/ui/Button";
 import { IconButton } from "../../components/ui/IconButton";
 import { Screen } from "../../components/ui/Screen";
 import { SectionHeader } from "../../components/ui/SectionHeader";
 import { useGardenPalette } from "../../constants/garden";
 import { fonts, spacing } from "../../constants/theme";
-import { ApiError } from "../../lib/api";
+import { ApiError, useApiClient } from "../../lib/api";
 import { useSubscriptionPriceIntelligence } from "../../lib/usePriceIntelligence";
 import { useSubscriptionData } from "../../lib/useSubscriptionData";
 import { useUIStore } from "../../store/useUIStore";
+import { useSubscriptionStore } from "../../store/useSubscriptionStore";
 import { RecommendationDto } from "../../types/priceIntelligence";
 import { daysLabel, formatDate, formatMoney } from "../../utils/creatureMood";
 
@@ -29,10 +31,34 @@ export default function SubscriptionDetailScreen() {
   const { id = "" } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const p = useGardenPalette();
+  const api = useApiClient();
   const showToast = useUIStore((state) => state.showToast);
+  const removeRemoteSubscription = useSubscriptionStore((state) => state.removeRemoteSubscription);
+  const archiveDemoSubscription = useSubscriptionStore((state) => state.archiveDemoSubscription);
   const subscriptionResource = useSubscriptionData(id);
   const subscription = subscriptionResource.subscriptions.find((item) => item.id === id);
   const pricing = useSubscriptionPriceIntelligence(id);
+  const renewalDate = subscription ? formatDate(subscription.nextActionDate) : "Date not set";
+  const [confirmingArchive, setConfirmingArchive] = React.useState(false);
+  const [archiving, setArchiving] = React.useState(false);
+
+  const archiveSubscription = async () => {
+    if (!subscription || archiving) return;
+    setArchiving(true);
+    try {
+      if (subscriptionResource.demo) archiveDemoSubscription(subscription.id);
+      else {
+        await api.archiveSubscription(subscription.id);
+        removeRemoteSubscription(subscription.id);
+      }
+      showToast({ message: `${subscription.displayName} was archived.`, tone: "success" });
+      router.replace("/(tabs)/garden");
+    } catch (error) {
+      showToast({ message: (error as Error).message, tone: "warning" });
+      setArchiving(false);
+      setConfirmingArchive(false);
+    }
+  };
 
   const confirm = async (status: "confirmed" | "rejected") => {
     const match = pricing.intelligence.data?.match;
@@ -89,7 +115,7 @@ export default function SubscriptionDetailScreen() {
       </View>
       <Card style={{ gap: 5 }}>
         <Text style={[styles.price, { color: p.inkStrong }]}>{formatMoney(subscription.price, subscription.currency)} {subscription.billingInterval}</Text>
-        <Text style={[styles.body, { color: p.body }]}>Renews {formatDate(subscription.nextActionDate)} · {daysLabel(subscription.daysRemaining)}</Text>
+        <Text style={[styles.body, { color: p.body }]}>{renewalDate === "Date not set" ? renewalDate : `Renews ${renewalDate} · ${daysLabel(subscription.daysRemaining)}`}</Text>
         <Text style={[styles.body, { color: subscription.needsAttention ? p.warning : p.success }]}>{subscription.healthReason ?? `${subscription.healthScore}% healthy`}</Text>
       </Card>
       <PriceHikeNotice subscription={subscription} />
@@ -158,11 +184,37 @@ export default function SubscriptionDetailScreen() {
         !pricing.intelligence.loading && (
           <Card style={{ gap: 5 }}>
             <Text style={[styles.price, { color: p.ink }]}>Review before renewal</Text>
-            <Text style={[styles.body, { color: p.body }]}>{subscription.merchant} renews {formatDate(subscription.nextActionDate)}.</Text>
+            <Text style={[styles.body, { color: p.body }]}>{renewalDate === "Date not set" ? `${subscription.merchant} needs a renewal date.` : `${subscription.merchant} renews ${renewalDate}.`}</Text>
             <Text style={[styles.caption, { color: p.muted }]}>We will add price-change and savings actions when verified intelligence arrives.</Text>
           </Card>
         )
       )}
+
+      <SectionHeader title="Manage subscription" />
+      <Card style={styles.manageCard}>
+        <Button
+          label="Edit subscription"
+          icon={<Pencil size={18} color={p.pillInk} />}
+          variant="secondary"
+          onPress={() => router.push(`/edit/${subscription.id}`)}
+        />
+        {!confirmingArchive ? (
+          <Button
+            label="Archive subscription"
+            icon={<Archive size={18} color={p.danger} />}
+            variant="danger"
+            onPress={() => setConfirmingArchive(true)}
+          />
+        ) : (
+          <View style={styles.archiveConfirmation}>
+            <Text style={[styles.body, { color: p.body }]}>Archive this subscription? It will leave your active Garden without deleting your account.</Text>
+            <View style={styles.archiveActions}>
+              <Button label="Keep it" variant="secondary" disabled={archiving} onPress={() => setConfirmingArchive(false)} style={styles.manageAction} />
+              <Button label="Archive" variant="danger" loading={archiving} onPress={() => void archiveSubscription()} style={styles.manageAction} />
+            </View>
+          </View>
+        )}
+      </Card>
     </Screen>
   );
 }
@@ -175,4 +227,8 @@ const styles = StyleSheet.create({
   caption: { fontFamily: fonts.medium, fontSize: 11, lineHeight: 16 },
   creaturePreview: { alignItems: "center", marginBottom: spacing.sm },
   body: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 19 },
+  manageCard: { gap: spacing.sm },
+  archiveConfirmation: { gap: spacing.sm },
+  archiveActions: { flexDirection: "row", gap: spacing.sm },
+  manageAction: { flex: 1 },
 });

@@ -22,12 +22,12 @@ import { Screen } from "../../components/ui/Screen";
 import { SectionHeader } from "../../components/ui/SectionHeader";
 import { useGardenPalette } from "../../constants/garden";
 import { fonts, spacing } from "../../constants/theme";
-import { usePriceDashboardItems, usePriceIntelligenceSummary } from "../../lib/usePriceIntelligence";
+import { usePriceDashboardItems } from "../../lib/usePriceIntelligence";
 import { useSubscriptionData } from "../../lib/useSubscriptionData";
 import { useUIStore } from "../../store/useUIStore";
 import { DealDto, RecommendationDto, SubscriptionIntelligenceDto } from "../../types/priceIntelligence";
 import { Subscription } from "../../types/subscription";
-import { daysLabel, formatMoney } from "../../utils/creatureMood";
+import { billingSuffix, daysLabel, formatMoney } from "../../utils/creatureMood";
 
 const asNumber = (value: string | null | undefined) => {
   const parsed = Number(value);
@@ -50,8 +50,8 @@ export default function InsightsScreen() {
   const router = useRouter();
   const currency = useUIStore((state) => state.currency);
   const subscriptions = useSubscriptionData();
-  const summary = usePriceIntelligenceSummary();
   const dashboard = usePriceDashboardItems(subscriptions.subscriptions.map((item) => item.id));
+  const summary = dashboard.data?.summary;
 
   const activeSubscriptions = React.useMemo(
     () => subscriptions.subscriptions.filter((subscription) => subscription.status === "active"),
@@ -75,11 +75,11 @@ export default function InsightsScreen() {
     .sort((a, b) => Number(b.priceHikeDetected || b.needsAttention) - Number(a.priceHikeDetected || a.needsAttention) || a.daysRemaining - b.daysRemaining), [activeSubscriptions]);
 
   const monthlySpend = activeSubscriptions.reduce((total, item) => total + (item.monthlyCost ?? item.price), 0);
-  const monthlySavings = asNumber(summary.data?.estimated_monthly_savings);
-  const annualSavings = asNumber(summary.data?.estimated_annual_savings);
-  const priceChanges = summary.data?.price_change_count ?? activeSubscriptions.filter((item) => item.priceHikeDetected).length;
-  const loading = subscriptions.loading || dashboard.loading || summary.loading;
-  const error = subscriptions.error ?? dashboard.error?.message ?? summary.error?.message;
+  const monthlySavings = asNumber(summary?.estimated_monthly_savings);
+  const annualSavings = asNumber(summary?.estimated_annual_savings);
+  const priceChanges = summary?.price_change_count ?? activeSubscriptions.filter((item) => item.priceHikeDetected).length;
+  const loading = subscriptions.loading || dashboard.loading;
+  const error = subscriptions.error ?? dashboard.error?.message;
   return (
     <Screen contentStyle={styles.screen}>
       <View style={styles.header}>
@@ -92,9 +92,9 @@ export default function InsightsScreen() {
       </View>
 
       <InlineResourceState
-        loading={summary.loading}
-        error={summary.error?.message}
-        onRetry={() => void summary.refresh()}
+        loading={dashboard.loading}
+        error={dashboard.error?.message}
+        onRetry={() => void dashboard.refresh()}
       />
       {!loading && !error && activeSubscriptions.length === 0 ? (
         <Card raised style={styles.emptyCard}>
@@ -124,7 +124,7 @@ export default function InsightsScreen() {
               <Metric value={formatMoney(annualSavings, currency)} label="YEARLY OPPORTUNITY" />
               <Metric value={String(priceChanges)} label="PRICE CHANGES" />
             </View>
-            <Text style={[styles.freshness, { color: p.muted }]}>{checkedLabel(summary.data?.generated_at)} · {activeSubscriptions.length} subscriptions watched</Text>
+            <Text style={[styles.freshness, { color: p.muted }]}>{checkedLabel(summary?.generated_at)} · {activeSubscriptions.length} subscriptions watched</Text>
           </Card>
 
           <SectionHeader title="Needs attention" />
@@ -250,7 +250,7 @@ function SubscriptionRow({ subscription, intelligence, currency, onPress }: {
       </View>
       <View style={styles.priceColumn}>
         <Text style={[styles.rowPrice, { color: p.ink }]}>{formatMoney(currentPrice, subscription.currency ?? currency)}</Text>
-        <Text style={[styles.caption, { color: p.muted }]}>{subscription.billingInterval === "yearly" ? "/yr" : "/mo"}</Text>
+        <Text style={[styles.caption, { color: p.muted }]}>{billingSuffix(subscription.billingInterval)}</Text>
       </View>
       <ChevronRight size={18} color={p.muted} />
     </Card>

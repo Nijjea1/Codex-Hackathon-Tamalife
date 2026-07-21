@@ -66,7 +66,7 @@ export default function ProfileScreen() {
   const demoMode = useDemoModeStore((s) => s.active);
   const leaveDemo = useDemoModeStore((s) => s.leave);
   const resetRemoteState = useSubscriptionStore((s) => s.resetRemoteState);
-  const { subscriptions } = useSubscriptionData();
+  const { subscriptions, loading: subscriptionsLoading } = useSubscriptionData();
   const stats = portfolioStats(subscriptions);
   const api = useApiClient();
   const [exporting, setExporting] = useState(false);
@@ -153,6 +153,16 @@ export default function ProfileScreen() {
   ];
   const unlockedCount = friends.filter((f) => f.unlocked).length;
 
+  if (subscriptionsLoading && subscriptions.length === 0) {
+    return (
+      <Screen contentStyle={styles.loadingScreen}>
+        <GardenKicker>YOUR PROFILE</GardenKicker>
+        <Text style={[styles.title, { color: p.ink }]}>Restoring your profile</Text>
+        <Card><Text style={[styles.profileSub, { color: p.body }]}>Loading your account and garden…</Text></Card>
+      </Screen>
+    );
+  }
+
   return (
     <Screen>
       <View style={styles.header}>
@@ -173,7 +183,9 @@ export default function ProfileScreen() {
         <View style={{ flex: 1 }}>
           <Text style={[styles.profileName, { color: p.ink }]}>{userName}</Text>
           <Text style={[styles.profileSub, { color: p.body }]}>
-            Lv. {stats.level} {stats.levelLabel} · {stats.count} creature{stats.count === 1 ? "" : "s"}
+            {subscriptionsLoading && subscriptions.length === 0
+              ? "Loading your garden…"
+              : `Lv. ${stats.level} ${stats.levelLabel} · ${subscriptions.length} creature${subscriptions.length === 1 ? "" : "s"}`}
           </Text>
         </View>
       </Card>
@@ -305,6 +317,7 @@ export default function ProfileScreen() {
 }
 
 const styles = StyleSheet.create({
+  loadingScreen: { gap: spacing.sm, justifyContent: "center" },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",

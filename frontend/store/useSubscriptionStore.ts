@@ -13,6 +13,7 @@ type SubscriptionState = {
   updateSubscription: (id: string, patch: Partial<Subscription>) => void;
   upsertRemoteSubscription: (subscription: Subscription) => void;
   removeRemoteSubscription: (id: string) => void;
+  archiveDemoSubscription: (id: string) => void;
   resetRemoteState: () => void;
   totalMonthly: () => number;
   totalAnnual: () => number;
@@ -70,6 +71,11 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
   removeRemoteSubscription: (id) =>
     set((state) => ({
       remoteSubscriptions: state.remoteSubscriptions.filter((item) => item.id !== id),
+    })),
+  archiveDemoSubscription: (id) =>
+    set((state) => ({
+      subscriptions: state.subscriptions.filter((item) => item.id !== id),
+      selectedSubscriptionId: state.selectedSubscriptionId === id ? null : state.selectedSubscriptionId,
     })),
   resetRemoteState: () =>
     set({

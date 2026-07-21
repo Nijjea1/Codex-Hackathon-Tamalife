@@ -20,6 +20,7 @@ import {
   MatchConfirmationRequestDto,
   MatchConfirmationResponseDto,
   PriceHistoryResponseDto,
+  PriceIntelligenceDashboardDto,
   PriceIntelligenceSummaryDto,
   RecommendationDto,
   RecommendationFeedbackRequestDto,
@@ -227,6 +228,8 @@ export function useApiClient() {
       dashboardSummary: () => raw<DashboardSummaryDto>("/v1/dashboard/summary"),
       priceIntelligenceSummary: (signal?: AbortSignal) =>
         raw<PriceIntelligenceSummaryDto>("/v1/price-intelligence/summary", { signal }),
+      priceIntelligenceDashboard: (signal?: AbortSignal) =>
+        raw<PriceIntelligenceDashboardDto>("/v1/price-intelligence/dashboard", { signal }),
       subscriptionIntelligence: (id: string, signal?: AbortSignal) =>
         raw<SubscriptionIntelligenceDto>(`/v1/subscriptions/${encodeURIComponent(id)}/intelligence`, { signal }),
       priceHistory: (id: string, signal?: AbortSignal) =>

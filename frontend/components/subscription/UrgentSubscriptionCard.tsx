@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { fonts, spacing } from "../../constants/theme";
 import { useGardenPalette } from "../../constants/garden";
 import { Subscription } from "../../types/subscription";
-import { daysLabel, formatMoney } from "../../utils/creatureMood";
+import { billingSuffix, daysLabel, formatMoney } from "../../utils/creatureMood";
 import { Creature } from "../creatures/Creature";
 import { Button } from "../ui/Button";
 
@@ -32,7 +32,7 @@ export function UrgentSubscriptionCard({ subscription: s, onReview, onSnooze }: 
             {s.merchant} {s.billingInterval === "trial" ? "ends" : "renews"}{" "}
             {daysLabel(s.daysRemaining).toLowerCase()}
           </Text>
-          <Text style={[styles.price, { color: p.danger }]}>{formatMoney(s.price, s.currency)}/month</Text>
+          <Text style={[styles.price, { color: p.danger }]}>{formatMoney(s.price, s.currency)}{billingSuffix(s.billingInterval)}</Text>
         </View>
       </View>
       <View style={styles.actions}>

@@ -107,8 +107,25 @@ export function formatMoney(value: number, currency = "USD"): string {
 }
 
 export function formatDate(iso: string): string {
-  const d = new Date(iso + "T12:00:00");
+  if (!iso.trim()) return "Date not set";
+  const d = /^\d{4}-\d{2}-\d{2}$/.test(iso)
+    ? new Date(`${iso}T12:00:00`)
+    : new Date(iso);
+  if (Number.isNaN(d.getTime())) return "Date not set";
   return d.toLocaleDateString("en-US", { month: "long", day: "numeric" });
+}
+
+export function billingSuffix(interval: Subscription["billingInterval"]): string {
+  switch (interval) {
+    case "weekly":
+      return "/wk";
+    case "yearly":
+      return "/yr";
+    case "trial":
+      return "/trial";
+    default:
+      return "/mo";
+  }
 }
 
 export function daysLabel(days: number): string {

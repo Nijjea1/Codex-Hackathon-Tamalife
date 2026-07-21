@@ -104,6 +104,25 @@ export type PriceIntelligenceSummaryDto = {
   estimated_annual_savings: string;
   generated_at: string;
 };
+export type PriceIntelligenceDashboardDto = {
+  summary: PriceIntelligenceSummaryDto;
+  subscriptions: Array<{
+    subscription_id: string;
+    vendor_name: string;
+    display_name: string;
+    current_amount: string;
+    currency: string;
+    billing_cycle: BillingCycleDto;
+    renewal_or_expiry_date: string | null;
+    creature_name: string;
+    creature_species: string;
+    match: MerchantMatchDto | null;
+    latest_price: PricePointDto | null;
+    active_deal_count: number;
+    recommendations: RecommendationDto[];
+  }>;
+  generated_at: string;
+};
 export type MatchConfirmationRequestDto = {
   match_id: string;
   status: "confirmed" | "rejected" | "unmatched";

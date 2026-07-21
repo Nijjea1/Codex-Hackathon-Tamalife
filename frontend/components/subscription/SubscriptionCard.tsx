@@ -12,7 +12,7 @@ import Animated, {
 import { fonts, spacing } from "../../constants/theme";
 import { useGardenPalette } from "../../constants/garden";
 import { Subscription } from "../../types/subscription";
-import { daysLabel, formatMoney, moodMeta } from "../../utils/creatureMood";
+import { billingSuffix, daysLabel, formatMoney, moodMeta } from "../../utils/creatureMood";
 import { Creature } from "../creatures/Creature";
 import { MoodBadge } from "./MoodBadge";
 
@@ -77,8 +77,9 @@ export function SubscriptionCard({ subscription: s, onPress, onQuickAction }: Pr
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${s.creatureName}, ${s.displayName}, ${meta.label}, ${formatMoney(
-          s.price
-        )} monthly, next event ${daysLabel(s.daysRemaining)}`}
+          s.price,
+          s.currency,
+        )}${billingSuffix(s.billingInterval)}, next event ${daysLabel(s.daysRemaining)}`}
         onPress={onPress}
         onLongPress={handleLongPress}
         onPressIn={() => (scale.value = withSpring(0.97, { damping: 16 }))}
@@ -108,7 +109,7 @@ export function SubscriptionCard({ subscription: s, onPress, onQuickAction }: Pr
             {s.displayName}
           </Text>
           <View style={styles.metaRow}>
-            <Text style={[styles.price, { color: p.inkStrong }]}>{formatMoney(s.price, s.currency)}/mo</Text>
+            <Text style={[styles.price, { color: p.inkStrong }]}>{formatMoney(s.price, s.currency)}{billingSuffix(s.billingInterval)}</Text>
             <Text style={[styles.days, { color: meta.color }]}>
               {s.status === "cancelled"
                 ? "Cancelled"

@@ -238,6 +238,7 @@ export function useSubscriptionPriceIntelligence(subscriptionId: string) {
 }
 
 export type DashboardIntelligence = {
+  summary: PriceIntelligenceSummaryDto;
   intelligence: SubscriptionIntelligenceDto[];
   deals: DealsResponseDto[];
 };
@@ -246,11 +247,20 @@ export function usePriceDashboardItems(subscriptionIds: string[]) {
   const api = useApiClient();
   const key = subscriptionIds.join(",");
   const loader = useCallback(async (signal: AbortSignal): Promise<DashboardIntelligence> => {
-    const ids = key ? key.split(",") : [];
-    const intelligence = await Promise.all(ids.map((id) => api.subscriptionIntelligence(id, signal)));
+    const ids = new Set(key ? key.split(",") : []);
+    const payload = await api.priceIntelligenceDashboard(signal);
+    const intelligence = payload.subscriptions
+      .filter((item) => ids.has(item.subscription_id))
+      .map((item): SubscriptionIntelligenceDto => ({
+        subscription_id: item.subscription_id,
+        match: item.match,
+        latest_price: item.latest_price,
+        recommendations: item.recommendations,
+        generated_at: payload.generated_at,
+      }));
     const confirmed = intelligence.filter((item) => item.match?.status === "confirmed");
     const deals = await Promise.all(confirmed.map((item) => api.subscriptionDeals(item.subscription_id, signal)));
-    return { intelligence, deals };
+    return { summary: payload.summary, intelligence, deals };
   }, [api, key]);
-  return useResource<DashboardIntelligence>(loader, { intelligence: [], deals: [] });
+  return useResource<DashboardIntelligence>(loader, { summary: emptySummary, intelligence: [], deals: [] });
 }

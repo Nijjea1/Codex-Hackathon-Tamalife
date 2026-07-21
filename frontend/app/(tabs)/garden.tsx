@@ -54,7 +54,7 @@ export default function GardenScreen() {
         <View>
           <GardenKicker>TODAY'S GARDEN</GardenKicker>
           <Text style={[styles.title, { color: p.ink }]}>My Garden</Text>
-          <Text style={[styles.sub, { color: p.body }]}>{subscriptions.length} creatures growing</Text>
+          <Text style={[styles.sub, { color: p.body }]}>{loading && subscriptions.length === 0 ? "Loading creatures…" : `${subscriptions.length} creatures growing`}</Text>
         </View>
         <View style={{ flexDirection: "row", gap: spacing.sm, alignItems: "center" }}>
           <AmbienceButton compact />
@@ -96,12 +96,15 @@ export default function GardenScreen() {
         ))}
       </ScrollView>
 
-      {filtered.length === 0 ? (
+      {!loading && filtered.length === 0 ? (
         <EmptyState
           title="No creatures here"
           message="Nothing matches this filter right now — which is usually good news."
           actionLabel="Show all creatures"
-          onAction={() => setFilter("All")}
+          onAction={() => {
+            setFilter("All");
+            setQuery("");
+          }}
         />
       ) : (
         <View style={styles.columns}>

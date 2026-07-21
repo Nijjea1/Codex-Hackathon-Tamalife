@@ -19,6 +19,7 @@ import { IconButton } from "../../components/ui/IconButton";
 import { Screen } from "../../components/ui/Screen";
 import { SectionHeader } from "../../components/ui/SectionHeader";
 import { GardenKicker } from "../../components/ui/GardenKit";
+import { Card } from "../../components/ui/Card";
 import { useAuthStore } from "../../store/useAuthStore";
 import { useSubscriptionStore } from "../../store/useSubscriptionStore";
 import { useUIStore } from "../../store/useUIStore";
@@ -42,6 +43,7 @@ export default function HomeScreen() {
   const { subscriptions, loading, error, resolve: resolveSubscription, demo } = useSubscriptionData();
   const lastSaving = useSubscriptionStore((s) => s.lastSaving);
   const showToast = useUIStore((s) => s.showToast);
+  const reducedMotion = useUIStore((s) => s.reducedMotion);
   const api = useApiClient();
   const [summary, setSummary] = React.useState<DashboardSummaryDto | null>(null);
 
@@ -54,7 +56,7 @@ export default function HomeScreen() {
 
   const active = subscriptions.filter((s) => s.status !== "cancelled");
   const localMonthly = active.reduce(
-    (sum, s) => sum + (s.billingInterval === "yearly" ? s.price / 12 : s.price),
+    (sum, s) => sum + (s.monthlyCost ?? (s.billingInterval === "yearly" ? s.price / 12 : s.billingInterval === "weekly" ? s.price * 52 / 12 : s.price)),
     0
   );
   const localAnnual = active.reduce((sum, s) => sum + s.annualCost, 0);
@@ -74,6 +76,16 @@ export default function HomeScreen() {
   );
 
   const stats = portfolioStats(subscriptions);
+
+  if (loading && subscriptions.length === 0) {
+    return (
+      <Screen contentStyle={styles.loadingScreen}>
+        <GardenKicker>{greeting().toUpperCase()}</GardenKicker>
+        <Text style={[styles.name, { color: p.ink }]}>Restoring your garden</Text>
+        <Card><Text style={[styles.status, { color: p.body }]}>Loading your subscriptions and totals…</Text></Card>
+      </Screen>
+    );
+  }
 
   return (
     <Screen>
@@ -114,7 +126,7 @@ export default function HomeScreen() {
       {loading && <Text style={[styles.status, { color: p.muted }]}>Loading your garden…</Text>}
       {error && <Text style={[styles.status, { color: p.danger }]}>{error}</Text>}
 
-      <Animated.View entering={FadeInDown.duration(480)}>
+      <Animated.View entering={reducedMotion ? undefined : FadeInDown.duration(480)}>
         <GardenHero
           subscriptions={subscriptions}
           onCreaturePress={(id) => router.push(`/creature/${id}`)}
@@ -211,4 +223,5 @@ const styles = StyleSheet.create({
   controls: { flexDirection: "row", alignItems: "center", gap: 7 },
   miniControls: { flexDirection: "row", justifyContent: "flex-end", gap: 7, marginBottom: spacing.sm },
   status: { fontFamily: fonts.medium, fontSize: 13, marginBottom: spacing.sm },
+  loadingScreen: { gap: spacing.sm, justifyContent: "center" },
 });
