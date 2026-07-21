@@ -28,12 +28,6 @@ import { useDemoModeStore } from "../../store/useDemoModeStore";
 import { useSubscriptionData } from "../../lib/useSubscriptionData";
 import { portfolioStats } from "../../lib/portfolio";
 
-const lockedMascots: { name: string; id: string }[] = [
-  { name: "???", id: "rolo" },
-  { name: "???", id: "twinkle" },
-  { name: "???", id: "bucky" },
-];
-
 export default function ProfileScreen() {
   const router = useRouter();
   const p = useGardenPalette();
@@ -79,12 +73,23 @@ export default function ProfileScreen() {
   const onRowPress = (label: string) => {
     if (label === "Notification preferences") {
       router.push("/notification-preferences");
+    } else if (label === "Help") {
+      router.push("/help");
     } else if (label === "Appearance") {
       setOnboardingTheme(onboardingTheme === "day" ? "night" : "day");
     } else {
       showToast({ message: `${label} is not available yet`, tone: "info" });
     }
   };
+
+  // Creature friends unlock as the garden grows — all derived from real data.
+  const resolvedCount = subscriptions.filter((s) => s.status === "cancelled" || s.status === "renewed").length;
+  const friends = [
+    { id: "rolo", name: "Rolo", requirement: "Track 3 subscriptions", current: Math.min(stats.count, 3), goal: 3, unlocked: stats.count >= 3 },
+    { id: "twinkle", name: "Twinkle", requirement: "Reach Level 3", current: Math.min(stats.level, 3), goal: 3, unlocked: stats.level >= 3 },
+    { id: "bucky", name: "Bucky", requirement: "Resolve 3 renewals", current: Math.min(resolvedCount, 3), goal: 3, unlocked: resolvedCount >= 3 },
+  ];
+  const unlockedCount = friends.filter((f) => f.unlocked).length;
 
   return (
     <Screen>
@@ -148,22 +153,42 @@ export default function ProfileScreen() {
         ))}
       </Card>
 
-      <SectionHeader title="Creature collection" />
-      <Card>
-        <Text style={[styles.rowNote, { color: p.body, marginBottom: spacing.sm, fontSize: 13 }]}>
-          Future friends you haven't met yet.
+      <SectionHeader title="Creature friends" />
+      <Card style={{ gap: spacing.sm }}>
+        <Text style={[styles.collectionLead, { color: p.body }]}>
+          Grow your garden to unlock new friends — you've unlocked {unlockedCount}/{friends.length}.
+          Here's how to meet the rest:
         </Text>
-        <View style={styles.lockedRow}>
-          {lockedMascots.map((l, i) => (
-            <View key={i} style={styles.lockedSlot}>
-              <View style={styles.silhouette}>
-                <MascotPortrait id={l.id} size={64} />
-                <View style={[styles.silhouetteCover, { backgroundColor: p.cardBgSolid }]} />
-              </View>
-              <Text style={[styles.rowNote, { color: p.muted }]}>{l.name}</Text>
+        {friends.map((f) => (
+          <View key={f.id} style={[styles.friendRow, { borderTopWidth: 1.5, borderTopColor: p.cardBorder }]}>
+            <View style={[styles.friendPortrait, { opacity: f.unlocked ? 1 : 0.9 }]}>
+              <MascotPortrait id={f.id} size={56} />
+              {!f.unlocked && <View style={[styles.friendCover, { backgroundColor: p.cardBgSolid }]} />}
+              {!f.unlocked && (
+                <View style={styles.lockBadge}>
+                  <Lock size={14} color={p.muted} strokeWidth={2.6} />
+                </View>
+              )}
             </View>
-          ))}
-        </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.friendName, { color: f.unlocked ? p.ink : p.muted }]}>
+                {f.unlocked ? f.name : "???"}
+              </Text>
+              {f.unlocked ? (
+                <Text style={[styles.friendReq, { color: p.success }]}>Unlocked!</Text>
+              ) : (
+                <>
+                  <Text style={[styles.friendReq, { color: p.body }]}>
+                    {f.requirement} · {f.current}/{f.goal}
+                  </Text>
+                  <View style={[styles.progressTrack, { backgroundColor: p.warningBg }]}>
+                    <View style={[styles.progressFill, { backgroundColor: p.gold, width: `${(f.current / f.goal) * 100}%` }]} />
+                  </View>
+                </>
+              )}
+            </View>
+          </View>
+        ))}
       </Card>
 
       <Pressable
@@ -220,14 +245,15 @@ const styles = StyleSheet.create({
   },
   rowLabel: { fontFamily: fonts.pixelBold, fontSize: 14 },
   rowNote: { fontFamily: fonts.medium, fontSize: 11 },
-  lockedRow: { flexDirection: "row", gap: spacing.md },
-  lockedSlot: { alignItems: "center", gap: 4 },
-  silhouette: { position: "relative", borderRadius: 12, overflow: "hidden" },
-  silhouetteCover: {
-    position: "absolute", top: 0, left: 0, right: 0, bottom: 0,
-    opacity: 0.8,
-    borderRadius: 12,
-  },
+  collectionLead: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 19 },
+  friendRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingTop: spacing.sm },
+  friendPortrait: { width: 56, height: 56, borderRadius: 12, overflow: "hidden", justifyContent: "center", alignItems: "center" },
+  friendCover: { position: "absolute", top: 0, left: 0, right: 0, bottom: 0, opacity: 0.82, borderRadius: 12 },
+  lockBadge: { position: "absolute" },
+  friendName: { fontFamily: fonts.pixelBold, fontSize: 15 },
+  friendReq: { fontFamily: fonts.medium, fontSize: 12, marginTop: 2 },
+  progressTrack: { height: 8, borderRadius: 6, overflow: "hidden", marginTop: 6 },
+  progressFill: { height: "100%", borderRadius: 6 },
   signOut: {
     flexDirection: "row",
     alignItems: "center",

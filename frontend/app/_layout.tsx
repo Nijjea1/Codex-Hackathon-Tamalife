@@ -92,6 +92,7 @@ function AuthenticatedNavigation() {
                 <Stack.Screen name="subscription/[id]" />
                 <Stack.Screen name="edit/[id]" />
                 <Stack.Screen name="notification-preferences" />
+                <Stack.Screen name="help" />
               </Stack.Protected>
             </Stack>
             <ToastHost />
