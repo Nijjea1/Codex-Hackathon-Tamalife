@@ -50,6 +50,7 @@ export function MerchantMatchCard({
 }) {
   const p = useGardenPalette();
   if (!match) return <Card><Text style={[styles.body, { color: p.muted }]}>No verified provider match yet.</Text></Card>;
+  const isDemo = match.method === "demo_fixture";
   const confidence = `${Math.round(match.confidence * 100)}% match`;
   return (
     <Card style={{ gap: spacing.sm }}>
@@ -59,10 +60,12 @@ export function MerchantMatchCard({
           <Text style={[styles.body, { color: p.body }]}>{match.plan_name} Â· {confidence}</Text>
         </View>
         <Text style={[styles.badge, { color: match.status === "confirmed" ? p.success : p.warning }]}>
-          {match.status.toUpperCase()}
+          {isDemo ? "LOCAL DEMO" : match.status.toUpperCase()}
         </Text>
       </View>
-      <Text style={[styles.caption, { color: p.muted }]}>Matched automatically from verified pricing data.</Text>
+      <Text style={[styles.caption, { color: p.muted }]}>
+        {isDemo ? "Simulated local data for the product walkthrough — not a provider claim." : "Matched automatically from verified pricing data."}
+      </Text>
     </Card>
   );
 }
@@ -99,18 +102,20 @@ export function DealsCard({ items }: { items: DealDto[] }) {
     <View style={{ gap: spacing.sm }}>
       {items.map((raw) => {
         const item = mapDeal(raw);
+        const isDemo = item.source.source_url.includes("demo.tamalife.local");
         const price = item.promotionalPrice ?? item.regularPrice;
         return (
-          <Card key={item.id} onPress={() => void open(item.source.source_url)} accessibilityLabel={`Open ${item.title} deal`}>
+          <Card key={item.id} onPress={isDemo ? undefined : () => void open(item.source.source_url)} accessibilityLabel={isDemo ? item.title : `Open ${item.title} deal`}>
             <View style={styles.rowBetween}>
               <View style={{ flex: 1 }}>
                 <Text style={[styles.title, { color: p.ink }]}>{item.title}</Text>
                 {item.description && <Text style={[styles.body, { color: p.body }]}>{item.description}</Text>}
+                {isDemo && <Text style={[styles.caption, { color: p.warning }]}>SIMULATED LOCAL DEMO</Text>}
                 {item.expires_at && <Text style={[styles.caption, { color: p.muted }]}>Ends {new Date(item.expires_at).toLocaleDateString()}</Text>}
               </View>
               <View style={{ alignItems: "flex-end", gap: 4 }}>
                 {price !== null && <Text style={[styles.price, { color: p.success }]}>{formatMoney(price)}</Text>}
-                <ExternalLink size={16} color={p.accent} />
+                {!isDemo && <ExternalLink size={16} color={p.accent} />}
               </View>
             </View>
           </Card>

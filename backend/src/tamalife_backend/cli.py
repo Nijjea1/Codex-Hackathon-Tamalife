@@ -33,6 +33,23 @@ def seed() -> None:
     asyncio.run(_seed())
 
 
+async def _seed_demo_intelligence() -> None:
+    from tamalife_backend.services.demo_intelligence import seed_local_demo_intelligence
+
+    settings = get_settings()
+    engine = create_engine(settings)
+    factory = create_session_factory(engine)
+    async with factory() as session:
+        seeded = await seed_local_demo_intelligence(session, settings)
+        await session.commit()
+    await engine.dispose()
+    print(f"Seeded simulated local intelligence for {seeded} subscriptions.")
+
+
+def seed_demo_intelligence() -> None:
+    asyncio.run(_seed_demo_intelligence())
+
+
 def scrape_once() -> None:
     parser = argparse.ArgumentParser(
         description="Run Tamalife price intelligence once without Redis or Celery."
