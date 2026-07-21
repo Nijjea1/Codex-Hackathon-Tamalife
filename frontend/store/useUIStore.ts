@@ -35,6 +35,9 @@ export const useUIStore = create<UIState>((set) => ({
   setAmbienceEnabled: (ambienceEnabled) => set({ ambienceEnabled }),
   setOnboardingStep: (step) => set({ onboardingStep: step }),
   setShowCelebration: (value) => set({ showCelebration: value }),
-  showToast: (toast) => set({ toast }),
+  showToast: (toast) => {
+    if (!toast.message.trim()) return;
+    set({ toast });
+  },
   hideToast: () => set({ toast: null }),
 }));
