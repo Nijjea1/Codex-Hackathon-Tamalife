@@ -94,8 +94,16 @@ export function healthExplanation(sub: Subscription): string {
   }
 }
 
-export function formatMoney(value: number): string {
-  return `$${value.toFixed(2)}`;
+export function formatMoney(value: number, currency = "USD"): string {
+  try {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: currency.toUpperCase(),
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch {
+    return `${currency.toUpperCase()} ${value.toFixed(2)}`;
+  }
 }
 
 export function formatDate(iso: string): string {

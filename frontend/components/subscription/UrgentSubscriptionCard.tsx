@@ -32,7 +32,7 @@ export function UrgentSubscriptionCard({ subscription: s, onReview, onSnooze }: 
             {s.merchant} {s.billingInterval === "trial" ? "ends" : "renews"}{" "}
             {daysLabel(s.daysRemaining).toLowerCase()}
           </Text>
-          <Text style={[styles.price, { color: accent }]}>{formatMoney(s.price)}/month</Text>
+          <Text style={[styles.price, { color: p.danger }]}>{formatMoney(s.price, s.currency)}/month</Text>
         </View>
       </View>
       <View style={styles.actions}>

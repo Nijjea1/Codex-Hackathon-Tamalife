@@ -102,7 +102,7 @@ export function SubscriptionCard({ subscription: s, onPress, onQuickAction }: Pr
             {s.displayName}
           </Text>
           <View style={styles.metaRow}>
-            <Text style={[styles.price, { color: p.inkStrong }]}>{formatMoney(s.price)}/mo</Text>
+            <Text style={[styles.price, { color: p.inkStrong }]}>{formatMoney(s.price, s.currency)}/mo</Text>
             <Text style={[styles.days, { color: meta.color }]}>
               {s.status === "cancelled"
                 ? "Cancelled"

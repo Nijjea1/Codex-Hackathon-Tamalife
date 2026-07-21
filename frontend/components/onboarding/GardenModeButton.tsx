@@ -6,14 +6,19 @@ import { useGardenClickSound } from "./GardenAmbience";
 
 export function GardenModeButton({ compact = false }: { compact?: boolean }) {
   const theme = useUIStore((s) => s.onboardingTheme);
+  const reducedMotion = useUIStore((s) => s.reducedMotion);
   const setTheme = useUIStore((s) => s.setOnboardingTheme);
   const playClick = useGardenClickSound();
   const isDay = theme === "day";
   const daylight = useSharedValue(isDay ? 1 : 0);
 
   useEffect(() => {
-    daylight.value = withTiming(isDay ? 1 : 0, { duration: 950, easing: Easing.inOut(Easing.quad), reduceMotion: ReduceMotion.Never });
-  }, [daylight, isDay]);
+    daylight.value = withTiming(isDay ? 1 : 0, {
+      duration: 950,
+      easing: Easing.inOut(Easing.quad),
+      reduceMotion: reducedMotion ? ReduceMotion.Always : ReduceMotion.Never,
+    });
+  }, [daylight, isDay, reducedMotion]);
 
   const sunStyle = useAnimatedStyle(() => ({ opacity: daylight.value, transform: [{ translateY: (1 - daylight.value) * 27 }, { rotate: `${(1 - daylight.value) * 90}deg` }] }));
   const moonStyle = useAnimatedStyle(() => ({ opacity: 1 - daylight.value, transform: [{ translateY: daylight.value * 27 }, { rotate: `${daylight.value * -70}deg` }] }));

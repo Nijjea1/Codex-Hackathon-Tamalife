@@ -31,8 +31,8 @@ export function PriceHikeNotice({ subscription, compact = false }: { subscriptio
         <Text style={[styles.title, { color: accent }]}>PRICE INCREASE</Text>
         <Text style={[styles.body, { color: ink }]}>
           {previous !== undefined
-            ? `${formatMoney(previous)} → ${formatMoney(subscription.price)}${increase !== null ? ` (+${formatMoney(increase)})` : ""}`
-            : `Now ${formatMoney(subscription.price)} — review before renewal.`}
+            ? `${formatMoney(previous, subscription.currency)} -> ${formatMoney(subscription.price, subscription.currency)}${increase !== null ? ` (+${formatMoney(increase, subscription.currency)})` : ""}`
+            : `Now ${formatMoney(subscription.price, subscription.currency)} — review before renewal.`}
         </Text>
       </View>
     </View>

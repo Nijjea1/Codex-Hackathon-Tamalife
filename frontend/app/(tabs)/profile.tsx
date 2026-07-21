@@ -1,17 +1,18 @@
 import { useClerk } from "@clerk/expo";
 import { useRouter } from "expo-router";
+import * as Print from "expo-print";
+import * as Sharing from "expo-sharing";
 import {
   Bell,
   ChevronRight,
   CircleDollarSign,
   Download,
   HelpCircle,
-  Lock,
   LogOut,
   Palette,
 } from "lucide-react-native";
-import React from "react";
-import { Pressable, StyleSheet, Switch, Text, View } from "react-native";
+import React, { useState } from "react";
+import { Modal, Platform, Pressable, StyleSheet, Switch, Text, View } from "react-native";
 import { fonts, spacing } from "../../constants/theme";
 import { useGardenPalette } from "../../constants/garden";
 import { AccountCard } from "../../components/AccountCard";
@@ -26,7 +27,25 @@ import { useAuthStore } from "../../store/useAuthStore";
 import { useUIStore } from "../../store/useUIStore";
 import { useDemoModeStore } from "../../store/useDemoModeStore";
 import { useSubscriptionData } from "../../lib/useSubscriptionData";
+import { useApiClient } from "../../lib/api";
 import { portfolioStats } from "../../lib/portfolio";
+
+const lockedMascots: { name: string; id: string }[] = [
+  { name: "???", id: "rolo" },
+  { name: "???", id: "twinkle" },
+  { name: "???", id: "bucky" },
+];
+
+const currencyOptions = [
+  { code: "USD", label: "US Dollar", symbol: "$" },
+  { code: "CAD", label: "Canadian Dollar", symbol: "CA$" },
+  { code: "EUR", label: "Euro", symbol: "€" },
+  { code: "GBP", label: "British Pound", symbol: "£" },
+] as const;
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>\"']/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;" })[character] ?? character);
+}
 
 export default function ProfileScreen() {
   const router = useRouter();
@@ -37,6 +56,8 @@ export default function ProfileScreen() {
   const resetLocalState = useAuthStore((s) => s.resetLocalState);
   const reducedMotion = useUIStore((s) => s.reducedMotion);
   const setReducedMotion = useUIStore((s) => s.setReducedMotion);
+  const currency = useUIStore((s) => s.currency);
+  const setCurrency = useUIStore((s) => s.setCurrency);
   const onboardingTheme = useUIStore((s) => s.onboardingTheme);
   const setOnboardingTheme = useUIStore((s) => s.setOnboardingTheme);
   const showToast = useUIStore((s) => s.showToast);
@@ -44,6 +65,9 @@ export default function ProfileScreen() {
   const leaveDemo = useDemoModeStore((s) => s.leave);
   const { subscriptions } = useSubscriptionData();
   const stats = portfolioStats(subscriptions);
+  const api = useApiClient();
+  const [exporting, setExporting] = useState(false);
+  const [currencyPickerVisible, setCurrencyPickerVisible] = useState(false);
 
   const handleSignOut = async () => {
     try {
@@ -64,19 +88,48 @@ export default function ProfileScreen() {
   const rows = [
     { icon: Bell, label: "Notification preferences", note: "14, 7 and 1 day reminders" },
     { icon: Palette, label: "Appearance", note: onboardingTheme === "day" ? "Day mode" : "Night mode" },
-    { icon: CircleDollarSign, label: "Currency", note: "USD $" },
-    { icon: Lock, label: "Security", note: "Coming soon" },
-    { icon: Download, label: "Export data", note: "Coming soon" },
+    { icon: CircleDollarSign, label: "Currency", note: `${currency} · used for new subscriptions` },
+    { icon: Download, label: "Export data", note: exporting ? "Preparing your PDF…" : "Create a PDF copy of your data" },
     { icon: HelpCircle, label: "Help", note: "FAQs and support" },
   ];
 
-  const onRowPress = (label: string) => {
+  const onRowPress = async (label: string) => {
     if (label === "Notification preferences") {
       router.push("/notification-preferences");
     } else if (label === "Help") {
       router.push("/help");
     } else if (label === "Appearance") {
       setOnboardingTheme(onboardingTheme === "day" ? "night" : "day");
+    } else if (label === "Currency") {
+      setCurrencyPickerVisible(true);
+    } else if (label === "Export data") {
+      if (demoMode) {
+        showToast({ message: "Sign in to export your personal data", tone: "info" });
+        return;
+      }
+      setExporting(true);
+      try {
+        const data = await api.exportMyData();
+        const exportedAt = new Date().toLocaleString();
+        const html = `<!doctype html><html><head><meta charset="utf-8" /><style>
+          body { font-family: Arial, sans-serif; color: #1f2937; padding: 28px; }
+          h1 { color: #31543c; margin-bottom: 4px; } p { color: #4b5563; }
+          pre { white-space: pre-wrap; overflow-wrap: anywhere; background: #f8fafc; border: 1px solid #d1d5db; border-radius: 8px; padding: 14px; font-size: 9px; }
+        </style></head><body><h1>Tamalife data export</h1><p>Created ${escapeHtml(exportedAt)}</p><pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre></body></html>`;
+        if (Platform.OS === "web") {
+          await Print.printAsync({ html });
+        } else {
+          const { uri } = await Print.printToFileAsync({ html });
+          if (await Sharing.isAvailableAsync()) {
+            await Sharing.shareAsync(uri, { mimeType: "application/pdf", dialogTitle: "Save Tamalife data export" });
+          }
+        }
+        showToast({ message: "Your PDF export is ready", tone: "success" });
+      } catch (error) {
+        showToast({ message: (error as Error).message, tone: "warning" });
+      } finally {
+        setExporting(false);
+      }
     } else {
       showToast({ message: `${label} is not available yet`, tone: "info" });
     }
@@ -116,6 +169,43 @@ export default function ProfileScreen() {
         </View>
       </Card>
 
+      <Modal
+        transparent
+        visible={currencyPickerVisible}
+        animationType={reducedMotion ? "none" : "fade"}
+        onRequestClose={() => setCurrencyPickerVisible(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setCurrencyPickerVisible(false)}>
+          <Pressable
+            style={[styles.currencyPicker, { backgroundColor: p.cardBgSolid, borderColor: p.cardBorder }]}
+            onPress={(event) => event.stopPropagation()}
+          >
+            <Text style={[styles.currencyTitle, { color: p.ink }]}>Choose currency</Text>
+            <Text style={[styles.rowNote, { color: p.body }]}>Used when you add a new subscription.</Text>
+            {currencyOptions.map((option) => (
+              <Pressable
+                key={option.code}
+                accessibilityRole="radio"
+                accessibilityState={{ checked: currency === option.code }}
+                onPress={() => {
+                  setCurrency(option.code);
+                  setCurrencyPickerVisible(false);
+                  showToast({ message: `Currency set to ${option.code}`, tone: "success" });
+                }}
+                style={[
+                  styles.currencyOption,
+                  { borderColor: p.cardBorder },
+                  currency === option.code && { backgroundColor: p.warningBg, borderColor: p.goldBorder },
+                ]}
+              >
+                <Text style={[styles.currencyCode, { color: p.ink }]}>{option.symbol} {option.code}</Text>
+                <Text style={[styles.rowNote, { color: p.body }]}>{option.label}</Text>
+              </Pressable>
+            ))}
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <AccountCard />
 
       <SectionHeader title="Settings" />
@@ -138,7 +228,7 @@ export default function ProfileScreen() {
             key={label}
             accessibilityRole="button"
             accessibilityLabel={label}
-            onPress={() => onRowPress(label)}
+            onPress={() => void onRowPress(label)}
             style={({ pressed }) => [styles.row, { borderTopWidth: 1.5, borderTopColor: p.cardBorder }, pressed && { opacity: 0.7 }]}
           >
             <View style={[styles.rowIcon, { backgroundColor: p.warningBg, borderColor: p.goldBorder }]}>
@@ -265,4 +355,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
   },
   signOutText: { fontFamily: fonts.pixelBold, fontSize: 15 },
+  modalBackdrop: { flex: 1, backgroundColor: "rgba(12, 9, 34, 0.55)", alignItems: "center", justifyContent: "center", padding: spacing.lg },
+  currencyPicker: { width: "100%", maxWidth: 420, borderWidth: 2, borderRadius: 18, padding: spacing.lg, gap: spacing.sm },
+  currencyTitle: { fontFamily: fonts.pixelBold, fontSize: 18 },
+  currencyOption: { borderWidth: 1.5, borderRadius: 12, padding: spacing.sm + 2, gap: 2 },
+  currencyCode: { fontFamily: fonts.pixelBold, fontSize: 14 },
 });

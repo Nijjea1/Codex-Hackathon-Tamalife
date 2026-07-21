@@ -179,7 +179,7 @@ async function request<T>(
       }
       throw new ApiError(
         timedOut ? "request_timeout" : "network_error",
-        timedOut ? "The request timed out. Please try again." : "Unable to reach the server.",
+        "",
         0,
         undefined,
         requestId,
@@ -206,6 +206,7 @@ export function useApiClient() {
     return {
       request: raw,
       me: () => raw<MeDto>("/v1/me"),
+      exportMyData: () => raw<Record<string, unknown>>("/v1/me/export"),
       listSubscriptions: (cursor?: string, signal?: AbortSignal) =>
         raw<SubscriptionListDto>(`/v1/subscriptions${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ""}`, { signal }),
       getSubscription: (id: string, signal?: AbortSignal) =>
