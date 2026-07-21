@@ -15,15 +15,20 @@ type Props = {
 
 export function UrgentSubscriptionCard({ subscription: s, onReview, onSnooze }: Props) {
   const p = useGardenPalette();
+  // Opaque red-tinted surface so text stays readable over the garden backdrop.
+  const surface = p.isDay ? "#fdeae2" : "#3b2430";
+  const ink = p.isDay ? "#5f2418" : "#ffe7de";
+  const sub = p.isDay ? "#8a5347" : "#e6bcae";
+  const accent = p.isDay ? "#c2452f" : "#ff8a7a";
   return (
-    <View style={[styles.card, { backgroundColor: p.dangerBg, borderColor: p.danger, shadowColor: p.cardShadow }]}>
+    <View style={[styles.card, { backgroundColor: surface, borderColor: accent, shadowColor: p.cardShadow }]}>
       <View style={styles.row}>
-        <View style={[styles.creatureWrap, { backgroundColor: p.overlay }]}>
+        <View style={styles.creatureWrap}>
           <Creature species={s.species} mood={s.mood} size="small" />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={[styles.title, { color: p.inkStrong }]}>{s.creatureName} is feeling unwell</Text>
-          <Text style={[styles.sub, { color: p.body }]}>
+          <Text style={[styles.title, { color: ink }]}>{s.creatureName} is feeling unwell</Text>
+          <Text style={[styles.sub, { color: sub }]}>
             {s.merchant} {s.billingInterval === "trial" ? "ends" : "renews"}{" "}
             {daysLabel(s.daysRemaining).toLowerCase()}
           </Text>
@@ -32,7 +37,7 @@ export function UrgentSubscriptionCard({ subscription: s, onReview, onSnooze }: 
       </View>
       <View style={styles.actions}>
         <Button label="Review" onPress={onReview} style={{ flex: 1 }} />
-        <Button label="Snooze" onPress={onSnooze} variant="ghost" style={{ flex: 1 }} />
+        <Button label="Snooze" onPress={onSnooze} variant="secondary" style={{ flex: 1 }} />
       </View>
     </View>
   );
@@ -49,7 +54,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md },
-  creatureWrap: { borderRadius: 12, padding: 6 },
+  creatureWrap: { width: 72, alignItems: "center", justifyContent: "center" },
   title: { fontFamily: fonts.pixelBold, fontSize: 15, marginBottom: 2 },
   sub: { fontFamily: fonts.medium, fontSize: 12 },
   price: { fontFamily: fonts.pixelBold, fontSize: 13, marginTop: 4, fontVariant: ["tabular-nums"] },

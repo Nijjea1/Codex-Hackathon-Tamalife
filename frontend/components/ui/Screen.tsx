@@ -1,3 +1,4 @@
+import { LinearGradient } from "expo-linear-gradient";
 import React from "react";
 import { ScrollView, StyleSheet, View, ViewStyle } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -35,9 +36,22 @@ export function Screen({
   const padTop = edges?.top === false ? 0 : insets.top + spacing.sm;
   const padBottom = edges?.bottom === false ? 0 : insets.bottom + spacing.xl;
 
+  // Soft top scrim so header text (name, titles) stays legible over the busy
+  // garden backdrop.
+  const scrim: readonly [string, string, string] = p.isDay
+    ? ["rgba(247,245,220,0.94)", "rgba(247,245,220,0.55)", "rgba(247,245,220,0)"]
+    : ["rgba(13,12,36,0.94)", "rgba(13,12,36,0.55)", "rgba(13,12,36,0)"];
+
   return (
     <View style={[styles.root, { backgroundColor: p.bgDeep }, style]}>
       {backdrop && <GardenBackdrop strongerShade={strongerShade} hideSky />}
+      {backdrop && edges?.top !== false && (
+        <LinearGradient
+          pointerEvents="none"
+          colors={scrim}
+          style={[styles.scrim, { height: insets.top + 132 }]}
+        />
+      )}
       {scroll ? (
         <ScrollView
           contentContainerStyle={[
@@ -67,4 +81,5 @@ export function Screen({
 const styles = StyleSheet.create({
   root: { flex: 1, overflow: "hidden" },
   flex: { flex: 1 },
+  scrim: { position: "absolute", top: 0, left: 0, right: 0 },
 });
