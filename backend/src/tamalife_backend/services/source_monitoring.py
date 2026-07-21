@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tamalife_backend.config import Settings
@@ -68,6 +69,18 @@ async def monitor_pricing_source(
             source.lease_token = None
             source.lease_expires_at = None
             await session.flush()
+            previous_fetch = await session.scalar(
+                select(SourceFetch)
+                .where(
+                    SourceFetch.source_id == source.id,
+                    SourceFetch.status == SourceFetchStatus.extracted,
+                    SourceFetch.publication_completed_at.is_not(None),
+                )
+                .order_by(SourceFetch.completed_at.desc(), SourceFetch.id.desc())
+                .limit(1)
+            )
+            if previous_fetch is not None:
+                await publish_source_fetch(session, settings, previous_fetch.id)
             return MonitoringOutcome(source.id, fetch.id, fetch.status, False)
 
         catalog = extract_pricing_catalog(

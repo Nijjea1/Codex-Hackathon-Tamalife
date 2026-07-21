@@ -202,7 +202,7 @@ async def test_publication_reuses_a_provider_plan_seen_on_another_official_sourc
 
         plans = list((await session.scalars(select(ProviderPlan))).all())
         assert len(plans) == 1
-        assert plans[0].source_id == second_source.id
+        assert plans[0].source_id == first_source.id
     await engine.dispose()
 
 

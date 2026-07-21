@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from tamalife_backend.config import Settings
@@ -69,16 +69,47 @@ async def _source_is_safe_for_automatic_publication(
     )
 
 
+async def _promote_pending_evidence(
+    session: AsyncSession,
+    source: PricingSource,
+    *,
+    minimum_confidence: float,
+) -> None:
+    """Publish previously captured evidence once its source becomes trusted.
+
+    Discovery and extraction can complete before an official source reaches
+    the automatic-publication threshold.  Promotion is idempotent, so later
+    unchanged fetches can safely make that verified evidence visible without
+    inventing a new price observation.
+    """
+    source_plan_ids = select(ProviderPlan.id).where(ProviderPlan.source_id == source.id)
+    await session.execute(
+        update(PlanPriceHistory)
+        .where(
+            PlanPriceHistory.plan_id.in_(source_plan_ids),
+            PlanPriceHistory.review_status == ReviewStatus.pending,
+            PlanPriceHistory.confidence >= minimum_confidence,
+        )
+        .values(review_status=ReviewStatus.auto_approved)
+    )
+    await session.execute(
+        update(Deal)
+        .where(
+            Deal.source_id == source.id,
+            Deal.review_status == ReviewStatus.pending,
+            Deal.confidence >= minimum_confidence,
+        )
+        .values(review_status=ReviewStatus.auto_approved)
+    )
+
+
 async def publish_source_fetch(
     session: AsyncSession, settings: Settings, fetch_id: UUID
 ) -> PublicationOutcome:
     fetch = await session.get(SourceFetch, fetch_id)
     if fetch is None or fetch.extracted_data is None:
         raise ValueError("extracted source fetch not found")
-    if fetch.publication_completed_at is not None:
-        return PublicationOutcome(fetch.id, 0, 0, 0, True)
-    source = fetch.source_id
-    pricing_source = await session.get(PricingSource, source)
+    pricing_source = await session.get(PricingSource, fetch.source_id)
     if pricing_source is None:
         raise ValueError("pricing source not found")
     source_is_trusted = await _source_is_safe_for_automatic_publication(
@@ -86,6 +117,15 @@ async def publish_source_fetch(
         pricing_source,
         minimum_confidence=settings.discovery_min_auto_activate_confidence,
     )
+    if fetch.publication_completed_at is not None:
+        if source_is_trusted:
+            await _promote_pending_evidence(
+                session,
+                pricing_source,
+                minimum_confidence=settings.scraper_min_auto_publish_confidence,
+            )
+            await session.flush()
+        return PublicationOutcome(fetch.id, 0, 0, 0, True)
     catalog = ExtractedPricingCatalog.model_validate(fetch.extracted_data)
     existing = list(
         (
@@ -137,7 +177,6 @@ async def publish_source_fetch(
                 change_type = PriceChangeType.unchanged
             plan.name = extracted.name
             plan.normalized_name = " ".join(extracted.name.lower().split())
-            plan.source_id = pricing_source.id
             plan.current_price = extracted.price
             plan.monthly_equivalent = _monthly(extracted.price, extracted.billing_cycle)
             plan.confidence = extracted.confidence
@@ -151,12 +190,18 @@ async def publish_source_fetch(
             f"{fetch.content_hash}:{extracted.external_key}:{extracted.price}".encode()
         ).hexdigest()
         known_history = await session.scalar(
-            select(PlanPriceHistory.id).where(
+            select(PlanPriceHistory).where(
                 PlanPriceHistory.plan_id == plan.id,
                 PlanPriceHistory.evidence_hash == evidence_hash,
             )
         )
         if known_history is not None:
+            if (
+                known_history.review_status is ReviewStatus.pending
+                and source_is_trusted
+                and extracted.confidence >= settings.scraper_min_auto_publish_confidence
+            ):
+                known_history.review_status = ReviewStatus.auto_approved
             continue
         amount = extracted.price - previous if previous is not None else None
         percentage = (
@@ -188,6 +233,11 @@ async def publish_source_fetch(
             changed += 1
 
     for plan in existing:
+        # A provider can have several official sources (for example, pricing
+        # and support pages).  A plan absent from *this* page is not evidence
+        # that a plan first observed on a different official page disappeared.
+        if plan.source_id != pricing_source.id:
+            continue
         if plan.id in observed_ids:
             continue
         plan.missing_observation_count += 1
@@ -216,6 +266,12 @@ async def publish_source_fetch(
         if deal is not None:
             deal.active = True
             deal.confidence = max(deal.confidence, deal_item.confidence)
+            if (
+                deal.review_status is ReviewStatus.pending
+                and source_is_trusted
+                and deal.confidence >= settings.scraper_min_auto_publish_confidence
+            ):
+                deal.review_status = ReviewStatus.auto_approved
             continue
         session.add(
             Deal(

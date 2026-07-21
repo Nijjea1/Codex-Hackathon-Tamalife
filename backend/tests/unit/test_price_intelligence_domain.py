@@ -52,6 +52,23 @@ def test_matching_reasons_are_deterministic() -> None:
     )
 
 
+def test_matching_recognizes_a_product_tier_inside_a_longer_official_plan_name() -> None:
+    score = score_subscription_plan(
+        vendor_name="Anthropic, PBC",
+        display_name="Claude Pro",
+        amount=Decimal("20.00"),
+        currency="CAD",
+        billing_cycle=BillingCycle.monthly,
+        provider_names=("Anthropic, PBC",),
+        plan_name="The Pro plan is available for",
+        plan_price=Decimal("20.00"),
+        plan_currency="CAD",
+        plan_billing_cycle=BillingCycle.monthly,
+    )
+    assert score.confidence == 1.0
+    assert "plan_tier_match" in score.reason_codes
+
+
 def test_deal_eligibility_defaults_to_conservative() -> None:
     assert deal_is_conservatively_eligible({})
     assert deal_is_conservatively_eligible({"all_customers": True})
