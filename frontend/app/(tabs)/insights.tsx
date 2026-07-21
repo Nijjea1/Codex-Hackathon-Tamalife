@@ -1,256 +1,144 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
+import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withDelay,
-  withTiming,
-  Easing,
-} from "react-native-reanimated";
-import { TrendingUp } from "lucide-react-native";
-import { fonts, spacing } from "../../constants/theme";
-import { useGardenPalette, GardenPalette } from "../../constants/garden";
-import { Card } from "../../components/ui/Card";
-import { Chip } from "../../components/ui/Chip";
-import { Screen } from "../../components/ui/Screen";
-import { SectionHeader } from "../../components/ui/SectionHeader";
 import { AmbienceButton } from "../../components/onboarding/GardenAmbience";
 import { GardenModeButton } from "../../components/onboarding/GardenModeButton";
+import {
+  DealsCard,
+  InlineResourceState,
+  RecommendationsCard,
+} from "../../components/price/PriceIntelligenceCards";
+import { Card } from "../../components/ui/Card";
 import { GardenKicker } from "../../components/ui/GardenKit";
-import { formatMoney, moodMeta } from "../../utils/creatureMood";
-import { CreatureMood, SubscriptionCategory } from "../../types/subscription";
+import { Screen } from "../../components/ui/Screen";
+import { SectionHeader } from "../../components/ui/SectionHeader";
+import { useGardenPalette } from "../../constants/garden";
+import { fonts, spacing } from "../../constants/theme";
+import { usePriceDashboardItems, usePriceIntelligenceSummary } from "../../lib/usePriceIntelligence";
 import { useSubscriptionData } from "../../lib/useSubscriptionData";
-
-function categoryColors(p: GardenPalette): Record<SubscriptionCategory, string> {
-  return {
-    Entertainment: p.gold,
-    Productivity: p.leaf,
-    Fitness: p.accent,
-    Storage: p.pillBorder,
-    Other: p.muted,
-  };
-}
-
-function AnimatedBar({ fraction, color, delay, track }: { fraction: number; color: string; delay: number; track: string }) {
-  const width = useSharedValue(0);
-  useEffect(() => {
-    width.value = withDelay(
-      delay,
-      withTiming(fraction, { duration: 700, easing: Easing.out(Easing.cubic) })
-    );
-  }, [fraction, delay, width]);
-  const style = useAnimatedStyle(() => ({ width: `${width.value * 100}%` }));
-  return (
-    <View style={[styles.barTrack, { backgroundColor: track }]}>
-      <Animated.View style={[styles.barFill, { backgroundColor: color }, style]} />
-    </View>
-  );
-}
-
-const trend = [92.5, 96.9, 89.4, 94.2, 96.96, 84.96];
-const trendLabels = ["Feb", "Mar", "Apr", "May", "Jun", "Jul"];
+import { useUIStore } from "../../store/useUIStore";
+import { RecommendationDto } from "../../types/priceIntelligence";
+import { formatMoney } from "../../utils/creatureMood";
+import { useApiClient, createIdempotencyKey } from "../../lib/api";
 
 export default function InsightsScreen() {
   const p = useGardenPalette();
-  const { subscriptions, loading, error } = useSubscriptionData();
-  const [period, setPeriod] = useState<"Month" | "Year">("Month");
+  const router = useRouter();
+  const showToast = useUIStore((state) => state.showToast);
+  const api = useApiClient();
+  const subscriptions = useSubscriptionData();
+  const summary = usePriceIntelligenceSummary();
+  const dashboard = usePriceDashboardItems(subscriptions.subscriptions.map((item) => item.id));
+  const [feedbackPending, setFeedbackPending] = React.useState<string | null>(null);
 
-  const active = subscriptions.filter((s) => s.status !== "cancelled");
-  const monthly = active.reduce(
-    (sum, s) => sum + (s.billingInterval === "yearly" ? s.price / 12 : s.price),
-    0
-  );
-  const annual = active.reduce((sum, s) => sum + s.annualCost, 0);
-  const potentialSavings = active
-    .filter((s) => ["concerned", "sick", "critical"].includes(s.mood))
-    .reduce((sum, s) => sum + s.annualCost, 0);
+  const unmatched = dashboard.data?.intelligence.filter((item) => item.match?.status !== "confirmed") ?? [];
+  const recommendations = dashboard.data?.intelligence.flatMap((item) => item.recommendations)
+    .filter((item) => item.status === "active" || item.status === "seen") ?? [];
+  const deals = dashboard.data?.deals.flatMap((item) => item.items) ?? [];
 
-  const byCategory = active.reduce<Record<string, number>>((acc, s) => {
-    acc[s.category] = (acc[s.category] ?? 0) + s.price;
-    return acc;
-  }, {});
-  const maxCategory = Math.max(...Object.values(byCategory), 1);
-  const catColors = categoryColors(p);
-
-  const topThree = [...active].sort((a, b) => b.price - a.price).slice(0, 3);
-  const maxTrend = Math.max(...trend);
-
-  const moodCounts = subscriptions.reduce<Partial<Record<CreatureMood, number>>>((acc, s) => {
-    acc[s.mood] = (acc[s.mood] ?? 0) + 1;
-    return acc;
-  }, {});
-
-  const metrics = [
-    { label: "Monthly spend", value: formatMoney(period === "Month" ? monthly : annual / 12) },
-    { label: "Annual spend", value: formatMoney(annual) },
-    { label: "Active subs", value: `${active.length}` },
-    { label: "Potential savings", value: formatMoney(potentialSavings), tint: p.success },
-  ];
+  const feedback = async (item: RecommendationDto, helpful: boolean) => {
+    setFeedbackPending(item.id);
+    try {
+      await api.recommendationFeedback(
+        item.id,
+        helpful
+          ? { feedback: "helpful", status: "seen" }
+          : { feedback: "not_helpful", status: "dismissed", reason: "Not relevant" },
+        createIdempotencyKey(`feedback:${item.id}`),
+      );
+      await dashboard.refresh();
+      showToast({ message: "Thanks â€” your feedback was saved.", tone: "success" });
+    } catch (error) {
+      showToast({ message: (error as Error).message, tone: "warning" });
+    } finally {
+      setFeedbackPending(null);
+    }
+  };
 
   return (
     <Screen>
       <View style={styles.header}>
         <View>
-          <GardenKicker>YOUR NUMBERS</GardenKicker>
-          <Text style={[styles.title, { color: p.ink }]}>Insights</Text>
+          <GardenKicker>VERIFIED PRICING</GardenKicker>
+          <Text style={[styles.title, { color: p.ink }]}>Price intelligence</Text>
         </View>
-        <View style={{ flexDirection: "row", gap: spacing.sm, alignItems: "center" }}>
-          <AmbienceButton compact />
-          <GardenModeButton compact />
-        </View>
+        <View style={styles.controls}><AmbienceButton compact /><GardenModeButton compact /></View>
       </View>
 
-      <View style={styles.periodRow}>
-        {(["Month", "Year"] as const).map((pr) => (
-          <Chip key={pr} label={pr} selected={period === pr} onPress={() => setPeriod(pr)} />
-        ))}
-      </View>
-
-      {loading && <Text style={[styles.status, { color: p.muted }]}>Loading insights…</Text>}
-      {error && <Text style={[styles.status, { color: p.danger }]}>{error}</Text>}
-
-      <View style={styles.metricGrid}>
-        {metrics.map((m) => (
-          <Card key={m.label} style={styles.metricCard}>
-            <Text style={[styles.metricValue, { color: m.tint ?? p.inkStrong }]}>{m.value}</Text>
-            <Text style={[styles.metricLabel, { color: p.muted }]}>{m.label.toUpperCase()}</Text>
-          </Card>
-        ))}
-      </View>
-
-      <SectionHeader title="Category breakdown" />
-      <Card>
-        {Object.entries(byCategory).map(([cat, amount], i) => (
-          <View key={cat} style={styles.categoryRow}>
-            <View style={styles.categoryLabelRow}>
-              <Text style={[styles.categoryLabel, { color: p.ink }]}>{cat}</Text>
-              <Text style={[styles.categoryAmount, { color: p.body }]}>{formatMoney(amount)}/mo</Text>
-            </View>
-            <AnimatedBar
-              fraction={amount / maxCategory}
-              color={catColors[cat as SubscriptionCategory] ?? p.muted}
-              track={p.warningBg}
-              delay={i * 120}
-            />
+      <InlineResourceState
+        loading={summary.loading}
+        error={summary.error?.message}
+        onRetry={() => void summary.refresh()}
+      />
+      {summary.data && !summary.loading && (
+        <>
+          {summary.refreshing && <Text style={[styles.status, { color: p.muted }]}>Refreshing verified pricesâ€¦</Text>}
+          <View style={styles.metricGrid}>
+            <Metric label="Possible monthly savings" value={formatMoney(Number(summary.data.estimated_monthly_savings))} />
+            <Metric label="Possible annual savings" value={formatMoney(Number(summary.data.estimated_annual_savings))} />
+            <Metric label="Active deals" value={`${summary.data.active_deal_count}`} />
+            <Metric label="Price changes" value={`${summary.data.price_change_count}`} />
           </View>
-        ))}
-      </Card>
+          <Text style={[styles.freshness, { color: p.muted }]}>Checked {new Date(summary.data.generated_at).toLocaleString()}</Text>
+        </>
+      )}
 
-      <SectionHeader title="Spending trend" />
-      <Card>
-        <View style={styles.trendRow}>
-          {trend.map((v, i) => (
-            <View key={i} style={styles.trendCol}>
-              <View style={styles.trendBarArea}>
-                <View
-                  style={[
-                    styles.trendBar,
-                    {
-                      height: `${(v / maxTrend) * 100}%`,
-                      backgroundColor: i === trend.length - 1 ? p.gold : p.warningBg,
-                    },
-                  ]}
-                />
-              </View>
-              <Text style={[styles.trendLabel, { color: p.muted }]}>{trendLabels[i]}</Text>
-            </View>
-          ))}
-        </View>
-        <Text style={[styles.note, { color: p.body }]}>
-          Six-month recurring spend. July is your lowest so far.
-        </Text>
-      </Card>
+      <InlineResourceState
+        loading={subscriptions.loading || dashboard.loading}
+        error={subscriptions.error ?? dashboard.error?.message}
+        onRetry={() => void Promise.all([subscriptions.refresh(), dashboard.refresh()])}
+      />
 
-      <SectionHeader title="Most expensive" />
-      <Card>
-        {topThree.map((s, i) => (
-          <View key={s.id} style={[styles.rankRow, i > 0 && { borderTopWidth: 1.5, borderTopColor: p.cardBorder }]}>
-            <Text style={[styles.rankNum, { color: p.accent }]}>{i + 1}</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={[styles.rankName, { color: p.ink }]}>{s.displayName}</Text>
-              <Text style={[styles.rankSub, { color: p.muted }]}>{s.merchant}</Text>
-            </View>
-            <Text style={[styles.rankPrice, { color: p.inkStrong }]}>{formatMoney(s.price)}/mo</Text>
-          </View>
-        ))}
-      </Card>
+      {!dashboard.loading && dashboard.data && (
+        <>
+          <SectionHeader title="Needs match confirmation" />
+          {unmatched.length === 0 ? (
+            <Card><Text style={[styles.body, { color: p.muted }]}>Every tracked subscription with pricing data is matched.</Text></Card>
+          ) : unmatched.map((item) => {
+            const subscription = subscriptions.subscriptions.find((candidate) => candidate.id === item.subscription_id);
+            return (
+              <Card key={item.subscription_id} onPress={() => router.push(`/subscription/${item.subscription_id}`)} accessibilityLabel="Review provider match">
+                <Text style={[styles.cardTitle, { color: p.ink }]}>{subscription?.displayName ?? "Subscription"}</Text>
+                <Text style={[styles.body, { color: p.body }]}>
+                  {item.match ? `Is this ${item.match.provider_name} ${item.match.plan_name}?` : "We haven't found a reliable provider match yet."}
+                </Text>
+              </Card>
+            );
+          })}
 
-      <SectionHeader title="Price changes" />
-      <Card style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm + 4 }}>
-        <View style={[styles.priceIcon, { backgroundColor: p.warningBg, borderColor: p.goldBorder }]}>
-          <TrendingUp size={18} color={p.accent} strokeWidth={2.5} />
-        </View>
-        <Text style={[styles.tip, { flex: 1, color: p.body }]}>
-          StreamFlix increased by $2.00 last month.
-        </Text>
-      </Card>
+          <SectionHeader title="Verified deals" />
+          {deals.length ? <DealsCard items={deals} /> : <Card><Text style={[styles.body, { color: p.muted }]}>No approved active deals right now.</Text></Card>}
 
-      <SectionHeader title="Creature health" />
-      <Card style={{ gap: spacing.sm }}>
-        {(Object.entries(moodCounts) as [CreatureMood, number][]).map(([mood, count]) => (
-          <View key={mood} style={styles.healthRow}>
-            <View style={[styles.healthDot, { backgroundColor: moodMeta[mood].color }]} />
-            <Text style={[styles.tip, { flex: 1, color: p.body }]}>{moodMeta[mood].label}</Text>
-            <Text style={[styles.healthCount, { color: p.inkStrong }]}>{count}</Text>
-          </View>
-        ))}
-      </Card>
-
-      <SectionHeader title="Savings opportunities" />
-      {[
-        "You have two entertainment subscriptions. Do you use both?",
-        "Wobble has been snoozed three times. Time to decide?",
-        "An annual plan may be cheaper than monthly billing for SoundWave.",
-      ].map((tip) => (
-        <Card key={tip} style={{ marginBottom: spacing.sm + 2 }}>
-          <Text style={[styles.tip, { color: p.body }]}>{tip}</Text>
-        </Card>
-      ))}
+          <SectionHeader title="Recommended actions" />
+          {recommendations.length ? (
+            <RecommendationsCard items={recommendations} pendingId={feedbackPending} onFeedback={(item, helpful) => void feedback(item, helpful)} />
+          ) : <Card><Text style={[styles.body, { color: p.muted }]}>No new recommendations. We'll keep checking.</Text></Card>}
+        </>
+      )}
     </Screen>
   );
 }
 
+function Metric({ label, value }: { label: string; value: string }) {
+  const p = useGardenPalette();
+  return (
+    <Card style={styles.metricCard}>
+      <Text style={[styles.metricValue, { color: p.inkStrong }]}>{value}</Text>
+      <Text style={[styles.metricLabel, { color: p.muted }]}>{label.toUpperCase()}</Text>
+    </Card>
+  );
+}
+
 const styles = StyleSheet.create({
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: spacing.sm,
-  },
-  title: { fontFamily: fonts.pixelBold, fontSize: 24, letterSpacing: 0.5, marginTop: 2 },
-  periodRow: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
-  status: { fontFamily: fonts.medium, fontSize: 13, marginBottom: spacing.sm },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: spacing.md },
+  controls: { flexDirection: "row", gap: spacing.sm },
+  title: { fontFamily: fonts.pixelBold, fontSize: 24, marginTop: 2 },
+  status: { fontFamily: fonts.medium, fontSize: 12, marginTop: spacing.sm },
   metricGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   metricCard: { flexBasis: "47%", flexGrow: 1, gap: 4 },
-  metricValue: { fontFamily: fonts.pixelBold, fontSize: 22, fontVariant: ["tabular-nums"] },
-  metricLabel: { fontFamily: "monospace", fontWeight: "900", fontSize: 9, letterSpacing: 0.5 },
-  categoryRow: { marginBottom: spacing.sm + 4 },
-  categoryLabelRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 6 },
-  categoryLabel: { fontFamily: fonts.pixelBold, fontSize: 13 },
-  categoryAmount: { fontFamily: fonts.medium, fontSize: 13, fontVariant: ["tabular-nums"] },
-  barTrack: { height: 12, borderRadius: 8, overflow: "hidden" },
-  barFill: { height: "100%", borderRadius: 8 },
-  trendRow: { flexDirection: "row", gap: spacing.sm, height: 120 },
-  trendCol: { flex: 1, alignItems: "center" },
-  trendBarArea: { flex: 1, width: "100%", justifyContent: "flex-end" },
-  trendBar: { width: "100%", borderRadius: 8 },
-  trendLabel: { fontFamily: fonts.medium, fontSize: 10, marginTop: 6 },
-  note: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 18, marginTop: spacing.sm },
-  rankRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 4, paddingVertical: spacing.sm },
-  rankNum: { fontFamily: fonts.pixelBold, fontSize: 18, width: 22, textAlign: "center" },
-  rankName: { fontFamily: fonts.pixelBold, fontSize: 14 },
-  rankSub: { fontFamily: fonts.medium, fontSize: 12 },
-  rankPrice: { fontFamily: fonts.pixelBold, fontSize: 14, fontVariant: ["tabular-nums"] },
-  priceIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  tip: { fontFamily: fonts.medium, fontSize: 14, lineHeight: 20 },
-  healthRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 2 },
-  healthDot: { width: 12, height: 12, borderRadius: 12 },
-  healthCount: { fontFamily: fonts.pixelBold, fontSize: 14 },
+  metricValue: { fontFamily: fonts.pixelBold, fontSize: 21 },
+  metricLabel: { fontFamily: "monospace", fontWeight: "900", fontSize: 9, lineHeight: 13 },
+  freshness: { fontFamily: fonts.medium, fontSize: 11, marginTop: spacing.sm },
+  cardTitle: { fontFamily: fonts.pixelBold, fontSize: 15, marginBottom: 4 },
+  body: { fontFamily: fonts.medium, fontSize: 13, lineHeight: 19 },
 });

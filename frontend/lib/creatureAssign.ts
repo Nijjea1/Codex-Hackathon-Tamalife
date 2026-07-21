@@ -15,6 +15,8 @@ const CREATURE_NAMES = [
   "Tofu",
 ];
 
+
+
 import { CreatureSpecies } from "../types/subscription";
 
 type Assignment = { name: string; species: CreatureSpecies };
@@ -48,5 +50,6 @@ export function assignCreature(
   const species = KEYWORD_SPECIES.find(([pattern]) => pattern.test(identity))?.[1]
     ?? SPECIES_BY_CATEGORY[category]
     ?? "delivery";
+
   return { name, species };
 }

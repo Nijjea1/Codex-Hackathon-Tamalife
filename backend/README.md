@@ -53,6 +53,16 @@ uv run mypy src
 uv run pytest --cov
 ```
 
+For a hackathon/demo run without Redis or Celery, use the direct one-shot command:
+
+```powershell
+uv run tamalife-scrape-once --force
+```
+
+It safely monitors approved active sources and refreshes matches/recommendations in the current
+process. Add `--discover` to run bounded OpenAI candidate discovery. Discovery never bypasses
+source review; see `docs/PRICE_INTELLIGENCE.md` for the approval workflow and all options.
+
 ## PostgreSQL and Redis locally
 
 From the repository root:
@@ -65,6 +75,9 @@ This starts PostgreSQL, Redis, the API, a Celery worker, and Celery beat. The co
 Alembic before starting the API.
 
 ## Supabase setup
+
+The production price-intelligence deployment and incident runbook is in
+[`docs/PRICE_INTELLIGENCE.md`](docs/PRICE_INTELLIGENCE.md).
 
 1. Create separate Supabase projects for staging and production.
 2. Create a private Storage bucket named `receipts`.

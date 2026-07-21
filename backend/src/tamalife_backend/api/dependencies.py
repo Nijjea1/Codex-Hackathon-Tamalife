@@ -85,6 +85,16 @@ async def current_user(
     return authenticated.user
 
 
+async def admin_user(
+    authenticated: Annotated[AuthenticatedUser, Depends(authenticated_user)],
+    settings: Annotated[Settings, Depends(settings_from)],
+) -> AuthenticatedUser:
+    allowed = {value.strip() for value in settings.clerk_admin_user_ids if value.strip()}
+    if not allowed or authenticated.clerk_user_id not in allowed:
+        raise ApiError("admin_access_denied", "Administrator access is required", 403)
+    return authenticated
+
+
 async def widget_user(
     session: Annotated[AsyncSession, Depends(get_session)],
     authorization: Annotated[str | None, Header()] = None,
@@ -136,6 +146,7 @@ def metrics_from(request: Request) -> Metrics:
 
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 AuthenticatedUserDep = Annotated[AuthenticatedUser, Depends(authenticated_user)]
+AdminUserDep = Annotated[AuthenticatedUser, Depends(admin_user)]
 UserDep = Annotated[User, Depends(current_user)]
 WidgetUserDep = Annotated[User, Depends(widget_user)]
 SettingsDep = Annotated[Settings, Depends(settings_from)]
