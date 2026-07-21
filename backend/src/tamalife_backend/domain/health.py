@@ -254,8 +254,13 @@ def calculate_health(
     effect = resolution_event_effects(stored_events, current_status=status)
     if effect.resolved:
         return HealthState(
-            None, 100, "resolved", False, "The latest action resolved this item.",
-            next_transition_at=None, price_hike_detected=False,
+            None,
+            100,
+            "resolved",
+            False,
+            "The latest action resolved this item.",
+            next_transition_at=None,
+            price_hike_detected=False,
         )
 
     hike = has_unresolved_price_hike(stored_events, current_status=status)
@@ -272,8 +277,13 @@ def calculate_health(
             else "No renewal or expiry date is set."
         )
         return HealthState(
-            None, score, mood, needs_attention, reason,
-            next_transition_at=None, price_hike_detected=hike,
+            None,
+            score,
+            mood,
+            needs_attention,
+            reason,
+            next_transition_at=None,
+            price_hike_detected=hike,
         )
 
     remaining = days_remaining(target_date, now=reference, timezone=timezone)
@@ -290,13 +300,21 @@ def calculate_health(
                 grace_expiry
                 if post_grace_mood != "happy"
                 else _next_transition_at(
-                    target_date, remaining, current_mood="happy",
-                    floor_mood=floor_mood, timezone=timezone,
+                    target_date,
+                    remaining,
+                    current_mood="happy",
+                    floor_mood=floor_mood,
+                    timezone=timezone,
                 )
             )
             return HealthState(
-                remaining, 94, "happy", False, "Just added — settling into the garden.",
-                next_transition_at=next_at, price_hike_detected=hike,
+                remaining,
+                94,
+                "happy",
+                False,
+                "Just added — settling into the garden.",
+                next_transition_at=next_at,
+                price_hike_detected=hike,
             )
 
     day_mood = creature_mood(remaining)
@@ -317,11 +335,20 @@ def calculate_health(
         else reasons[mood]
     )
     next_at = _next_transition_at(
-        target_date, remaining, current_mood=mood, floor_mood=floor_mood, timezone=timezone,
+        target_date,
+        remaining,
+        current_mood=mood,
+        floor_mood=floor_mood,
+        timezone=timezone,
     )
     return HealthState(
-        remaining, score, mood, needs_attention, reason,
-        next_transition_at=next_at, price_hike_detected=hike,
+        remaining,
+        score,
+        mood,
+        needs_attention,
+        reason,
+        next_transition_at=next_at,
+        price_hike_detected=hike,
     )
 
 

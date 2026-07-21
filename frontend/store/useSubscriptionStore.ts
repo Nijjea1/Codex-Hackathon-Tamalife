@@ -9,6 +9,7 @@ type SubscriptionState = {
   selectSubscription: (id: string | null) => void;
   resolveSubscription: (id: string, action: ResolutionAction) => void;
   addSubscription: (subscription: Subscription) => void;
+  updateSubscription: (id: string, patch: Partial<Subscription>) => void;
   totalMonthly: () => number;
   totalAnnual: () => number;
   needsAttentionCount: () => number;
@@ -51,6 +52,10 @@ export const useSubscriptionStore = create<SubscriptionState>((set, get) => ({
     }),
   addSubscription: (subscription) =>
     set((state) => ({ subscriptions: [...state.subscriptions, subscription] })),
+  updateSubscription: (id, patch) =>
+    set((state) => ({
+      subscriptions: state.subscriptions.map((s) => (s.id === id ? { ...s, ...patch } : s)),
+    })),
   totalMonthly: () =>
     get()
       .subscriptions.filter((s) => s.status !== "cancelled")

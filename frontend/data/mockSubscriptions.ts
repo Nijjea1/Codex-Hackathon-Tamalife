@@ -67,6 +67,8 @@ export const mockSubscriptions: Subscription[] = [
     category: "Entertainment",
     annualCost: 215.88,
     status: "active",
+    priceHikeDetected: true,
+    cancellationDifficulty: "easy",
     receiptText:
       "Your StreamFlix membership will renew on July 18, 2026. Your monthly price is $17.99. Your previous monthly price was $15.99.",
   },
