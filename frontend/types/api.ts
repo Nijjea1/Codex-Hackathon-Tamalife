@@ -80,7 +80,22 @@ export type NotificationPreferencesDto = {
   reminder_days_before: number[];
   push_enabled: boolean;
   email_enabled: boolean;
+  renewal_enabled: boolean;
+  price_hike_enabled: boolean;
+  creature_health_enabled: boolean;
+  re_engagement_enabled: boolean;
+  weekly_digest_enabled: boolean;
+  re_engagement_after_days: number;
+  weekly_digest_weekday: number;
+  weekly_digest_hour: number;
 };
+
+export type NotificationCategoryKey =
+  | "renewal_enabled"
+  | "price_hike_enabled"
+  | "creature_health_enabled"
+  | "re_engagement_enabled"
+  | "weekly_digest_enabled";
 export type DevicePlatformDto = "ios" | "android";
 export type DevicePushTokenRegisterDto = {
   token: string;

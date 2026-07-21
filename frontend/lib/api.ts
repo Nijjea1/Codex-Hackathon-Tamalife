@@ -159,7 +159,11 @@ export function useApiClient() {
       registerPushToken: (body: DevicePushTokenRegisterDto) =>
         raw<DevicePushTokenDto>("/v1/notifications/push-tokens", { method: "POST", body: JSON.stringify(body) }),
       unregisterPushToken: (token: string) =>
-        raw<void>("/v1/notifications/push-tokens", { method: "DELETE", body: JSON.stringify({ token }) }),
+        raw<void>("/v1/notifications/push-tokens", {
+          method: "DELETE",
+          timeoutMs: 3_000,
+          body: JSON.stringify({ token }),
+        }),
       parseText: (text: string) => {
         const form = new FormData();
         form.append("text", text);

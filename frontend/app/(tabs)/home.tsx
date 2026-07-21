@@ -24,6 +24,7 @@ import { useUIStore } from "../../store/useUIStore";
 import { useSubscriptionData } from "../../lib/useSubscriptionData";
 import { useApiClient } from "../../lib/api";
 import { DashboardSummaryDto } from "../../types/api";
+import { useForegroundRefresh } from "../../lib/useForegroundRefresh";
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -42,12 +43,17 @@ export default function HomeScreen() {
   const api = useApiClient();
   const [summary, setSummary] = React.useState<DashboardSummaryDto | null>(null);
 
-  React.useEffect(() => {
+  const loadSummary = React.useCallback(async () => {
     if (demo) return;
-    api.dashboardSummary().then(setSummary).catch((e) =>
-      showToast({ message: (e as Error).message, tone: "warning" })
-    );
+    try {
+      setSummary(await api.dashboardSummary());
+    } catch (e) {
+      showToast({ message: (e as Error).message, tone: "warning" });
+    }
   }, [api, demo, showToast]);
+
+  React.useEffect(() => { void loadSummary(); }, [loadSummary]);
+  useForegroundRefresh(loadSummary, !demo);
 
   const active = subscriptions.filter((s) => s.status !== "cancelled");
   const localMonthly = active.reduce(
@@ -87,7 +93,7 @@ export default function HomeScreen() {
             accessibilityLabel="Notifications, 1 unread"
             icon={<Bell size={20} color={p.pillInk} strokeWidth={2.4} />}
             badge
-            onPress={() => showToast({ message: "Notifications are mocked in this demo", tone: "info" })}
+            onPress={() => router.push("/notification-preferences")}
           />
         </View>
       </View>

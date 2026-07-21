@@ -1,12 +1,13 @@
 import { useUser } from "@clerk/expo";
 import { CheckCircle2, CloudOff, Loader } from "lucide-react-native";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { fonts, spacing } from "../constants/theme";
 import { useGardenPalette } from "../constants/garden";
 import { apiBaseUrl, MeResponse, useApiClient } from "../lib/api";
 import { Card } from "./ui/Card";
 import { GardenKicker } from "./ui/GardenKit";
+import { useForegroundRefresh } from "../lib/useForegroundRefresh";
 
 type Status =
   | { kind: "demo" }
@@ -24,26 +25,31 @@ export function AccountCard() {
   const { isSignedIn, user } = useUser();
   const api = useApiClient();
   const [status, setStatus] = useState<Status>({ kind: "loading" });
+  const mounted = useRef(false);
+
+  const loadAccount = useCallback(async () => {
+    if (!isSignedIn) {
+      if (mounted.current) setStatus({ kind: "demo" });
+      return;
+    }
+    if (mounted.current) setStatus({ kind: "loading" });
+    try {
+      const me = await api.request<MeResponse>("/v1/me");
+      if (mounted.current) setStatus({ kind: "connected", userId: me.clerk_user_id });
+    } catch (e) {
+      if (mounted.current) setStatus({ kind: "error", code: (e as Error).message });
+    }
+  }, [isSignedIn, api]);
 
   useEffect(() => {
-    let active = true;
-    (async () => {
-      if (!isSignedIn) {
-        if (active) setStatus({ kind: "demo" });
-        return;
-      }
-      setStatus({ kind: "loading" });
-      try {
-        const me = await api.request<MeResponse>("/v1/me");
-        if (active) setStatus({ kind: "connected", userId: me.clerk_user_id });
-      } catch (e) {
-        if (active) setStatus({ kind: "error", code: (e as Error).message });
-      }
-    })();
+    mounted.current = true;
+    void loadAccount();
     return () => {
-      active = false;
+      mounted.current = false;
     };
-  }, [isSignedIn, api]);
+  }, [loadAccount]);
+
+  useForegroundRefresh(loadAccount, Boolean(isSignedIn));
 
   const email = user?.primaryEmailAddress?.emailAddress;
 

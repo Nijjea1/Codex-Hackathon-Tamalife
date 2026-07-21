@@ -22,9 +22,11 @@ import { Card } from "../../components/ui/Card";
 import { Screen } from "../../components/ui/Screen";
 import { SectionHeader } from "../../components/ui/SectionHeader";
 import { GardenKicker } from "../../components/ui/GardenKit";
+import { useApiClient } from "../../lib/api";
+import { unregisterCurrentPushToken } from "../../lib/pushNotifications";
 import { useAuthStore } from "../../store/useAuthStore";
-import { useUIStore } from "../../store/useUIStore";
 import { useDemoModeStore } from "../../store/useDemoModeStore";
+import { useUIStore } from "../../store/useUIStore";
 
 const lockedMascots: { name: string; id: string }[] = [
   { name: "???", id: "rolo" },
@@ -36,6 +38,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const p = useGardenPalette();
   const { signOut: clerkSignOut } = useClerk();
+  const api = useApiClient();
   const userName = useAuthStore((s) => s.userName);
   const selectedStarter = useAuthStore((s) => s.selectedStarter);
   const resetLocalState = useAuthStore((s) => s.resetLocalState);
@@ -50,10 +53,11 @@ export default function ProfileScreen() {
       if (demoMode) {
         leaveDemo();
       } else {
+        await unregisterCurrentPushToken(api.unregisterPushToken).catch(() => {});
         await clerkSignOut();
       }
     } catch {
-      // ignore — demo sessions have no Clerk session to end
+      // Ignore sign-out errors; local state still needs to be cleared.
     }
     resetLocalState();
     router.replace("/");
