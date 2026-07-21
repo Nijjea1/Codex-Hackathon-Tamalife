@@ -141,3 +141,61 @@ async def test_missing_plan_requires_repeated_observations(tmp_path: Path) -> No
             await publish_source_fetch(session, settings, fetch.id)
             assert plan.active is (index == 0)
     await engine.dispose()
+
+
+async def test_publication_reuses_a_provider_plan_seen_on_another_official_source(
+    tmp_path: Path,
+) -> None:
+    settings = Settings(
+        environment="test",
+        clerk_auth_enabled=False,
+        database_url=f"sqlite+aiosqlite:///{(tmp_path / 'provider-wide-plan.db').as_posix()}",
+    )
+    engine = create_engine(settings)
+    await create_schema(engine)
+    factory = create_session_factory(engine)
+    async with factory() as session:
+        provider = Provider(name="Example", slug="example")
+        session.add(provider)
+        await session.flush()
+        first_source = PricingSource(
+            provider_id=provider.id,
+            canonical_url="https://example.com/pricing",
+            normalized_url_hash="e" * 64,
+            source_type=SourceType.pricing,
+            country="CA",
+            currency="CAD",
+        )
+        second_source = PricingSource(
+            provider_id=provider.id,
+            canonical_url="https://example.com/plans",
+            normalized_url_hash="f" * 64,
+            source_type=SourceType.pricing,
+            country="CA",
+            currency="CAD",
+        )
+        session.add_all([first_source, second_source])
+        await session.flush()
+        catalog = extract_pricing_catalog(
+            b'<script type="application/ld+json">'
+            b'{"@type":"Offer","name":"Premium","price":"10.00",'
+            b'"priceCurrency":"CAD","priceSpecification":"per month"}'
+            b"</script>",
+            default_currency="CAD",
+        )
+        for index, source in enumerate((first_source, second_source)):
+            fetch = SourceFetch(
+                source_id=source.id,
+                request_id=f"provider-wide-{index}",
+                status=SourceFetchStatus.extracted,
+                content_hash=f"provider-wide-{index}",
+                extracted_data=catalog.model_dump(mode="json"),
+            )
+            session.add(fetch)
+            await session.flush()
+            await publish_source_fetch(session, settings, fetch.id)
+
+        plans = list((await session.scalars(select(ProviderPlan))).all())
+        assert len(plans) == 1
+        assert plans[0].source_id == second_source.id
+    await engine.dispose()

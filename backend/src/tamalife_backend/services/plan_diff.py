@@ -90,7 +90,11 @@ async def publish_source_fetch(
     existing = list(
         (
             await session.scalars(
-                select(ProviderPlan).where(ProviderPlan.source_id == pricing_source.id)
+                # Plan identity is provider-wide (see the database unique
+                # constraint), not source-wide. Multiple official pages can
+                # describe the same plan, so look up every plan for this
+                # provider before deciding to insert.
+                select(ProviderPlan).where(ProviderPlan.provider_id == pricing_source.provider_id)
             )
         ).all()
     )
@@ -133,6 +137,7 @@ async def publish_source_fetch(
                 change_type = PriceChangeType.unchanged
             plan.name = extracted.name
             plan.normalized_name = " ".join(extracted.name.lower().split())
+            plan.source_id = pricing_source.id
             plan.current_price = extracted.price
             plan.monthly_equivalent = _monthly(extracted.price, extracted.billing_cycle)
             plan.confidence = extracted.confidence
