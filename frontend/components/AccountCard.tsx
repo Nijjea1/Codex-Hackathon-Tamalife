@@ -47,17 +47,18 @@ export function AccountCard() {
       ) : (
         <Text style={[styles.name, { color: p.ink }]}>Demo mode</Text>
       )}
-      <View style={[styles.statusRow, { backgroundColor: p.warningBg }]}>
-        {status === "loading" && <Loader size={16} color={p.muted} />}
-        {status === "connected" && <CheckCircle2 size={16} color={p.success} />}
-        {(status === "demo" || status === "error") && <CloudOff size={16} color={status === "error" ? p.warning : p.muted} />}
-        <Text style={[styles.statusText, { color: status === "connected" ? p.success : p.body }]}>
-          {status === "loading" && "Connecting your account…"}
-          {status === "connected" && "Account connected"}
-          {status === "demo" && "Exploring with demo data"}
-          {status === "error" && "Account connection unavailable"}
-        </Text>
-      </View>
+      {status !== "error" && (
+        <View style={[styles.statusRow, { backgroundColor: p.warningBg }]}>
+          {status === "loading" && <Loader size={16} color={p.muted} />}
+          {status === "connected" && <CheckCircle2 size={16} color={p.success} />}
+          {status === "demo" && <CloudOff size={16} color={p.muted} />}
+          <Text style={[styles.statusText, { color: status === "connected" ? p.success : p.body }]}>
+            {status === "loading" && "Connecting your account…"}
+            {status === "connected" && "Account connected"}
+            {status === "demo" && "Exploring with demo data"}
+          </Text>
+        </View>
+      )}
     </Card>
   );
 }
